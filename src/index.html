@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Monaco Editor Demo</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+	<div id="header">
+		<h1>Monaco Editor 示例</h1>
+		<div class="controls">
+			<div class="control-group">
+				<label for="language-select">选择语言：</label>
+				<select id="language-select">
+					<option value="python">Python</option>
+					<option value="cpp">C++</option>
+					<option value="go">Go</option>
+				</select>
+			</div>
+			<div class="control-group">
+				<label for="theme-select">主题：</label>
+				<select id="theme-select">
+					<option value="vs-dark">深色</option>
+					<option value="vs">浅色</option>
+				</select>
+			</div>
+		</div>
+	</div>
+	<div id="container"></div>
+
+	<script src="../node_modules/monaco-editor/min/vs/loader.js"></script>
+	<script>
+		require.config({ paths: { vs: '../node_modules/monaco-editor/min/vs' } });
+
+		require(['vs/editor/editor.main'], function () {
+			// 示例代码
+			const sampleCode = {
+				python: `# Python 示例代码
+def fibonacci(n):
+    """计算斐波那契数列"""
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+# 打印前 10 个斐波那契数
+for i in range(10):
+    print(f"fib({i}) = {fibonacci(i)}")
+`,
+				cpp: `// C++ 示例代码
+#include <iostream>
+#include <vector>
+
+int fibonacci(int n) {
+    if (n <= 1) return n;
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+int main() {
+    std::cout << "Fibonacci sequence:" << std::endl;
+    for (int i = 0; i < 10; ++i) {
+        std::cout << "fib(" << i << ") = " << fibonacci(i) << std::endl;
+    }
+    return 0;
+}
+`,
+				go: `// Go 示例代码
+package main
+
+import "fmt"
+
+func fibonacci(n int) int {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n-1) + fibonacci(n-2)
+}
+
+func main() {
+    fmt.Println("Fibonacci sequence:")
+    for i := 0; i < 10; i++ {
+        fmt.Printf("fib(%d) = %d\\n", i, fibonacci(i))
+    }
+}
+`
+			};
+
+			// 创建编辑器
+			const editor = monaco.editor.create(document.getElementById('container'), {
+				value: sampleCode.python,
+				language: 'python',
+				theme: 'vs-dark',
+				automaticLayout: true,
+				minimap: { enabled: true },
+				fontSize: 14,
+				lineNumbers: 'on',
+				scrollBeyondLastLine: false,
+			});
+
+			// 语言切换
+			document.getElementById('language-select').addEventListener('change', function (e) {
+				const language = e.target.value;
+				monaco.editor.setModelLanguage(editor.getModel(), language);
+				editor.setValue(sampleCode[language]);
+			});
+
+			// 主题切换
+			document.getElementById('theme-select').addEventListener('change', function (e) {
+				const theme = e.target.value;
+				monaco.editor.setTheme(theme);
+				// 同步更新页面主题
+				document.body.setAttribute('data-theme', theme === 'vs-dark' ? 'dark' : 'light');
+			});
+		});
+	</script>
+</body>
+
+</html>
