@@ -5,10 +5,12 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Monaco Editor Demo</title>
-	<link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="styles/main.css">
+	<link rel="stylesheet" href="styles/theme-dark.css">
+	<link rel="stylesheet" href="styles/theme-light.css">
 </head>
 
-<body>
+<body data-theme="light">
 	<div id="header">
 		<h1>Monaco Editor 示例</h1>
 		<div class="controls">
@@ -23,8 +25,8 @@
 			<div class="control-group">
 				<label for="theme-select">主题：</label>
 				<select id="theme-select">
-					<option value="vs-dark">深色</option>
 					<option value="vs">浅色</option>
+					<option value="vs-dark">深色</option>
 				</select>
 			</div>
 		</div>
@@ -32,66 +34,23 @@
 	<div id="container"></div>
 
 	<script src="../node_modules/monaco-editor/min/vs/loader.js"></script>
+	<script src="sample-code/sample-code-python.js"></script>
+	<script src="sample-code/sample-code-cpp.js"></script>
+	<script src="sample-code/sample-code-go.js"></script>
+	<script src="sample-code/sample-code-index.js"></script>
+	<script src="completions.js"></script>
 	<script>
 		require.config({ paths: { vs: '../node_modules/monaco-editor/min/vs' } });
 
 		require(['vs/editor/editor.main'], function () {
-			// 示例代码
-			const sampleCode = {
-				python: `# Python 示例代码
-def fibonacci(n):
-    """计算斐波那契数列"""
-    if n <= 1:
-        return n
-    return fibonacci(n - 1) + fibonacci(n - 2)
-
-# 打印前 10 个斐波那契数
-for i in range(10):
-    print(f"fib({i}) = {fibonacci(i)}")
-`,
-				cpp: `// C++ 示例代码
-#include <iostream>
-#include <vector>
-
-int fibonacci(int n) {
-    if (n <= 1) return n;
-    return fibonacci(n - 1) + fibonacci(n - 2);
-}
-
-int main() {
-    std::cout << "Fibonacci sequence:" << std::endl;
-    for (int i = 0; i < 10; ++i) {
-        std::cout << "fib(" << i << ") = " << fibonacci(i) << std::endl;
-    }
-    return 0;
-}
-`,
-				go: `// Go 示例代码
-package main
-
-import "fmt"
-
-func fibonacci(n int) int {
-    if n <= 1 {
-        return n
-    }
-    return fibonacci(n-1) + fibonacci(n-2)
-}
-
-func main() {
-    fmt.Println("Fibonacci sequence:")
-    for i := 0; i < 10; i++ {
-        fmt.Printf("fib(%d) = %d\\n", i, fibonacci(i))
-    }
-}
-`
-			};
+			// 注册智能代码补全
+			registerCompletions();
 
 			// 创建编辑器
 			const editor = monaco.editor.create(document.getElementById('container'), {
 				value: sampleCode.python,
 				language: 'python',
-				theme: 'vs-dark',
+				theme: 'vs',
 				automaticLayout: true,
 				minimap: { enabled: true },
 				fontSize: 14,

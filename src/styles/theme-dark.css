@@ -1,0 +1,29 @@
+/**
+ * 深色主题样式
+ */
+
+body[data-theme="dark"] {
+	background-color: #1e1e1e;
+	color: #fff;
+}
+
+body[data-theme="dark"] #header {
+	background-color: #252526;
+	border-bottom: 1px solid #3c3c3c;
+}
+
+body[data-theme="dark"] .controls label {
+	color: #ccc;
+}
+
+body[data-theme="dark"] #language-select,
+body[data-theme="dark"] #theme-select {
+	background-color: #3c3c3c;
+	border-color: #3c3c3c;
+	color: #fff;
+}
+
+body[data-theme="dark"] #language-select:hover,
+body[data-theme="dark"] #theme-select:hover {
+	background-color: #4c4c4c;
+}

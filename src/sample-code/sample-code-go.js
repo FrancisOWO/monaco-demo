@@ -1,0 +1,22 @@
+/**
+ * Go 示例代码
+ */
+const sampleCodeGo = `// Go 示例代码
+package main
+
+import "fmt"
+
+func fibonacci(n int) int {
+    if n <= 1 {
+        return n
+    }
+    return fibonacci(n-1) + fibonacci(n-2)
+}
+
+func main() {
+    fmt.Println("Fibonacci sequence:")
+    for i := 0; i < 10; i++ {
+        fmt.Printf("fib(%d) = %d\\n", i, fibonacci(i))
+    }
+}
+`;
