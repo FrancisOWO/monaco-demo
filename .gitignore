@@ -1,0 +1,7 @@
+.claude/
+.qoder/
+.trae/
+
+node_modules/
+pnpm-lock.yaml
+
