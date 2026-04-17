@@ -6,7 +6,7 @@
 import express from 'express';
 import expressWs from 'express-ws';
 import { WebSocket } from 'ws';
-import { launchPyright, stopPyright } from './pyright-launcher';
+import { launchPyright } from './pyright-launcher';
 import { config } from './config';
 
 const app: express.Express = express();
@@ -31,6 +31,7 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
 
   // 启动 Pyright 进程
   const pyright = launchPyright();
+  let closed = false;
 
   if (!pyright.stdin || !pyright.stdout) {
     console.error('[WebSocket] Pyright stdin/stdout not available');
@@ -44,6 +45,7 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
 
   // 处理来自 Monaco 的消息，转发给 Pyright
   ws.on('message', (data: Buffer) => {
+    if (closed) return;
     const message = data.toString();
     console.log('[WebSocket -> Pyright]', message.substring(0, 200));
 
@@ -56,6 +58,7 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
 
   // 处理来自 Pyright 的消息，转发给 Monaco
   pyright.stdout.on('data', (data: Buffer) => {
+    if (closed) return;
     const chunk = data.toString();
     buffer += chunk;
 
@@ -86,7 +89,9 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
         // 构造完整的 LSP 响应
         const response = `Content-Length: ${content.length}\r\n\r\n${content}`;
         console.log('[Pyright -> WebSocket]', content.substring(0, 200));
-        ws.send(response);
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(response);
+        }
       } else {
         break;
       }
@@ -96,13 +101,18 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
   // 处理 WebSocket 关闭
   ws.on('close', () => {
     console.log('[WebSocket] Client disconnected');
-    // 停止 Pyright 进程
+    closed = true;
+    pyright.stdout?.removeAllListeners();
+    pyright.stdin?.removeAllListeners();
+    pyright.stderr?.removeAllListeners();
     pyright.kill();
   });
 
   // 处理 WebSocket 错误
   ws.on('error', (error) => {
     console.error('[WebSocket] Error:', error);
+    closed = true;
+    pyright.kill();
   });
 });
 
@@ -117,7 +127,6 @@ export function startServer(): void {
 // 优雅关闭
 process.on('SIGINT', () => {
   console.log('\n[Server] Shutting down...');
-  stopPyright();
   process.exit(0);
 });
 

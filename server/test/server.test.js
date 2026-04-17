@@ -104,6 +104,7 @@ describe('Python LSP Server', () => {
 
     test('should handle textDocument/completion request', (done) => {
         const ws = new WebSocket(SERVER_URL);
+        let initialized = false;
 
         ws.on('open', () => {
             // 先初始化
@@ -134,8 +135,15 @@ describe('Python LSP Server', () => {
                 const content = str.substring(headerEnd + 4);
                 const response = JSON.parse(content);
 
+                // 跳过通知消息
+                if (response.id === undefined) {
+                    console.log('[Test Comp] Skipping notification:', response.method);
+                    return;
+                }
+
                 // 等待 initialize 响应，然后发送 initialized 通知和打开文档
-                if (response.id === 1 && response.result) {
+                if (response.id === 1 && response.result && !initialized) {
+                    initialized = true;
                     // 发送 initialized 通知（LSP 协议要求）
                     const initializedNotif = {
                         jsonrpc: '2.0',
