@@ -31,6 +31,10 @@
 			</div>
 			<div class="control-group">
 				<span id="lsp-status" class="lsp-status disconnected">LSP: 未连接</span>
+				<label class="toggle-switch">
+					<input type="checkbox" id="lsp-toggle" checked>
+					<span class="toggle-slider"></span>
+				</label>
 			</div>
 		</div>
 	</div>
@@ -69,16 +73,22 @@
 
 			// LSP 状态显示
 			const lspStatusEl = document.getElementById('lsp-status');
+			const lspToggleBtn = document.getElementById('lsp-toggle');
+			let lspEnabled = true;
+			let lspClient = null;
+			let lspRetryTimer = null;
 
 			function updateLSPStatus(status, message) {
 				lspStatusEl.className = 'lsp-status ' + status;
 				lspStatusEl.textContent = 'LSP: ' + message;
 			}
 
-			// 初始化 LSP 客户端
-			let lspClient = null;
-
 			async function initLSP() {
+				if (!lspEnabled) {
+					updateLSPStatus('disabled', 'LSP 已关闭');
+					return;
+				}
+
 				try {
 					updateLSPStatus('connecting', '连接中...');
 
@@ -103,9 +113,34 @@
 					updateLSPStatus('error', '连接失败');
 
 					// 5秒后重试
-					setTimeout(initLSP, 5000);
+					if (lspEnabled) {
+						lspRetryTimer = setTimeout(initLSP, 5000);
+					}
 				}
 			}
+
+			// LSP 切换按钮
+			lspToggleBtn.addEventListener('change', function() {
+				lspEnabled = lspToggleBtn.checked;
+
+				if (!lspEnabled) {
+					// 关闭 LSP
+					if (lspRetryTimer) {
+						clearTimeout(lspRetryTimer);
+						lspRetryTimer = null;
+					}
+					if (lspClient) {
+						lspClient.disconnect();
+					}
+					updateLSPStatus('disabled', 'LSP');
+					console.log('[Main] LSP disabled');
+				} else {
+					// 启用 LSP
+					lspClient = null;
+					initLSP();
+					console.log('[Main] LSP enabled');
+				}
+			});
 
 			// 启动 LSP
 			initLSP();
