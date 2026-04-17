@@ -6,22 +6,27 @@ import { spawn, ChildProcess } from 'child_process';
 import path from 'path';
 import { config } from './config';
 
-let pyrightProcess: ChildProcess | null = null;
+/**
+ * 获取项目根目录
+ * 编译后代码在 server/dist/ 目录下，需要向上两级找到项目根目录
+ */
+function getProjectRoot(): string {
+  // __dirname 指向 server/dist/
+  return path.resolve(__dirname, '..', '..');
+}
 
 /**
  * 启动 Pyright 语言服务器进程
+ * 每次调用都会创建新的进程实例
  */
 export function launchPyright(): ChildProcess {
-  if (pyrightProcess) {
-    return pyrightProcess;
-  }
-
-  const pyrightPath = path.resolve(__dirname, '..', config.pyright.executable);
+  const projectRoot = getProjectRoot();
+  const pyrightPath = path.resolve(projectRoot, 'node_modules', 'pyright', 'dist', 'pyright-langserver.js');
 
   console.log('[Pyright] Launching:', pyrightPath);
   console.log('[Pyright] Workspace:', config.pyright.workspaceRoot);
 
-  pyrightProcess = spawn('node', [pyrightPath, '--stdio'], {
+  const pyrightProcess = spawn('node', [pyrightPath, '--stdio'], {
     cwd: config.pyright.workspaceRoot,
     env: process.env,
   });
@@ -32,7 +37,6 @@ export function launchPyright(): ChildProcess {
 
   pyrightProcess.on('exit', (code, signal) => {
     console.log(`[Pyright] Process exited with code ${code}, signal ${signal}`);
-    pyrightProcess = null;
   });
 
   // 记录 Pyright 输出（调试用）
@@ -46,17 +50,9 @@ export function launchPyright(): ChildProcess {
 /**
  * 停止 Pyright 语言服务器进程
  */
-export function stopPyright(): void {
-  if (pyrightProcess) {
+export function stopPyright(process: ChildProcess): void {
+  if (process) {
     console.log('[Pyright] Stopping process...');
-    pyrightProcess.kill();
-    pyrightProcess = null;
+    process.kill();
   }
-}
-
-/**
- * 获取当前 Pyright 进程
- */
-export function getPyrightProcess(): ChildProcess | null {
-  return pyrightProcess;
 }

@@ -9,8 +9,8 @@ import { WebSocket } from 'ws';
 import { launchPyright, stopPyright } from './pyright-launcher';
 import { config } from './config';
 
-const app = express();
-const wsInstance = expressWs(app);
+const app: express.Express = express();
+expressWs(app);
 
 // CORS 支持
 app.use((req, res, next) => {
@@ -26,7 +26,7 @@ app.get('/health', (req, res) => {
 });
 
 // WebSocket 端点 - Pyright 语言服务器
-app.ws(config.pyrightPath, (ws: WebSocket, req) => {
+app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
   console.log('[WebSocket] Client connected');
 
   // 启动 Pyright 进程
@@ -96,6 +96,8 @@ app.ws(config.pyrightPath, (ws: WebSocket, req) => {
   // 处理 WebSocket 关闭
   ws.on('close', () => {
     console.log('[WebSocket] Client disconnected');
+    // 停止 Pyright 进程
+    pyright.kill();
   });
 
   // 处理 WebSocket 错误
