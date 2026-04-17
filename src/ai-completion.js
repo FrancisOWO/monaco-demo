@@ -257,15 +257,15 @@ async function showMultiLineCompletion(editor) {
 function registerAICompletionProvider(monaco, editor) {
   console.log('[AI] Registering AI completion provider');
 
-  // 注册快捷键 Ctrl+Space 触发单行补全
-  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => {
-    console.log('[AI] Hotkey Ctrl+Space: Single-line completion');
+  // 注册快捷键 Alt+Enter 触发单行补全（避免与 Monaco 内置 Ctrl+Space 冲突）
+  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
+    console.log('[AI] Hotkey Alt+Enter: Single-line completion');
     showSingleLineCompletion(editor);
   });
 
-  // 注册 Alt+Enter 触发多行补全
-  editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
-    console.log('[AI] Hotkey Alt+Enter: Multi-line completion');
+  // 注册 Ctrl+Alt+Enter 触发多行补全
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
+    console.log('[AI] Hotkey Ctrl+Alt+Enter: Multi-line completion');
     showMultiLineCompletion(editor);
   });
 
@@ -347,7 +347,7 @@ function registerAICompletionProvider(monaco, editor) {
 
   console.log('[AI] AI completion provider registered');
   console.log('[AI] Hotkeys:');
-  console.log('[AI]   Ctrl+Space: Single-line completion');
+  console.log('[AI]   Ctrl+Alt+L: Single-line completion');
   console.log('[AI]   Alt+Enter:  Multi-line completion');
   console.log('[AI]   Tab:        Accept inline completion');
   console.log('[AI]   Escape:     Reject inline completion');

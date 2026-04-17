@@ -337,34 +337,50 @@ function registerLSPCompletionProvider(monaco, lspClient, editor) {
         triggerCharacters: ['.', ' ', '('],
 
         async provideCompletionItems(model, position) {
-            if (!lspClient.is_connected()) {
-                return { suggestions: [] };
+            try {
+                if (!lspClient.is_connected()) {
+                    console.log('[LSP Completions] not connected, returning null');
+                    return null;
+                }
+
+                const uri = model.uri.toString();
+                const line = position.lineNumber - 1;
+                const character = position.column - 1;
+
+                console.log('[LSP Completions] requesting completions from server, uri:', uri);
+
+                const result = await lspClient.getCompletions(uri, line, character);
+                console.log('[LSP Completions] result:', result ? result.items?.length : 'null items', 'items');
+
+                if (!result || !result.items) {
+                    console.log('[LSP Completions] no items, returning null for fallback');
+                    return null;
+                }
+
+                if (result.items.length === 0) {
+                    console.log('[LSP Completions] empty items array, returning null for fallback');
+                    return null;
+                }
+
+                const suggestions = result.items.map((item, index) => ({
+                    label: item.label,
+                    kind: mapCompletionKind(monaco, item.kind),
+                    insertText: item.insertText || item.label,
+                    insertTextRules: item.insertTextFormat === 2
+                        ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                        : undefined,
+                    detail: item.detail,
+                    documentation: item.documentation,
+                    sortText: item.sortText || String(index).padStart(5, '0'),
+                    range: undefined
+                }));
+
+                console.log('[LSP Completions] returning', suggestions.length, 'suggestions');
+                return { suggestions };
+            } catch (err) {
+                console.error('[LSP Completions] error:', err);
+                return null;
             }
-
-            const uri = model.uri.toString();
-            const line = position.lineNumber - 1;
-            const character = position.column - 1;
-
-            const result = await lspClient.getCompletions(uri, line, character);
-
-            if (!result || !result.items) {
-                return { suggestions: [] };
-            }
-
-            const suggestions = result.items.map((item, index) => ({
-                label: item.label,
-                kind: mapCompletionKind(monaco, item.kind),
-                insertText: item.insertText || item.label,
-                insertTextRules: item.insertTextFormat === 2
-                    ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                    : undefined,
-                detail: item.detail,
-                documentation: item.documentation,
-                sortText: item.sortText || String(index).padStart(5, '0'),
-                range: undefined // Monaco 会自动处理
-            }));
-
-            return { suggestions };
         }
     });
 

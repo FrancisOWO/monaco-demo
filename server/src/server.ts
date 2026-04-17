@@ -21,6 +21,9 @@ app.use((req, res, next) => {
   next();
 });
 
+// JSON body 解析
+app.use(express.json());
+
 // 健康检查
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Python LSP Server is running' });
