@@ -15,7 +15,7 @@ const LSP_SERVER_URL = 'ws://localhost:3000/pyright';
 /**
  * 创建 LSP 客户端
  */
-export function createPythonLSPClient(monaco, editor) {
+function createPythonLSPClient(monaco, editor) {
     return {
         /**
          * 连接到语言服务器
@@ -332,7 +332,7 @@ export function createPythonLSPClient(monaco, editor) {
 /**
  * 注册 LSP 补全提供者
  */
-export function registerLSPCompletionProvider(monaco, lspClient, editor) {
+function registerLSPCompletionProvider(monaco, lspClient, editor) {
     monaco.languages.registerCompletionItemProvider('python', {
         triggerCharacters: ['.', ' ', '('],
 
@@ -402,7 +402,7 @@ function mapCompletionKind(monaco, kind) {
 /**
  * 注册 LSP 悬停提供者
  */
-export function registerLSPHoverProvider(monaco, lspClient) {
+function registerLSPHoverProvider(monaco, lspClient) {
     monaco.languages.registerHoverProvider('python', {
         async provideHover(model, position) {
             if (!lspClient.is_connected()) {

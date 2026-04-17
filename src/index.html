@@ -52,9 +52,6 @@
 			// 注册基础代码补全（作为 LSP 的后备）
 			registerCompletions();
 
-			// 注册 AI 补全提供者
-			registerAICompletionProvider(monaco, editor);
-
 			// 创建编辑器
 			const editor = monaco.editor.create(document.getElementById('container'), {
 				value: sampleCode.python,
@@ -66,6 +63,9 @@
 				lineNumbers: 'on',
 				scrollBeyondLastLine: false,
 			});
+
+			// 注册 AI 补全提供者（在 editor 创建之后）
+			registerAICompletionProvider(monaco, editor);
 
 			// LSP 状态显示
 			const lspStatusEl = document.getElementById('lsp-status');

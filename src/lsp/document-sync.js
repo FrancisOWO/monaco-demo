@@ -8,7 +8,7 @@ let currentVersion = 1;
 /**
  * 设置文档同步
  */
-export function setupDocumentSync(editor, lspClient, uri = 'file:///workspace/main.py') {
+function setupDocumentSync(editor, lspClient, uri = 'file:///workspace/main.py') {
     const model = editor.getModel();
 
     if (!model) {
