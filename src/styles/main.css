@@ -64,3 +64,31 @@ body {
 	width: 100%;
 	height: calc(100vh - 80px);
 }
+
+/* LSP 状态样式 */
+.lsp-status {
+	font-size: 12px;
+	padding: 4px 8px;
+	border-radius: 4px;
+	transition: all 0.3s;
+}
+
+.lsp-status.connected {
+	background-color: #28a745;
+	color: #fff;
+}
+
+.lsp-status.connecting {
+	background-color: #ffc107;
+	color: #333;
+}
+
+.lsp-status.disconnected {
+	background-color: #6c757d;
+	color: #fff;
+}
+
+.lsp-status.error {
+	background-color: #dc3545;
+	color: #fff;
+}
