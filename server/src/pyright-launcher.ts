@@ -39,6 +39,10 @@ export function launchPyright(): ChildProcess {
     console.log(`[Pyright] Process exited with code ${code}, signal ${signal}`);
   });
 
+  pyrightProcess.on('close', (code, signal) => {
+    console.log(`[Pyright] Process close with code ${code}, signal ${signal}`);
+  });
+
   // 记录 Pyright 输出（调试用）
   pyrightProcess.stderr?.on('data', (data) => {
     console.error('[Pyright stderr]', data.toString());

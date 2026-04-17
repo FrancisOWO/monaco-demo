@@ -107,6 +107,7 @@ describe('Python LSP Server', () => {
         let initialized = false;
 
         ws.on('open', () => {
+            console.log('[Test Comp] WebSocket opened');
             // 先初始化
             const initRequest = {
                 jsonrpc: '2.0',
@@ -126,6 +127,7 @@ describe('Python LSP Server', () => {
 
             let initContent = JSON.stringify(initRequest);
             ws.send(`Content-Length: ${initContent.length}\r\n\r\n${initContent}`);
+            console.log('[Test Comp] Sent initialize request');
         });
 
         ws.on('message', (data) => {
@@ -204,6 +206,10 @@ describe('Python LSP Server', () => {
 
         ws.on('error', (error) => {
             done(error);
+        });
+
+        ws.on('close', (code, reason) => {
+            console.log('[Test Comp] WebSocket closed. Code:', code, 'Reason:', reason ? reason.toString() : 'none');
         });
     }, 30000); // 增加超时时间到 30 秒
 });

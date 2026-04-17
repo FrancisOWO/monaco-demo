@@ -49,10 +49,11 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
     const message = data.toString();
     console.log('[WebSocket -> Pyright]', message.substring(0, 200));
 
-    // 转发给 Pyright
-    pyright.stdin!.write(message);
-    if (!message.endsWith('\n')) {
-      pyright.stdin!.write('\n');
+    try {
+      // 转发给 Pyright
+      pyright.stdin!.write(message);
+    } catch (e) {
+      console.error('[WebSocket] Error writing to Pyright stdin:', e);
     }
   });
 
@@ -61,6 +62,7 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
     if (closed) return;
     const chunk = data.toString();
     buffer += chunk;
+    console.log('[Pyright stdout] Received chunk, buffer length:', buffer.length);
 
     // 解析 LSP 消息格式 (Content-Length 头)
     while (true) {
@@ -74,8 +76,10 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
         if (match) {
           contentLength = parseInt(match[1], 10);
           buffer = buffer.substring(headerEnd + 4);
+          console.log('[Pyright stdout] Parsed header, contentLength:', contentLength, 'remaining buffer:', buffer.length);
         } else {
           // 没有找到 Content-Length，跳过这个头
+          console.log('[Pyright stdout] No Content-Length found, skipping');
           buffer = buffer.substring(headerEnd + 4);
           continue;
         }
@@ -93,6 +97,7 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
           ws.send(response);
         }
       } else {
+        console.log('[Pyright stdout] Buffer has', buffer.length, 'bytes, need', contentLength, '- waiting for more');
         break;
       }
     }
