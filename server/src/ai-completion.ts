@@ -208,9 +208,9 @@ router.get('/inline-completion', (req, res) => {
     completion = generateMultilineCompletion(context, language);
   }
 
+  // 如果没有匹配到任何模式，生成一个默认的多行补全
   if (!completion) {
-    res.json({ error: 'No multiline completion available for this context' });
-    return;
+    completion = generateDefaultMultilineCompletion(context, language);
   }
 
   // 流式发送（每次发送一小段，模拟打字效果）
@@ -468,6 +468,21 @@ function generateTestMultilineCompletion(context: string, language: string): str
   }
 
   return '';
+}
+
+// 默认多行补全（当没有匹配到特定模式时使用）
+function generateDefaultMultilineCompletion(_context: string, language: string): string {
+  if (language === 'python') {
+    return `# 1. 实现第一步\n# 2. 实现第二步\n# 3. 实现第三步`;
+  } else if (language === 'javascript' || language === 'typescript') {
+    return `// 1. 实现第一步\n// 2. 实现第二步\n// 3. 实现第三步`;
+  } else if (language === 'cpp' || language === 'c') {
+    return `// 1. 实现第一步\n// 2. 实现第二步\n// 3. 实现第三步`;
+  } else if (language === 'go') {
+    return `// 1. 实现第一步\n// 2. 实现第二步\n// 3. 实现第三步`;
+  }
+
+  return `1. TODO\n2. TODO\n3. TODO`;
 }
 
 export default router;

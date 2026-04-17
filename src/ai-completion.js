@@ -115,7 +115,7 @@ async function showSingleLineCompletion(editor) {
 }
 
 /**
- * 显示多行补全（Ghost Text 内联显示）
+ * 显示多行补全（流式接收完成后直接插入编辑器）
  */
 async function showMultiLineCompletion(editor) {
   if (aiCompletionState.loading || !aiCompletionState.enabled) {
@@ -128,11 +128,9 @@ async function showMultiLineCompletion(editor) {
     aiCompletionState.loading = true;
     console.log('[AI] Requesting multi-line completion...');
 
-    // 显示加载状态
     const position = editor.getPosition();
-    const startPosition = position;
+    const insertPosition = position;
 
-    // 使用 EventSource 进行流式请求
     const response = await fetch(
       `${AI_SERVER_URL}/inline-completion?context=${encodeURIComponent(context)}&language=${encodeURIComponent(language)}`
     );
@@ -144,74 +142,17 @@ async function showMultiLineCompletion(editor) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
-    let currentText = '';
-
-    // 创建内联装饰显示 Ghost Text
-    const updateGhostText = (text) => {
-      if (!text) return;
-
-      // 移除之前的装饰
-      if (aiCompletionState.inlineDecoration) {
-        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
-      }
-
-      // 计算结束位置
-      const endLine = startPosition.lineNumber + text.split('\n').length - 1;
-      const endColumn = text.split('\n').pop().length + 1;
-
-      // 创建新的装饰（Ghost Text - 灰色半透明文字）
-      aiCompletionState.inlineDecoration = editor.deltaDecorations([], [{
-        range: new monaco.Range(
-          startPosition.lineNumber,
-          startPosition.column,
-          endLine,
-          endColumn
-        ),
-        options: {
-          inlineClassName: 'ai-ghost-text',
-          inlineValue: text,
-        }
-      }]);
-    };
+    let cancelled = false;
 
     // 监听用户输入，取消补全
     const disposable = editor.onDidChangeModelContent(() => {
-      // 如果用户开始输入，取消内联补全
-      if (aiCompletionState.inlineDecoration) {
-        disposable.dispose();
-        clearTimeout(acceptTimer);
-        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
-        aiCompletionState.inlineDecoration = null;
-      }
+      cancelled = true;
+      disposable.dispose();
     });
-
-    // 定时接受补全（3秒后自动接受）
-    let acceptTimer = setTimeout(() => {
-      if (aiCompletionState.inlineDecoration && fullText) {
-        // 接受补全
-        const endLine = startPosition.lineNumber + fullText.split('\n').length - 1;
-        const endColumn = fullText.split('\n').pop().length + 1;
-
-        editor.executeEdits('ai-completion', [{
-          range: new monaco.Range(
-            startPosition.lineNumber,
-            startPosition.column,
-            endLine,
-            endColumn
-          ),
-          text: fullText,
-          forceMoveMarkers: true,
-        }]);
-
-        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
-        aiCompletionState.inlineDecoration = null;
-        console.log('[AI] Auto-accepted multiline completion');
-      }
-    }, 3000);
 
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done || cancelled) break;
 
       const chunk = decoder.decode(value);
       const lines = chunk.split('\n');
@@ -221,13 +162,27 @@ async function showMultiLineCompletion(editor) {
           try {
             const data = JSON.parse(line.substring(6));
             if (data.text) {
-              currentText += data.text;
               fullText += data.text;
-              updateGhostText(currentText);
             }
             if (data.done) {
+              disposable.dispose();
+
+              if (!cancelled && fullText) {
+                // 在光标位置插入补全文本
+                editor.executeEdits('ai-completion', [{
+                  range: new monaco.Range(
+                    insertPosition.lineNumber,
+                    insertPosition.column,
+                    insertPosition.lineNumber,
+                    insertPosition.column
+                  ),
+                  text: fullText,
+                  forceMoveMarkers: true,
+                }]);
+                console.log('[AI] Multi-line completion inserted:', fullText);
+              }
+
               aiCompletionState.loading = false;
-              console.log('[AI] Multi-line completion done:', fullText);
               return;
             }
           } catch (e) {
@@ -237,17 +192,12 @@ async function showMultiLineCompletion(editor) {
       }
     }
 
+    disposable.dispose();
     aiCompletionState.loading = false;
 
   } catch (error) {
     console.error('[AI] Multi-line completion failed:', error);
     aiCompletionState.loading = false;
-
-    // 移除装饰
-    if (aiCompletionState.inlineDecoration) {
-      editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
-      aiCompletionState.inlineDecoration = null;
-    }
   }
 }
 
@@ -319,16 +269,12 @@ function registerAICompletionProvider(monaco, editor) {
         const lastChar = lastLine.slice(-1);
         const trimmedLine = lastLine.trim();
 
-        // 触发模式列表
+        // 触发模式列表（更严格的触发条件，避免在普通空行时误触发）
         const shouldTrigger =
-          // 特定字符后（方法调用、属性访问）
-          ['.', ':', '('].includes(lastChar) ||
-          // 定义语句后（自动补全函数体）
-          trimmedLine.match(/^(def|class|function|async\s+function|func|if|for|while|try|with)\s/) ||
-          // import 语句
-          trimmedLine.match(/^import\s/) ||
-          // 空行或只有缩进（智能提示）
-          (trimmedLine === '' && lastLine.startsWith('    '));
+          // 方法调用后补全属性/方法（如 os. str. 等）
+          lastChar === '.' ||
+          // 定义语句后补全函数体（def/class/if/for/while/try/with 后面有冒号）
+          trimmedLine.match(/^(def|class|if|for|while|try|with)\s/);
 
         if (shouldTrigger) {
           // 防止连续触发（至少间隔 2 秒）
@@ -338,8 +284,10 @@ function registerAICompletionProvider(monaco, editor) {
           }
           lastTriggerTime = now;
 
-          console.log('[AI] Auto-triggered, last line:', trimmedLine.substring(0, 30));
+          console.log('[AI] Auto-triggered, last line:', JSON.stringify(trimmedLine.substring(0, 50)));
           showSingleLineCompletion(editor);
+        } else {
+          console.log('[AI] Auto-trigger skipped, last line:', JSON.stringify(trimmedLine.substring(0, 30)), 'lastChar:', JSON.stringify(lastChar));
         }
       }, 500);
     });
