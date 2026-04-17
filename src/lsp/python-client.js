@@ -67,7 +67,7 @@ function createPythonLSPClient(monaco, editor) {
         /**
          * 发送 LSP 请求
          */
-        sendRequest(method, params) {
+        sendRequest(method, params, timeoutMs = 200) {
             return new Promise((resolve, reject) => {
                 if (!webSocket || !isConnected) {
                     reject(new Error('Not connected to LSP server'));
@@ -82,7 +82,15 @@ function createPythonLSPClient(monaco, editor) {
                     params
                 };
 
-                messageCallbacks.set(id, { resolve, reject });
+                const timer = setTimeout(() => {
+                    messageCallbacks.delete(id);
+                    reject(new Error(`LSP request timed out: ${method}`));
+                }, timeoutMs);
+
+                messageCallbacks.set(id, {
+                    resolve: (result) => { clearTimeout(timer); resolve(result); },
+                    reject: (err) => { clearTimeout(timer); reject(err); }
+                });
 
                 const content = JSON.stringify(message);
                 const lspMessage = `Content-Length: ${content.length}\r\n\r\n${content}`;
@@ -331,52 +339,49 @@ function createPythonLSPClient(monaco, editor) {
 
 /**
  * 注册 LSP 补全提供者
+ * 合并 LSP 补全和基础补全，确保两者始终可见
  */
 function registerLSPCompletionProvider(monaco, lspClient, editor) {
     monaco.languages.registerCompletionItemProvider('python', {
-        triggerCharacters: ['.', ' ', '('],
+        triggerCharacters: ['.', '('],
 
         async provideCompletionItems(model, position) {
             try {
+                // 先获取基础补全（始终可用）
+                const baseResult = getBasePythonCompletions(monaco, model, position);
+                const allSuggestions = baseResult ? [...baseResult.suggestions] : [];
+
                 if (!lspClient.is_connected()) {
-                    console.log('[LSP Completions] not connected, returning null');
-                    return null;
+                    return allSuggestions.length > 0 ? { suggestions: allSuggestions } : null;
                 }
 
                 const uri = model.uri.toString();
                 const line = position.lineNumber - 1;
                 const character = position.column - 1;
 
-                console.log('[LSP Completions] requesting completions from server, uri:', uri);
+                try {
+                    const result = await lspClient.getCompletions(uri, line, character);
 
-                const result = await lspClient.getCompletions(uri, line, character);
-                console.log('[LSP Completions] result:', result ? result.items?.length : 'null items', 'items');
-
-                if (!result || !result.items) {
-                    console.log('[LSP Completions] no items, returning null for fallback');
-                    return null;
+                    if (result && result.items && result.items.length > 0) {
+                        const lspSuggestions = result.items.map((item, index) => ({
+                            label: item.label,
+                            kind: mapCompletionKind(monaco, item.kind),
+                            insertText: item.insertText || item.label,
+                            insertTextRules: item.insertTextFormat === 2
+                                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                                : undefined,
+                            detail: item.detail,
+                            documentation: item.documentation,
+                            sortText: String(index).padStart(5, '0'),
+                            range: undefined
+                        }));
+                        allSuggestions.push(...lspSuggestions);
+                    }
+                } catch (lspErr) {
+                    console.warn('[LSP Completions] LSP request failed, using base only:', lspErr);
                 }
 
-                if (result.items.length === 0) {
-                    console.log('[LSP Completions] empty items array, returning null for fallback');
-                    return null;
-                }
-
-                const suggestions = result.items.map((item, index) => ({
-                    label: item.label,
-                    kind: mapCompletionKind(monaco, item.kind),
-                    insertText: item.insertText || item.label,
-                    insertTextRules: item.insertTextFormat === 2
-                        ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
-                        : undefined,
-                    detail: item.detail,
-                    documentation: item.documentation,
-                    sortText: item.sortText || String(index).padStart(5, '0'),
-                    range: undefined
-                }));
-
-                console.log('[LSP Completions] returning', suggestions.length, 'suggestions');
-                return { suggestions };
+                return allSuggestions.length > 0 ? { suggestions: allSuggestions } : null;
             } catch (err) {
                 console.error('[LSP Completions] error:', err);
                 return null;
@@ -384,7 +389,7 @@ function registerLSPCompletionProvider(monaco, lspClient, editor) {
         }
     });
 
-    console.log('[LSP Client] Completion provider registered');
+    console.log('[LSP Client] Completion provider registered (merged with base)');
 }
 
 /**

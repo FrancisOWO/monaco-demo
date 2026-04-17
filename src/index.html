@@ -85,7 +85,7 @@
 
 			async function initLSP() {
 				if (!lspEnabled) {
-					updateLSPStatus('disabled', 'LSP 已关闭');
+					updateLSPStatus('disabled', '已关闭');
 					return;
 				}
 
@@ -132,7 +132,7 @@
 					if (lspClient) {
 						lspClient.disconnect();
 					}
-					updateLSPStatus('disabled', 'LSP');
+					updateLSPStatus('disabled', '已关闭');
 					console.log('[Main] LSP disabled');
 				} else {
 					// 启用 LSP

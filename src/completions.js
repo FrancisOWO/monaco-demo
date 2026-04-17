@@ -4,10 +4,10 @@
  */
 
 /**
- * 注册所有语言的补全提供者
+ * 获取 Python 基础补全列表
+ * 供 LSP provider 合并使用
  */
-function registerCompletions() {
-	// Python 补全配置
+function getBasePythonCompletions(monaco, model, position) {
 	const pythonCompletions = [
 		{
 			label: 'defmain',
@@ -143,6 +143,23 @@ function registerCompletions() {
 		}
 	];
 
+	const range = position
+		? new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+		: undefined;
+
+	return {
+		suggestions: pythonCompletions.map(item => ({
+			...item,
+			range
+		}))
+	};
+}
+
+/**
+ * 注册非 Python 语言的补全提供者
+ * Python 的补全由 LSP provider 统一管理（合并基础补全和 LSP 补全）
+ */
+function registerCompletions() {
 	// C++ 补全配置
 	const cppCompletions = [
 		{
@@ -366,23 +383,6 @@ function registerCompletions() {
 			detail: '内置函数'
 		}
 	];
-
-	// 注册 Python 补全
-	monaco.languages.registerCompletionItemProvider('python', {
-		provideCompletionItems: function(model, position) {
-			return {
-				suggestions: pythonCompletions.map(item => ({
-					...item,
-					range: new monaco.Range(
-						position.lineNumber,
-						position.column,
-						position.lineNumber,
-						position.column
-					)
-				}))
-			};
-		}
-	});
 
 	// 注册 C++ 补全
 	monaco.languages.registerCompletionItemProvider('cpp', {
