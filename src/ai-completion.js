@@ -257,16 +257,48 @@ async function showMultiLineCompletion(editor) {
 function registerAICompletionProvider(monaco, editor) {
   console.log('[AI] Registering AI completion provider');
 
-  // 注册快捷键 Ctrl+Space 触发补全
+  // 注册快捷键 Ctrl+Space 触发单行补全
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => {
-    console.log('[AI] Hotkey triggered');
+    console.log('[AI] Hotkey Ctrl+Space: Single-line completion');
     showSingleLineCompletion(editor);
   });
 
-  // 注册 Alt+Enter 多行补全
+  // 注册 Alt+Enter 触发多行补全
   editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
-    console.log('[AI] Multi-line hotkey triggered');
+    console.log('[AI] Hotkey Alt+Enter: Multi-line completion');
     showMultiLineCompletion(editor);
+  });
+
+  // 注册 Tab 键接受当前内联补全
+  editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Tab, () => {
+    if (aiCompletionState.inlineDecoration) {
+      console.log('[AI] Tab: Accept inline completion');
+      // 接受补全
+      const decorations = editor.getDecorations();
+      const decoration = decorations.find(d => d.id === aiCompletionState.inlineDecoration[0]);
+      if (decoration) {
+        const range = decoration.range;
+        const fullText = decoration.options.inlineValue;
+
+        editor.executeEdits('ai-completion-accept', [{
+          range: range,
+          text: fullText,
+          forceMoveMarkers: true,
+        }]);
+
+        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+        aiCompletionState.inlineDecoration = null;
+      }
+    }
+  });
+
+  // 注册 Esc 键拒绝当前补全
+  editor.addCommand(monaco.KeyCode.Escape, () => {
+    if (aiCompletionState.inlineDecoration) {
+      console.log('[AI] Escape: Reject inline completion');
+      editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+      aiCompletionState.inlineDecoration = null;
+    }
   });
 
   // 自动触发补全（可选，通过配置控制）
@@ -314,9 +346,12 @@ function registerAICompletionProvider(monaco, editor) {
   }
 
   console.log('[AI] AI completion provider registered');
-  console.log('[AI] - Ctrl+Space: Single-line completion');
-  console.log('[AI] - Alt+Enter: Multi-line completion');
-  console.log('[AI] - Auto-trigger: Enabled');
+  console.log('[AI] Hotkeys:');
+  console.log('[AI]   Ctrl+Space: Single-line completion');
+  console.log('[AI]   Alt+Enter:  Multi-line completion');
+  console.log('[AI]   Tab:        Accept inline completion');
+  console.log('[AI]   Escape:     Reject inline completion');
+  console.log('[AI] Auto-trigger: Enabled');
   console.log('[AI]   Triggers on: . : ( def class function if for while try with import');
 }
 
