@@ -10,6 +10,7 @@ const aiCompletionState = {
   currentSuggestion: null,    // 当前建议
   loading: false,            // 是否正在加载
   inlineDecoration: null,    // 内联补全装饰
+  triggerEnabled: true,      // 临时禁用触发（如连续触发时）
 };
 
 // 服务器地址
@@ -271,9 +272,10 @@ function registerAICompletionProvider(monaco, editor) {
   // 自动触发补全（可选，通过配置控制）
   if (aiCompletionState.autoTrigger) {
     let debounceTimer = null;
+    let lastTriggerTime = 0;
 
     editor.onDidChangeModelContent(() => {
-      if (!aiCompletionState.autoTrigger || aiCompletionState.loading) {
+      if (!aiCompletionState.autoTrigger || !aiCompletionState.triggerEnabled || aiCompletionState.loading) {
         return;
       }
 
@@ -281,10 +283,30 @@ function registerAICompletionProvider(monaco, editor) {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         const context = getEditorContext(editor);
-        const lastChar = context.context.slice(-1);
+        const lastLine = context.context.split('\n').pop();
+        const lastChar = lastLine.slice(-1);
+        const trimmedLine = lastLine.trim();
 
-        // 在特定字符后触发（如点号、冒号等）
-        if (['.', ':', '('].includes(lastChar)) {
+        // 触发模式列表
+        const shouldTrigger =
+          // 特定字符后（方法调用、属性访问）
+          ['.', ':', '('].includes(lastChar) ||
+          // 定义语句后（自动补全函数体）
+          trimmedLine.match(/^(def|class|function|async\s+function|func|if|for|while|try|with)\s/) ||
+          // import 语句
+          trimmedLine.match(/^import\s/) ||
+          // 空行或只有缩进（智能提示）
+          (trimmedLine === '' && lastLine.startsWith('    '));
+
+        if (shouldTrigger) {
+          // 防止连续触发（至少间隔 2 秒）
+          const now = Date.now();
+          if (now - lastTriggerTime < 2000) {
+            return;
+          }
+          lastTriggerTime = now;
+
+          console.log('[AI] Auto-triggered, last line:', trimmedLine.substring(0, 30));
           showSingleLineCompletion(editor);
         }
       }, 500);
@@ -294,7 +316,8 @@ function registerAICompletionProvider(monaco, editor) {
   console.log('[AI] AI completion provider registered');
   console.log('[AI] - Ctrl+Space: Single-line completion');
   console.log('[AI] - Alt+Enter: Multi-line completion');
-  console.log('[AI] - Auto-trigger: Enabled (on . or : or ()');
+  console.log('[AI] - Auto-trigger: Enabled');
+  console.log('[AI]   Triggers on: . : ( def class function if for while try with import');
 }
 
 // 导出函数
