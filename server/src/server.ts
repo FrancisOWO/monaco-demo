@@ -8,6 +8,7 @@ import expressWs from 'express-ws';
 import { WebSocket } from 'ws';
 import { launchPyright } from './pyright-launcher';
 import { config } from './config';
+import aiCompletionRouter from './ai-completion';
 
 const app: express.Express = express();
 expressWs(app);
@@ -24,6 +25,9 @@ app.use((req, res, next) => {
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Python LSP Server is running' });
 });
+
+// AI 补全端点
+app.use('/ai', aiCompletionRouter);
 
 // WebSocket 端点 - Pyright 语言服务器
 app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {

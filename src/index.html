@@ -44,12 +44,16 @@
 	<script src="lsp/python-client.js"></script>
 	<script src="lsp/document-sync.js"></script>
 	<script src="completions.js"></script>
+	<script src="ai-completion.js"></script>
 	<script>
 		require.config({ paths: { vs: '../node_modules/monaco-editor/min/vs' } });
 
 		require(['vs/editor/editor.main'], function () {
 			// 注册基础代码补全（作为 LSP 的后备）
 			registerCompletions();
+
+			// 注册 AI 补全提供者
+			registerAICompletionProvider(monaco, editor);
 
 			// 创建编辑器
 			const editor = monaco.editor.create(document.getElementById('container'), {
