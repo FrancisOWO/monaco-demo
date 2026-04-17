@@ -9,6 +9,7 @@ const aiCompletionState = {
   autoTrigger: true,         // 是否自动触发
   currentSuggestion: null,    // 当前建议
   loading: false,            // 是否正在加载
+  inlineDecoration: null,    // 内联补全装饰
 };
 
 // 服务器地址
@@ -113,7 +114,7 @@ async function showSingleLineCompletion(editor) {
 }
 
 /**
- * 显示多行补全（内联显示）
+ * 显示多行补全（Ghost Text 内联显示）
  */
 async function showMultiLineCompletion(editor) {
   if (aiCompletionState.loading || !aiCompletionState.enabled) {
@@ -125,6 +126,10 @@ async function showMultiLineCompletion(editor) {
   try {
     aiCompletionState.loading = true;
     console.log('[AI] Requesting multi-line completion...');
+
+    // 显示加载状态
+    const position = editor.getPosition();
+    const startPosition = position;
 
     // 使用 EventSource 进行流式请求
     const response = await fetch(
@@ -138,21 +143,70 @@ async function showMultiLineCompletion(editor) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = '';
+    let currentText = '';
 
-    // 显示占位符
-    const position = editor.getPosition();
-    const range = new monaco.Range(
-      position.lineNumber,
-      position.column,
-      position.lineNumber,
-      position.column
-    );
+    // 创建内联装饰显示 Ghost Text
+    const updateGhostText = (text) => {
+      if (!text) return;
 
-    editor.executeEdits('ai-completion', [{
-      range: range,
-      text: '正在生成...',
-      forceMoveMarkers: true,
-    }]);
+      // 移除之前的装饰
+      if (aiCompletionState.inlineDecoration) {
+        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+      }
+
+      // 计算结束位置
+      const endLine = startPosition.lineNumber + text.split('\n').length - 1;
+      const endColumn = text.split('\n').pop().length + 1;
+
+      // 创建新的装饰（Ghost Text - 灰色半透明文字）
+      aiCompletionState.inlineDecoration = editor.deltaDecorations([], [{
+        range: new monaco.Range(
+          startPosition.lineNumber,
+          startPosition.column,
+          endLine,
+          endColumn
+        ),
+        options: {
+          inlineClassName: 'ai-ghost-text',
+          inlineValue: text,
+        }
+      }]);
+    };
+
+    // 监听用户输入，取消补全
+    const disposable = editor.onDidChangeModelContent(() => {
+      // 如果用户开始输入，取消内联补全
+      if (aiCompletionState.inlineDecoration) {
+        disposable.dispose();
+        clearTimeout(acceptTimer);
+        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+        aiCompletionState.inlineDecoration = null;
+      }
+    });
+
+    // 定时接受补全（3秒后自动接受）
+    let acceptTimer = setTimeout(() => {
+      if (aiCompletionState.inlineDecoration && fullText) {
+        // 接受补全
+        const endLine = startPosition.lineNumber + fullText.split('\n').length - 1;
+        const endColumn = fullText.split('\n').pop().length + 1;
+
+        editor.executeEdits('ai-completion', [{
+          range: new monaco.Range(
+            startPosition.lineNumber,
+            startPosition.column,
+            endLine,
+            endColumn
+          ),
+          text: fullText,
+          forceMoveMarkers: true,
+        }]);
+
+        editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+        aiCompletionState.inlineDecoration = null;
+        console.log('[AI] Auto-accepted multiline completion');
+      }
+    }, 3000);
 
     while (true) {
       const { done, value } = await reader.read();
@@ -166,7 +220,9 @@ async function showMultiLineCompletion(editor) {
           try {
             const data = JSON.parse(line.substring(6));
             if (data.text) {
+              currentText += data.text;
               fullText += data.text;
+              updateGhostText(currentText);
             }
             if (data.done) {
               aiCompletionState.loading = false;
@@ -186,18 +242,10 @@ async function showMultiLineCompletion(editor) {
     console.error('[AI] Multi-line completion failed:', error);
     aiCompletionState.loading = false;
 
-    // 移除占位符
-    const model = editor.getModel();
-    const content = model.getValue();
-    if (content.endsWith('正在生成...')) {
-      editor.executeEdits('ai-completion', [{
-        range: new monaco.Range(
-          1, 1,
-          model.getLineCount(),
-          model.getLineMaxColumn(model.getLineCount())
-        ),
-        text: content.replace('正在生成...', ''),
-      }]);
+    // 移除装饰
+    if (aiCompletionState.inlineDecoration) {
+      editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+      aiCompletionState.inlineDecoration = null;
     }
   }
 }
