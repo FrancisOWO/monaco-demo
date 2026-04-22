@@ -29,10 +29,10 @@ LSP 连接成功后关闭开关时：
 
 ## 修复方案
 
-在 `sendRequest()` 中添加超时机制（500ms）：
+在 `sendRequest()` 中添加超时机制（200ms）：
 
 ```javascript
-sendRequest(method, params, timeoutMs = 500) {
+sendRequest(method, params, timeoutMs = 200) {
     return new Promise((resolve, reject) => {
         // ...
         const timer = setTimeout(() => {
@@ -49,16 +49,19 @@ sendRequest(method, params, timeoutMs = 500) {
 }
 ```
 
-超时后 `getCompletions` 的 catch 块会返回基础补全，下拉菜单最多延迟 500ms 显示。
+超时后 `getCompletions` 的 catch 块会返回基础补全，下拉菜单最多延迟 200ms 显示。
 
 ---
 
 ## 相关文件
 
-- `src/lsp/python-client.js:70` - `sendRequest` 方法
+- `src/lsp/python-client.js:70` - `sendRequest` 方法（带超时）
 - `src/lsp/python-client.js:336` - `registerLSPCompletionProvider` 方法
 - `src/index.html:86` - `initLSP()` 函数
-- `src/completions.js:10` - `getBasePythonCompletions` 方法
+- `src/completions/completions-python.js` - Python 基础补全配置（`getBasePythonCompletions`）
+- `src/completions/completions-cpp.js` - C++ 补全配置
+- `src/completions/completions-go.js` - Go 补全配置
+- `src/completions.js` - 补全注册调度器（调用各语言注册函数）
 
 ---
 
