@@ -6,6 +6,7 @@
 
 .mcp.json
 .playwright-mcp/
+.repo-wiki/
 
 node_modules/
 pnpm-lock.yaml

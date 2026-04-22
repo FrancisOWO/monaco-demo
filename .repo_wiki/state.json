@@ -1,0 +1,80 @@
+{
+  "version": "1.0.0",
+  "baseline_commit": "5fdb7d8d18bc5433e3a2a3f6735e028c44ac1b4a",
+  "initialized_at": "2026-04-22T17:55:00Z",
+  "last_updated": "2026-04-22T17:55:00Z",
+  "pages": {
+    "index.md": {
+      "title": "Home",
+      "path": "docs/index.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "getting-started/local-dev.md": {
+      "title": "Local Development",
+      "path": "docs/getting-started/local-dev.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "getting-started/configuration.md": {
+      "title": "Configuration",
+      "path": "docs/getting-started/configuration.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "architecture/overview.md": {
+      "title": "Architecture Overview",
+      "path": "docs/architecture/overview.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "architecture/data-flow.md": {
+      "title": "Data Flow",
+      "path": "docs/architecture/data-flow.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "components/monaco-editor.md": {
+      "title": "Monaco Editor",
+      "path": "docs/components/monaco-editor.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "components/lsp-server.md": {
+      "title": "LSP Server",
+      "path": "docs/components/lsp-server.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "components/websocket-handler.md": {
+      "title": "WebSocket Handler",
+      "path": "docs/components/websocket-handler.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "api/endpoints.md": {
+      "title": "API Endpoints",
+      "path": "docs/api/endpoints.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "operations/build-and-test.md": {
+      "title": "Build & Test",
+      "path": "docs/operations/build-and-test.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "operations/deploy.md": {
+      "title": "Deployment",
+      "path": "docs/operations/deploy.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    },
+    "glossary.md": {
+      "title": "Glossary",
+      "path": "docs/glossary.md",
+      "last_generated": "2026-04-22T17:55:00Z",
+      "source_files": []
+    }
+  }
+}
