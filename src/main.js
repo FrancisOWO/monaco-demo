@@ -16,21 +16,21 @@ const LSP_URI = 'file:///workspace/main.py';
 // const model = monaco.editor.createModel(sampleCode.python, 'python', monaco.Uri.parse(LSP_URI));
 // 指定语言初始化
 function initModel(language) {
-  const model = monaco.editor.createModel(sampleCode[language], language);
-  monaco.editor.setModelLanguage(model, language);
-  return model;
+    const model = monaco.editor.createModel(sampleCode[language], language);
+    monaco.editor.setModelLanguage(model, language);
+    return model;
 }
 const model = initModel('python');
 
 // 创建编辑器
 const editor = monaco.editor.create(document.getElementById('container'), {
-  model,
-  theme: 'vs',
-  automaticLayout: true,
-  minimap: { enabled: true },
-  fontSize: 14,
-  lineNumbers: 'on',
-  scrollBeyondLastLine: false,
+    model,
+    theme: 'vs',
+    automaticLayout: true,
+    minimap: { enabled: true },
+    fontSize: 14,
+    lineNumbers: 'on',
+    scrollBeyondLastLine: false,
 });
 
 // LSP 状态显示
@@ -41,58 +41,58 @@ let lspClient = null;
 let lspRetryTimer = null;
 
 function updateLSPStatus(status, message) {
-  lspStatusEl.className = 'lsp-status ' + status;
-  lspStatusEl.textContent = 'LSP: ' + message;
+    lspStatusEl.className = 'lsp-status ' + status;
+    lspStatusEl.textContent = 'LSP: ' + message;
 }
 
 async function initLSP() {
-  if (!lspEnabled) {
-    updateLSPStatus('disabled', '已关闭');
-    return;
-  }
-
-  try {
-    updateLSPStatus('connecting', '连接中...');
-
-    lspClient = createPythonLSPClient(monaco, editor);
-    await lspClient.connect();
-
-    registerLSPCompletionProvider(monaco, lspClient, editor);
-    registerLSPHoverProvider(monaco, lspClient);
-    setupDocumentSync(editor, lspClient);
-
-    updateLSPStatus('connected', '已连接');
-    console.log('[Main] LSP client initialized successfully');
-
-  } catch (error) {
-    console.error('[Main] LSP initialization failed:', error);
-    updateLSPStatus('error', '连接失败');
-
-    if (lspEnabled) {
-      lspRetryTimer = setTimeout(initLSP, 5000);
+    if (!lspEnabled) {
+        updateLSPStatus('disabled', '已关闭');
+        return;
     }
-  }
+
+    try {
+        updateLSPStatus('connecting', '连接中...');
+
+        lspClient = createPythonLSPClient(monaco, editor);
+        await lspClient.connect();
+
+        registerLSPCompletionProvider(monaco, lspClient, editor);
+        registerLSPHoverProvider(monaco, lspClient);
+        setupDocumentSync(editor, lspClient);
+
+        updateLSPStatus('connected', '已连接');
+        console.log('[Main] LSP client initialized successfully');
+
+    } catch (error) {
+        console.error('[Main] LSP initialization failed:', error);
+        updateLSPStatus('error', '连接失败');
+
+        if (lspEnabled) {
+            lspRetryTimer = setTimeout(initLSP, 5000);
+        }
+    }
 }
 
 // LSP 切换按钮
 lspToggleBtn.addEventListener('change', function () {
-  lspEnabled = lspToggleBtn.checked;
+    lspEnabled = lspToggleBtn.checked;
 
-  if (!lspEnabled) {
-    if (lspRetryTimer) {
-      clearTimeout(lspRetryTimer);
-      lspRetryTimer = null;
+    if (!lspEnabled) {
+        if (lspRetryTimer) {
+            clearTimeout(lspRetryTimer);
+            lspRetryTimer = null;
+        }
+        if (lspClient) {
+            lspClient.disconnect();
+        }
+        updateLSPStatus('disabled', '已关闭');
+        console.log('[Main] LSP disabled');
+    } else {
+        lspClient = null;
+        initLSP();
+        console.log('[Main] LSP enabled');
     }
-    if (lspClient) {
-      lspClient.disconnect();
-    }
-    updateLSPStatus('disabled', '已关闭');
-    console.log('[Main] LSP disabled');
-  } else {
-    lspClient = null;
-    initLSP();
-    console.log('[Main] LSP enabled');
-  }
 });
 
 // 启动 LSP
@@ -106,14 +106,14 @@ registerCompletions();
 
 // 语言切换
 document.getElementById('language-select').addEventListener('change', function (e) {
-  const language = e.target.value;
-  monaco.editor.setModelLanguage(editor.getModel(), language);
-  editor.setValue(sampleCode[language]);
+    const language = e.target.value;
+    monaco.editor.setModelLanguage(editor.getModel(), language);
+    editor.setValue(sampleCode[language]);
 });
 
 // 主题切换
 document.getElementById('theme-select').addEventListener('change', function (e) {
-  const theme = e.target.value;
-  monaco.editor.setTheme(theme);
-  document.body.setAttribute('data-theme', theme === 'vs-dark' ? 'dark' : 'light');
+    const theme = e.target.value;
+    monaco.editor.setTheme(theme);
+    document.body.setAttribute('data-theme', theme === 'vs-dark' ? 'dark' : 'light');
 });
