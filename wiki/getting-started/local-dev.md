@@ -43,8 +43,9 @@ pnpm server:dev
 
 | 脚本 | 命令 | 说明 |
 |------|------|------|
-| dev | `webpack serve --mode development` | 启动前端开发服务器 |
-| build | `webpack --mode production` | 构建生产版本 |
+| dev | `vite` | 启动前端开发服务器 |
+| build | `vite build` | 构建生产版本 |
+| preview | `vite preview` | 预览生产构建 |
 | server:dev | `ts-node server/src/index.ts` | 启动后端开发服务器 |
 | server:build | `tsc -p server/tsconfig.json` | 构建后端代码 |
 | test | `jest --config server/jest.config.js` | 运行测试 |

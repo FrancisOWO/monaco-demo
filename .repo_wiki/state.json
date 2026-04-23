@@ -2,31 +2,31 @@
   "version": "1.0.0",
   "baseline_commit": "5fdb7d8d18bc5433e3a2a3f6735e028c44ac1b4a",
   "initialized_at": "2026-04-22T17:55:00Z",
-  "last_updated": "2026-04-22T17:55:00Z",
+  "last_updated": "2026-04-23T13:50:00Z",
   "pages": {
     "index.md": {
       "title": "Home",
       "path": "docs/index.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["vite.config.js", "package.json"]
     },
     "getting-started/local-dev.md": {
       "title": "Local Development",
       "path": "docs/getting-started/local-dev.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["package.json"]
     },
     "getting-started/configuration.md": {
       "title": "Configuration",
       "path": "docs/getting-started/configuration.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["vite.config.js"]
     },
     "architecture/overview.md": {
       "title": "Architecture Overview",
       "path": "docs/architecture/overview.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["vite.config.js"]
     },
     "architecture/data-flow.md": {
       "title": "Data Flow",
@@ -37,8 +37,8 @@
     "components/monaco-editor.md": {
       "title": "Monaco Editor",
       "path": "docs/components/monaco-editor.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["src/main.js", "vite.config.js"]
     },
     "components/lsp-server.md": {
       "title": "LSP Server",
@@ -61,8 +61,8 @@
     "operations/build-and-test.md": {
       "title": "Build & Test",
       "path": "docs/operations/build-and-test.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["package.json"]
     },
     "operations/deploy.md": {
       "title": "Deployment",
@@ -73,8 +73,8 @@
     "glossary.md": {
       "title": "Glossary",
       "path": "docs/glossary.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "last_generated": "2026-04-23T13:50:00Z",
+      "source_files": ["vite.config.js"]
     }
   }
 }

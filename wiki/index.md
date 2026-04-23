@@ -21,7 +21,7 @@ Monaco Editor 示例项目，支持 Python LSP 集成。该项目展示如何在
 | 类别 | 技术 |
 |------|------|
 | 前端 | Monaco Editor 0.55.1 |
-| 构建工具 | Webpack 5 |
+| 构建工具 | Vite 8 |
 | 后端 | Express 4 |
 | 通信 | WebSocket (ws 8.14.2) |
 | 语言 | TypeScript 5.3+ |

@@ -19,7 +19,7 @@ managed_sections:
 ```bash
 npm run build
 ```
-- Webpack 生产模式
+- Vite 生产模式构建
 - 输出到 `dist/` 目录
 - 代码压缩和优化
 

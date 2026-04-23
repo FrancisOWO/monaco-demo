@@ -34,9 +34,9 @@ VS Code 的核心编辑器组件，可在浏览器中运行的代码编辑器，
 
 JavaScript 的超集，添加了静态类型系统，编译为 JavaScript 运行。
 
-### Webpack
+### Vite
 
-现代 JavaScript 应用程序的静态模块打包工具，将多个模块打包为浏览器可执行的文件。
+下一代前端构建工具，开发模式下使用原生 ESM 服务（无需打包），基于 esbuild 预打包依赖，启动速度极快。
 
 ## Abbreviations
 

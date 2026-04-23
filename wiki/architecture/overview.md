@@ -39,9 +39,9 @@ managed_sections:
 - 支持 Python 语法高亮和智能提示
 
 **Build System**
-- Webpack 5 作为构建工具
-- webpack-dev-server 提供开发服务器
-- TypeScript 类型支持
+- Vite 8 作为构建工具，基于 esbuild 预打包依赖
+- 开发模式下使用原生 ESM 服务，启动速度 ~200ms
+- vite-plugin-monaco-editor 管理 Monaco worker
 
 ## Backend Architecture
 

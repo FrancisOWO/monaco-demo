@@ -26,29 +26,29 @@ Monaco Editor 是项目的核心编辑组件，提供类似 VS Code 的代码编
 
 ## Implementation
 
-**文件位置**: `src/index.html`, `src/completions.js`
+**文件位置**: `src/main.js`, `src/completions.js`
 
 **依赖**:
 - monaco-editor 0.55.1
-- monaco-editor-webpack-plugin 7.0.0
+- vite-plugin-monaco-editor 1.1.0
 
 ## Configuration
 
-**Webpack 配置**:
+**Vite 配置**:
 ```javascript
-// webpack.config.js
-const MonacoEditorWebpackPlugin = require('monaco-editor-webpack-plugin');
+// vite.config.js
+import monacoEditorPlugin from 'vite-plugin-monaco-editor';
 
-module.exports = {
+export default defineConfig({
   plugins: [
-    new MonacoEditorWebpackPlugin({
-      languages: ['python']
+    monacoEditorPlugin({
+      languageWorkers: ['editorWorkerService']
     })
   ]
-};
+});
 ```
 
-**初始化**:
+**初始化** (ESM import):
 ```javascript
 import * as monaco from 'monaco-editor';
 

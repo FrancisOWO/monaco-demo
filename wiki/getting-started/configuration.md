@@ -4,7 +4,7 @@ baseline_commit: "5fdb7d8d18bc5433e3a2a3f6735e028c44ac1b4a"
 last_updated: "2026-04-22"
 managed_sections:
   - "## Overview"
-  - "## Webpack Configuration"
+  - "## Vite Configuration"
   - "## TypeScript Configuration"
   - "## Environment Variables"
 ---
@@ -17,15 +17,14 @@ managed_sections:
 
 项目配置分为前端构建配置、后端服务器配置和环境变量配置。
 
-## Webpack Configuration
+## Vite Configuration
 
-**文件**: `webpack.config.js`
+**文件**: `vite.config.js`
 
 **关键配置**:
-- Entry point: `src/index.ts`
-- Output: `dist/`
+- Root: `src/` (HTML 入口所在目录)
 - DevServer: port 8080
-- Monaco Editor plugin
+- Monaco Editor plugin: `vite-plugin-monaco-editor` (仅 `editorWorkerService` worker)
 
 ## TypeScript Configuration
 
@@ -50,5 +49,5 @@ managed_sections:
 
 ## Team Notes
 
-- Webpack dev server 配置热重载
+- Vite 内置热重载 (HMR)
 - TypeScript 严格模式建议保持开启
