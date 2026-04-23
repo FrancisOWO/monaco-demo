@@ -2,7 +2,7 @@
  * Python 代码补全配置
  */
 import * as monaco from 'monaco-editor';
-import { getMatchRange } from './completion-utils.js';
+import { registerLanguageCompletions } from './completion-utils.js';
 
 export const pythonCompletions = [
 	{
@@ -139,30 +139,6 @@ export const pythonCompletions = [
 	}
 ];
 
-/**
- * 获取 Python 基础补全列表
- * 供 LSP provider 合并使用
- */
-export function getBasePythonCompletions(monaco, model, position) {
-	const matchRange = position
-		? getMatchRange(model, position)
-		: undefined;
-
-	return {
-		suggestions: pythonCompletions.map(item => ({
-			...item,
-			range: matchRange
-		}))
-	};
-}
-
-/**
- * 注册 Python 补全提供者（无 LSP 时使用）
- */
 export function registerPythonCompletions() {
-	monaco.languages.registerCompletionItemProvider('python', {
-		provideCompletionItems: function(model, position) {
-			return getBasePythonCompletions(monaco, model, position);
-		}
-	});
+	registerLanguageCompletions('python', pythonCompletions);
 }

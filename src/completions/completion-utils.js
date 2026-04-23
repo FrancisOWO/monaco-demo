@@ -1,13 +1,33 @@
 /**
  * 补全工具函数
- * 提取文档符号 + 正确的 range 计算
  */
 import * as monaco from 'monaco-editor';
+
+import { StandaloneServices } from 'monaco-editor/esm/vs/editor/standalone/browser/standaloneServices.js';
+import { ILanguageFeaturesService } from 'monaco-editor/esm/vs/editor/common/services/languageFeatures.js';
+
+
+/**
+ * 获取 Monaco 默认补全列表
+ */
+export async function getDefaultSuggestions(model, position) {
+    const languageFeaturesService = StandaloneServices.get(ILanguageFeaturesService);
+    const providers = languageFeaturesService.completionProvider.all(model);
+
+    const wordBasedProvider = providers.find(
+        p => p._debugDisplayName === 'wordbasedCompletions'
+    );
+
+    if (!wordBasedProvider) return [];
+
+    const result = await wordBasedProvider.provideCompletionItems(model, position);
+    return result?.suggestions ?? [];
+}
 
 /**
  * 计算当前单词的替换范围，用于前缀匹配
  */
-export function getMatchRange(model, position) {
+export function getCurrentWordRange(model, position) {
     const word = model.getWordUntilPosition(position);
     return new monaco.Range(
         position.lineNumber,
@@ -18,29 +38,26 @@ export function getMatchRange(model, position) {
 }
 
 /**
- * 从文档内容中提取已有符号作为上下文补全
+ * 获取自定义补全列表
  */
-export function collectDocumentSymbols(model, position, existingLabels) {
-    const seenLabels = existingLabels || new Set();
-    const matchRange = getMatchRange(model, position);
-    const text = model.getValue();
-    const wordPattern = /[a-zA-Z_]\w*/g;
-    const suggestions = [];
-    let match;
+export function getCustomSuggestions(completions, model, position) {
+    const wordRange = getCurrentWordRange(model, position);
+    return completions.map(item => ({
+        ...item,
+        range: wordRange
+    }));
+}
 
-    while ((match = wordPattern.exec(text)) !== null) {
-        const label = match[0];
-        if (!seenLabels.has(label) && label.length > 2) {
-            seenLabels.add(label);
-            suggestions.push({
-                label,
-                kind: monaco.languages.CompletionItemKind.Text,
-                insertText: label,
-                range: matchRange,
-                sortText: 'zzz' + label
-            });
+/**
+ * 注册语言补全 provider（自定义补全 + Monaco 内置词频补全）
+ */
+export function registerLanguageCompletions(languageId, completions) {
+    monaco.languages.registerCompletionItemProvider(languageId, {
+        async provideCompletionItems(model, position) {
+            const allSuggestions = getCustomSuggestions(completions, model, position);
+            const defaultSuggestions = await getDefaultSuggestions(model, position);
+            allSuggestions.push(...defaultSuggestions);
+            return { suggestions: allSuggestions };
         }
-    }
-
-    return { suggestions, seenLabels };
+    });
 }

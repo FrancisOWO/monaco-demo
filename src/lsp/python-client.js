@@ -3,7 +3,6 @@
  * 连接 Monaco Editor 与后端 Pyright 语言服务器
  */
 import * as monaco from 'monaco-editor';
-import { getBasePythonCompletions } from '../completions/completions-python.js';
 
 // LSP 客户端状态
 let isConnected = false;
@@ -365,12 +364,12 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                 const allSuggestions = [];
 
                 // 合入基础补全（关键字、snippet 等）
-                const baseResult = getBasePythonCompletions(monaco, model, position);
-                if (baseResult && baseResult.suggestions) {
-                    for (const item of baseResult.suggestions) {
-                        allSuggestions.push({ ...item, range: matchRange });
-                    }
-                }
+                // const baseResult = getBasePythonCompletions(monaco, model, position);
+                // if (baseResult && baseResult.suggestions) {
+                //     for (const item of baseResult.suggestions) {
+                //         allSuggestions.push({ ...item, range: matchRange });
+                //     }
+                // }
 
                 // 从文档内容中提取已有符号，恢复上下文补全
                 const seenLabels = new Set(allSuggestions.map(s => s.label));

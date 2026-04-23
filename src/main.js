@@ -10,12 +10,17 @@ import { registerAICompletionProvider } from './ai-completion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';
 
-// 注册基础代码补全（作为 LSP 的后备）
-registerCompletions();
 
 // 创建带 LSP URI 的模型
 const LSP_URI = 'file:///workspace/main.py';
-const model = monaco.editor.createModel(sampleCode.python, 'python', monaco.Uri.parse(LSP_URI));
+// const model = monaco.editor.createModel(sampleCode.python, 'python', monaco.Uri.parse(LSP_URI));
+// 指定语言初始化
+function initModel(language) {
+  const model = monaco.editor.createModel(sampleCode[language], language);
+  monaco.editor.setModelLanguage(model, language);
+  return model;
+}
+const model = initModel('python');
 
 // 创建编辑器
 const editor = monaco.editor.create(document.getElementById('container'), {
@@ -27,9 +32,6 @@ const editor = monaco.editor.create(document.getElementById('container'), {
   lineNumbers: 'on',
   scrollBeyondLastLine: false,
 });
-
-// 注册 AI 补全提供者
-registerAICompletionProvider(monaco, editor);
 
 // LSP 状态显示
 const lspStatusEl = document.getElementById('lsp-status');
@@ -73,7 +75,7 @@ async function initLSP() {
 }
 
 // LSP 切换按钮
-lspToggleBtn.addEventListener('change', function() {
+lspToggleBtn.addEventListener('change', function () {
   lspEnabled = lspToggleBtn.checked;
 
   if (!lspEnabled) {
@@ -95,6 +97,12 @@ lspToggleBtn.addEventListener('change', function() {
 
 // 启动 LSP
 // initLSP();
+
+// 注册 AI 补全提供者
+// registerAICompletionProvider(monaco, editor);
+
+// 注册基础代码补全（作为 LSP 的后备）
+registerCompletions();
 
 // 语言切换
 document.getElementById('language-select').addEventListener('change', function (e) {

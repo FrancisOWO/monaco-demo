@@ -2,7 +2,7 @@
  * C++ 代码补全配置
  */
 import * as monaco from 'monaco-editor';
-import { getMatchRange, collectDocumentSymbols } from './completion-utils.js';
+import { registerLanguageCompletions } from './completion-utils.js';
 
 export const cppCompletions = [
 	{
@@ -103,24 +103,6 @@ export const cppCompletions = [
 	}
 ];
 
-/**
- * 注册 C++ 补全提供者
- */
 export function registerCppCompletions() {
-	monaco.languages.registerCompletionItemProvider('cpp', {
-		provideCompletionItems: function(model, position) {
-			const matchRange = getMatchRange(model, position);
-			const allSuggestions = cppCompletions.map(item => ({
-				...item,
-				range: matchRange
-			}));
-
-			// 上下文补全：文档中已有的符号
-			const seenLabels = new Set(allSuggestions.map(s => s.label));
-			const { suggestions } = collectDocumentSymbols(model, position, seenLabels);
-			allSuggestions.push(...suggestions);
-
-			return { suggestions: allSuggestions };
-		}
-	});
+	registerLanguageCompletions('cpp', cppCompletions);
 }
