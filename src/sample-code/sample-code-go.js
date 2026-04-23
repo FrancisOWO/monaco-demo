@@ -1,7 +1,7 @@
 /**
  * Go 示例代码
  */
-const sampleCodeGo = `// Go 示例代码
+export const sampleCodeGo = `// Go 示例代码
 package main
 
 import "fmt"

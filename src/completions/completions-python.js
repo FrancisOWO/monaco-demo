@@ -1,8 +1,9 @@
 /**
  * Python 代码补全配置
  */
+import * as monaco from 'monaco-editor';
 
-window.pythonCompletions = [
+export const pythonCompletions = [
 	{
 		label: 'defmain',
 		kind: monaco.languages.CompletionItemKind.Snippet,
@@ -141,13 +142,13 @@ window.pythonCompletions = [
  * 获取 Python 基础补全列表
  * 供 LSP provider 合并使用
  */
-function getBasePythonCompletions(monaco, model, position) {
+export function getBasePythonCompletions(monaco, model, position) {
 	const range = position
 		? new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
 		: undefined;
 
 	return {
-		suggestions: window.pythonCompletions.map(item => ({
+		suggestions: pythonCompletions.map(item => ({
 			...item,
 			range
 		}))
@@ -157,7 +158,7 @@ function getBasePythonCompletions(monaco, model, position) {
 /**
  * 注册 Python 补全提供者（无 LSP 时使用）
  */
-function registerPythonCompletions() {
+export function registerPythonCompletions() {
 	monaco.languages.registerCompletionItemProvider('python', {
 		provideCompletionItems: function(model, position) {
 			return getBasePythonCompletions(monaco, model, position);

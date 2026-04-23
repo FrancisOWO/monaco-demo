@@ -1,7 +1,7 @@
 /**
  * Python 示例代码
  */
-const sampleCodePython = `# Python 示例代码
+export const sampleCodePython = `# Python 示例代码
 def fibonacci(n):
     """计算斐波那契数列"""
     if n <= 1:

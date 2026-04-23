@@ -1,8 +1,9 @@
 /**
  * Go 代码补全配置
  */
+import * as monaco from 'monaco-editor';
 
-window.goCompletions = [
+export const goCompletions = [
 	{
 		label: 'main',
 		kind: monaco.languages.CompletionItemKind.Snippet,
@@ -128,7 +129,7 @@ window.goCompletions = [
 /**
  * 注册 Go 补全提供者
  */
-function registerGoCompletions() {
+export function registerGoCompletions() {
 	monaco.languages.registerCompletionItemProvider('go', {
 		provideCompletionItems: function(model, position) {
 			const range = new monaco.Range(
@@ -138,7 +139,7 @@ function registerGoCompletions() {
 				position.column
 			);
 			return {
-				suggestions: window.goCompletions.map(item => ({
+				suggestions: goCompletions.map(item => ({
 					...item,
 					range
 				}))

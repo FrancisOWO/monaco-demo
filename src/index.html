@@ -5,9 +5,6 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Monaco Editor Demo</title>
-	<link rel="stylesheet" href="styles/main.css">
-	<link rel="stylesheet" href="styles/theme-dark.css">
-	<link rel="stylesheet" href="styles/theme-light.css">
 </head>
 
 <body data-theme="light">
@@ -40,130 +37,7 @@
 	</div>
 	<div id="container"></div>
 
-	<script src="../node_modules/monaco-editor/min/vs/loader.js"></script>
-	<script src="sample-code/sample-code-python.js"></script>
-	<script src="sample-code/sample-code-cpp.js"></script>
-	<script src="sample-code/sample-code-go.js"></script>
-	<script src="sample-code/sample-code-index.js"></script>
-	<script src="completions/completions-python.js"></script>
-	<script src="lsp/python-client.js"></script>
-	<script src="lsp/document-sync.js"></script>
-	<script src="completions/completions-cpp.js"></script>
-	<script src="completions/completions-go.js"></script>
-	<script src="completions.js"></script>
-	<script src="ai-completion.js"></script>
-	<script>
-		require.config({ paths: { vs: '../node_modules/monaco-editor/min/vs' } });
-
-		require(['vs/editor/editor.main'], function () {
-			// 注册基础代码补全（作为 LSP 的后备）
-			registerCompletions();
-
-			// 创建编辑器
-			const editor = monaco.editor.create(document.getElementById('container'), {
-				value: sampleCode.python,
-				language: 'python',
-				theme: 'vs',
-				automaticLayout: true,
-				minimap: { enabled: true },
-				fontSize: 14,
-				lineNumbers: 'on',
-				scrollBeyondLastLine: false,
-			});
-
-			// 注册 AI 补全提供者（在 editor 创建之后）
-			registerAICompletionProvider(monaco, editor);
-
-			// LSP 状态显示
-			const lspStatusEl = document.getElementById('lsp-status');
-			const lspToggleBtn = document.getElementById('lsp-toggle');
-			let lspEnabled = true;
-			let lspClient = null;
-			let lspRetryTimer = null;
-
-			function updateLSPStatus(status, message) {
-				lspStatusEl.className = 'lsp-status ' + status;
-				lspStatusEl.textContent = 'LSP: ' + message;
-			}
-
-			async function initLSP() {
-				if (!lspEnabled) {
-					updateLSPStatus('disabled', '已关闭');
-					return;
-				}
-
-				try {
-					updateLSPStatus('connecting', '连接中...');
-
-					// 创建 LSP 客户端
-					lspClient = createPythonLSPClient(monaco, editor);
-
-					// 连接到服务器
-					await lspClient.connect();
-
-					// 注册 LSP 提供者
-					registerLSPCompletionProvider(monaco, lspClient, editor);
-					registerLSPHoverProvider(monaco, lspClient);
-
-					// 设置文档同步
-					setupDocumentSync(editor, lspClient);
-
-					updateLSPStatus('connected', '已连接');
-					console.log('[Main] LSP client initialized successfully');
-
-				} catch (error) {
-					console.error('[Main] LSP initialization failed:', error);
-					updateLSPStatus('error', '连接失败');
-
-					// 5秒后重试
-					if (lspEnabled) {
-						lspRetryTimer = setTimeout(initLSP, 5000);
-					}
-				}
-			}
-
-			// LSP 切换按钮
-			lspToggleBtn.addEventListener('change', function() {
-				lspEnabled = lspToggleBtn.checked;
-
-				if (!lspEnabled) {
-					// 关闭 LSP
-					if (lspRetryTimer) {
-						clearTimeout(lspRetryTimer);
-						lspRetryTimer = null;
-					}
-					if (lspClient) {
-						lspClient.disconnect();
-					}
-					updateLSPStatus('disabled', '已关闭');
-					console.log('[Main] LSP disabled');
-				} else {
-					// 启用 LSP
-					lspClient = null;
-					initLSP();
-					console.log('[Main] LSP enabled');
-				}
-			});
-
-			// 启动 LSP
-			initLSP();
-
-			// 语言切换
-			document.getElementById('language-select').addEventListener('change', function (e) {
-				const language = e.target.value;
-				monaco.editor.setModelLanguage(editor.getModel(), language);
-				editor.setValue(sampleCode[language]);
-			});
-
-			// 主题切换
-			document.getElementById('theme-select').addEventListener('change', function (e) {
-				const theme = e.target.value;
-				monaco.editor.setTheme(theme);
-				// 同步更新页面主题
-				document.body.setAttribute('data-theme', theme === 'vs-dark' ? 'dark' : 'light');
-			});
-		});
-	</script>
+	<script type="module" src="./main.js"></script>
 </body>
 
 </html>

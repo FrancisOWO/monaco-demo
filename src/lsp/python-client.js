@@ -2,6 +2,8 @@
  * Python 语言客户端
  * 连接 Monaco Editor 与后端 Pyright 语言服务器
  */
+import * as monaco from 'monaco-editor';
+import { getBasePythonCompletions } from '../completions/completions-python.js';
 
 // LSP 客户端状态
 let isConnected = false;
@@ -15,7 +17,7 @@ const LSP_SERVER_URL = 'ws://localhost:3000/pyright';
 /**
  * 创建 LSP 客户端
  */
-function createPythonLSPClient(monaco, editor) {
+export function createPythonLSPClient(monaco, editor) {
     return {
         /**
          * 连接到语言服务器
@@ -341,7 +343,7 @@ function createPythonLSPClient(monaco, editor) {
  * 注册 LSP 补全提供者
  * 合并 LSP 补全和基础补全，确保两者始终可见
  */
-function registerLSPCompletionProvider(monaco, lspClient, editor) {
+export function registerLSPCompletionProvider(monaco, lspClient, editor) {
     monaco.languages.registerCompletionItemProvider('python', {
         triggerCharacters: ['.', '('],
 
@@ -423,7 +425,7 @@ function mapCompletionKind(monaco, kind) {
 /**
  * 注册 LSP 悬停提供者
  */
-function registerLSPHoverProvider(monaco, lspClient) {
+export function registerLSPHoverProvider(monaco, lspClient) {
     monaco.languages.registerHoverProvider('python', {
         async provideHover(model, position) {
             if (!lspClient.is_connected()) {

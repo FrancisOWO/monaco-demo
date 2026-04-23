@@ -2,13 +2,14 @@
  * 文档同步模块
  * 保持 Monaco Editor 模型与 LSP 服务器同步
  */
+import * as monaco from 'monaco-editor';
 
 let currentVersion = 1;
 
 /**
  * 设置文档同步
  */
-function setupDocumentSync(editor, lspClient, uri = 'file:///workspace/main.py') {
+export function setupDocumentSync(editor, lspClient, uri = 'file:///workspace/main.py') {
     const model = editor.getModel();
 
     if (!model) {

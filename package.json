@@ -3,8 +3,9 @@
 	"version": "1.0.0",
 	"description": "Monaco Editor 示例项目，支持 Python LSP",
 	"scripts": {
-		"dev": "webpack serve --mode development",
-		"build": "webpack --mode production",
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview",
 		"server:dev": "ts-node server/src/index.ts",
 		"server:build": "tsc -p server/tsconfig.json",
 		"server:start": "node server/dist/index.js",
@@ -12,27 +13,22 @@
 		"test:watch": "jest --config server/jest.config.js --watch"
 	},
 	"dependencies": {
-		"monaco-editor": "0.55.1",
 		"express": "^4.18.2",
 		"express-ws": "^5.0.2",
-		"ws": "^8.14.2",
-		"pyright": "^1.1.350"
+		"monaco-editor": "0.55.1",
+		"pyright": "^1.1.350",
+		"ws": "^8.14.2"
 	},
 	"devDependencies": {
-		"css-loader": "^6.0.0",
-		"file-loader": "^6.0.0",
-		"html-webpack-plugin": "^5.0.0",
-		"monaco-editor-webpack-plugin": "^7.0.0",
-		"style-loader": "^3.0.0",
-		"webpack": "^5.0.0",
-		"webpack-cli": "^4.0.0",
-		"webpack-dev-server": "^4.0.0",
-		"typescript": "^5.3.3",
-		"ts-node": "^10.9.2",
 		"@types/express": "^4.17.21",
-		"@types/ws": "^8.5.10",
+		"@types/jest": "^29.5.11",
 		"@types/node": "^20.10.6",
+		"@types/ws": "^8.5.10",
+		"esbuild": "^0.28.0",
 		"jest": "^29.7.0",
-		"@types/jest": "^29.5.11"
+		"ts-node": "^10.9.2",
+		"typescript": "^5.3.3",
+		"vite": "^8.0.10",
+		"vite-plugin-monaco-editor": "^1.1.0"
 	}
 }

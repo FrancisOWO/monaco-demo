@@ -2,15 +2,16 @@
  * AI 智能补全功能
  * 支持单行补全、多行补全、自动触发和快捷键触发
  */
+import * as monaco from 'monaco-editor';
 
 // AI 补全状态
 const aiCompletionState = {
-  enabled: true,              // 是否启用
-  autoTrigger: true,         // 是否自动触发
-  currentSuggestion: null,    // 当前建议
-  loading: false,            // 是否正在加载
-  inlineDecoration: null,    // 内联补全装饰
-  triggerEnabled: true,      // 临时禁用触发（如连续触发时）
+  enabled: true,
+  autoTrigger: true,
+  currentSuggestion: null,
+  loading: false,
+  inlineDecoration: null,
+  triggerEnabled: true,
 };
 
 // 服务器地址
@@ -65,7 +66,6 @@ async function requestSingleLineCompletion(editor) {
     const data = await response.json();
 
     if (data.suggestions && data.suggestions.length > 0) {
-      // 取置信度最高的建议
       const best = data.suggestions.reduce((a, b) => a.confidence > b.confidence ? a : b);
       aiCompletionState.currentSuggestion = best;
       aiCompletionState.loading = false;
@@ -90,7 +90,6 @@ async function showSingleLineCompletion(editor) {
   const suggestion = await requestSingleLineCompletion(editor);
 
   if (suggestion && suggestion.text) {
-    // 在光标位置插入补全文本
     const position = editor.getPosition();
     const range = new monaco.Range(
       position.lineNumber,
@@ -104,13 +103,6 @@ async function showSingleLineCompletion(editor) {
       text: suggestion.text,
       forceMoveMarkers: true,
     }]);
-
-    // 移动光标到合适的位置
-    if (suggestion.text.includes('\n')) {
-      // 多行插入后，光标会在最后，我们需要在合适的位置
-    } else {
-      // 单行插入，光标自动跟随
-    }
   }
 }
 
@@ -168,7 +160,6 @@ async function showMultiLineCompletion(editor) {
               disposable.dispose();
 
               if (!cancelled && fullText) {
-                // 在光标位置插入补全文本
                 editor.executeEdits('ai-completion', [{
                   range: new monaco.Range(
                     insertPosition.lineNumber,
@@ -204,10 +195,10 @@ async function showMultiLineCompletion(editor) {
 /**
  * 注册 AI 补全提供者
  */
-function registerAICompletionProvider(monaco, editor) {
+export function registerAICompletionProvider(monaco, editor) {
   console.log('[AI] Registering AI completion provider');
 
-  // 注册快捷键 Alt+Enter 触发单行补全（避免与 Monaco 内置 Ctrl+Space 冲突）
+  // 注册快捷键 Alt+Enter 触发单行补全
   editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
     console.log('[AI] Hotkey Alt+Enter: Single-line completion');
     showSingleLineCompletion(editor);
@@ -223,7 +214,6 @@ function registerAICompletionProvider(monaco, editor) {
   editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Tab, () => {
     if (aiCompletionState.inlineDecoration) {
       console.log('[AI] Tab: Accept inline completion');
-      // 接受补全
       const decorations = editor.getDecorations();
       const decoration = decorations.find(d => d.id === aiCompletionState.inlineDecoration[0]);
       if (decoration) {
@@ -251,7 +241,7 @@ function registerAICompletionProvider(monaco, editor) {
     }
   });
 
-  // 自动触发补全（可选，通过配置控制）
+  // 自动触发补全
   if (aiCompletionState.autoTrigger) {
     let debounceTimer = null;
     let lastTriggerTime = 0;
@@ -261,7 +251,6 @@ function registerAICompletionProvider(monaco, editor) {
         return;
       }
 
-      // 防抖：停止输入 500ms 后自动触发
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         const context = getEditorContext(editor);
@@ -269,15 +258,11 @@ function registerAICompletionProvider(monaco, editor) {
         const lastChar = lastLine.slice(-1);
         const trimmedLine = lastLine.trim();
 
-        // 触发模式列表（更严格的触发条件，避免在普通空行时误触发）
         const shouldTrigger =
-          // 方法调用后补全属性/方法（如 os. str. 等）
           lastChar === '.' ||
-          // 定义语句后补全函数体（def/class/if/for/while/try/with 后面有冒号）
           trimmedLine.match(/^(def|class|if|for|while|try|with)\s/);
 
         if (shouldTrigger) {
-          // 防止连续触发（至少间隔 2 秒）
           const now = Date.now();
           if (now - lastTriggerTime < 2000) {
             return;
@@ -303,7 +288,4 @@ function registerAICompletionProvider(monaco, editor) {
   console.log('[AI]   Triggers on: . : ( def class function if for while try with import');
 }
 
-// 导出函数
-window.registerAICompletionProvider = registerAICompletionProvider;
-window.showSingleLineCompletion = showSingleLineCompletion;
-window.showMultiLineCompletion = showMultiLineCompletion;
+export { showSingleLineCompletion, showMultiLineCompletion };

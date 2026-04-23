@@ -1,7 +1,7 @@
 /**
  * C++ 示例代码
  */
-const sampleCodeCpp = `// C++ 示例代码
+export const sampleCodeCpp = `// C++ 示例代码
 #include <iostream>
 #include <vector>
 

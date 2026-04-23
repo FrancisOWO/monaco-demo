@@ -1,8 +1,9 @@
 /**
  * C++ 代码补全配置
  */
+import * as monaco from 'monaco-editor';
 
-window.cppCompletions = [
+export const cppCompletions = [
 	{
 		label: 'main',
 		kind: monaco.languages.CompletionItemKind.Snippet,
@@ -104,7 +105,7 @@ window.cppCompletions = [
 /**
  * 注册 C++ 补全提供者
  */
-function registerCppCompletions() {
+export function registerCppCompletions() {
 	monaco.languages.registerCompletionItemProvider('cpp', {
 		provideCompletionItems: function(model, position) {
 			const range = new monaco.Range(
@@ -114,7 +115,7 @@ function registerCppCompletions() {
 				position.column
 			);
 			return {
-				suggestions: window.cppCompletions.map(item => ({
+				suggestions: cppCompletions.map(item => ({
 					...item,
 					range
 				}))
