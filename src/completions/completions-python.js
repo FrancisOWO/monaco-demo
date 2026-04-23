@@ -2,6 +2,7 @@
  * Python 代码补全配置
  */
 import * as monaco from 'monaco-editor';
+import { getMatchRange } from './completion-utils.js';
 
 export const pythonCompletions = [
 	{
@@ -143,14 +144,14 @@ export const pythonCompletions = [
  * 供 LSP provider 合并使用
  */
 export function getBasePythonCompletions(monaco, model, position) {
-	const range = position
-		? new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column)
+	const matchRange = position
+		? getMatchRange(model, position)
 		: undefined;
 
 	return {
 		suggestions: pythonCompletions.map(item => ({
 			...item,
-			range
+			range: matchRange
 		}))
 	};
 }

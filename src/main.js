@@ -94,7 +94,7 @@ lspToggleBtn.addEventListener('change', function() {
 });
 
 // 启动 LSP
-initLSP();
+// initLSP();
 
 // 语言切换
 document.getElementById('language-select').addEventListener('change', function (e) {

@@ -2,6 +2,7 @@
  * Go 代码补全配置
  */
 import * as monaco from 'monaco-editor';
+import { getMatchRange, collectDocumentSymbols } from './completion-utils.js';
 
 export const goCompletions = [
 	{
@@ -132,18 +133,18 @@ export const goCompletions = [
 export function registerGoCompletions() {
 	monaco.languages.registerCompletionItemProvider('go', {
 		provideCompletionItems: function(model, position) {
-			const range = new monaco.Range(
-				position.lineNumber,
-				position.column,
-				position.lineNumber,
-				position.column
-			);
-			return {
-				suggestions: goCompletions.map(item => ({
-					...item,
-					range
-				}))
-			};
+			const matchRange = getMatchRange(model, position);
+			const allSuggestions = goCompletions.map(item => ({
+				...item,
+				range: matchRange
+			}));
+
+			// 上下文补全：文档中已有的符号
+			const seenLabels = new Set(allSuggestions.map(s => s.label));
+			const { suggestions } = collectDocumentSymbols(model, position, seenLabels);
+			allSuggestions.push(...suggestions);
+
+			return { suggestions: allSuggestions };
 		}
 	});
 }
