@@ -343,29 +343,59 @@ export function createPythonLSPClient(monaco, editor) {
  * 注册 LSP 补全提供者
  * 合并 LSP 补全和基础补全，确保两者始终可见
  */
+// 缓存 LSP 补全结果
+let cachedLSPItems = null;
+let lspCompletionCacheKey = '';
+
 export function registerLSPCompletionProvider(monaco, lspClient, editor) {
     monaco.languages.registerCompletionItemProvider('python', {
         triggerCharacters: ['.', '('],
 
-        async provideCompletionItems(model, position) {
+        provideCompletionItems(model, position) {
             try {
-                // 先获取基础补全（始终可用）
-                const baseResult = getBasePythonCompletions(monaco, model, position);
-                const allSuggestions = baseResult ? [...baseResult.suggestions] : [];
+                // 计算当前正在输入的单词范围，用于前缀匹配
+                const word = model.getWordUntilPosition(position);
+                const matchRange = new monaco.Range(
+                    position.lineNumber,
+                    word.startColumn,
+                    position.lineNumber,
+                    word.endColumn
+                );
 
-                if (!lspClient.is_connected()) {
-                    return allSuggestions.length > 0 ? { suggestions: allSuggestions } : null;
+                const allSuggestions = [];
+
+                // 合入基础补全（关键字、snippet 等）
+                const baseResult = getBasePythonCompletions(monaco, model, position);
+                if (baseResult && baseResult.suggestions) {
+                    for (const item of baseResult.suggestions) {
+                        allSuggestions.push({ ...item, range: matchRange });
+                    }
                 }
 
-                const uri = model.uri.toString();
-                const line = position.lineNumber - 1;
-                const character = position.column - 1;
+                // 从文档内容中提取已有符号，恢复上下文补全
+                const seenLabels = new Set(allSuggestions.map(s => s.label));
+                const text = model.getValue();
+                const wordPattern = /[a-zA-Z_]\w*/g;
+                let match;
+                while ((match = wordPattern.exec(text)) !== null) {
+                    const label = match[0];
+                    if (!seenLabels.has(label) && label.length > 2) {
+                        seenLabels.add(label);
+                        allSuggestions.push({
+                            label,
+                            kind: monaco.languages.CompletionItemKind.Text,
+                            insertText: label,
+                            range: matchRange,
+                            sortText: 'zzz' + label
+                        });
+                    }
+                }
 
-                try {
-                    const result = await lspClient.getCompletions(uri, line, character);
-
-                    if (result && result.items && result.items.length > 0) {
-                        const lspSuggestions = result.items.map((item, index) => ({
+                // 合入缓存的 LSP 补全
+                if (cachedLSPItems && cachedLSPItems.length > 0) {
+                    for (let i = 0; i < cachedLSPItems.length; i++) {
+                        const item = cachedLSPItems[i];
+                        allSuggestions.push({
                             label: item.label,
                             kind: mapCompletionKind(monaco, item.kind),
                             insertText: item.insertText || item.label,
@@ -374,13 +404,34 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                                 : undefined,
                             detail: item.detail,
                             documentation: item.documentation,
-                            sortText: String(index).padStart(5, '0'),
-                            range: undefined
-                        }));
-                        allSuggestions.push(...lspSuggestions);
+                            sortText: String(i).padStart(5, '0'),
+                            range: matchRange
+                        });
                     }
-                } catch (lspErr) {
-                    console.warn('[LSP Completions] LSP request failed, using base only:', lspErr);
+                }
+
+                // 异步请求 LSP 补全，结果缓存后下次触发时使用
+                if (lspClient.is_connected()) {
+                    const uri = model.uri.toString();
+                    const line = position.lineNumber - 1;
+                    const character = position.column - 1;
+                    const cacheKey = uri + ':' + line + ':' + character;
+
+                    // 只在位置变化时发起新请求
+                    if (cacheKey !== lspCompletionCacheKey) {
+                        lspCompletionCacheKey = cacheKey;
+                        lspClient.getCompletions(uri, line, character)
+                            .then(result => {
+                                if (result && result.items) {
+                                    cachedLSPItems = result.items;
+                                    // 触发补全列表刷新
+                                    editor.trigger('lsp-cache', 'editor.action.triggerSuggest', {});
+                                }
+                            })
+                            .catch(err => {
+                                console.warn('[LSP Completions] LSP request failed:', err.message);
+                            });
+                    }
                 }
 
                 return allSuggestions.length > 0 ? { suggestions: allSuggestions } : null;

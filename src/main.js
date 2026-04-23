@@ -13,10 +13,13 @@ import { setupDocumentSync } from './lsp/document-sync.js';
 // 注册基础代码补全（作为 LSP 的后备）
 registerCompletions();
 
+// 创建带 LSP URI 的模型
+const LSP_URI = 'file:///workspace/main.py';
+const model = monaco.editor.createModel(sampleCode.python, 'python', monaco.Uri.parse(LSP_URI));
+
 // 创建编辑器
 const editor = monaco.editor.create(document.getElementById('container'), {
-  value: sampleCode.python,
-  language: 'python',
+  model,
   theme: 'vs',
   automaticLayout: true,
   minimap: { enabled: true },
