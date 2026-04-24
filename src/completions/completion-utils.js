@@ -49,6 +49,17 @@ export function getCustomSuggestions(completions, model, position) {
 }
 
 /**
+ * 注册 Monaco 内置补全
+ */
+export function registerDefaultCompletions(languageId) {
+    monaco.languages.registerCompletionItemProvider(languageId, {
+        async provideCompletionItems(model, position) {
+            return { suggestions: await getDefaultSuggestions(model, position) };
+        }
+    });
+}
+
+/**
  * 注册语言补全 provider（自定义补全 + Monaco 内置词频补全）
  */
 export function registerLanguageCompletions(languageId, completions) {
