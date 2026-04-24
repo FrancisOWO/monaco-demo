@@ -2,7 +2,7 @@
  * C++ 代码补全配置
  */
 import * as monaco from 'monaco-editor';
-import { registerLanguageCompletions } from './completion-utils.js';
+import { registerCompletionItem } from './completion-utils.js';
 
 export const cppCompletions = [
 	{
@@ -104,5 +104,5 @@ export const cppCompletions = [
 ];
 
 export function registerCppCompletions() {
-	registerLanguageCompletions('cpp', cppCompletions);
+	registerCompletionItem('cpp', cppCompletions);
 }

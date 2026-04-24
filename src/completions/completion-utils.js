@@ -51,7 +51,7 @@ export function getCustomSuggestions(completions, model, position) {
 /**
  * 注册 Monaco 内置补全
  */
-export function registerDefaultCompletions(languageId) {
+export function registerDefaultCompletionItem(languageId) {
     monaco.languages.registerCompletionItemProvider(languageId, {
         async provideCompletionItems(model, position) {
             return { suggestions: await getDefaultSuggestions(model, position) };
@@ -62,13 +62,34 @@ export function registerDefaultCompletions(languageId) {
 /**
  * 注册语言补全 provider（自定义补全 + Monaco 内置词频补全）
  */
-export function registerLanguageCompletions(languageId, completions) {
+export function registerCompletionItem(languageId, completions) {
     monaco.languages.registerCompletionItemProvider(languageId, {
         async provideCompletionItems(model, position) {
             const allSuggestions = getCustomSuggestions(completions, model, position);
             const defaultSuggestions = await getDefaultSuggestions(model, position);
             allSuggestions.push(...defaultSuggestions);
             return { suggestions: allSuggestions };
+        }
+    });
+}
+
+export function registerInlineCompletions(languageId) {
+    monaco.languages.registerInlineCompletionsProvider(languageId, {
+        provideInlineCompletions: function (model, position, context, token) {
+            console.log('Provide inline completion', position, context, token)
+            return {
+                items: [
+                    {
+                        insertText: 'hello world'
+                    },
+                    {
+                        insertText: 'goodbye world'
+                    }
+                ]
+            };
+        },
+        freeInlineCompletions: function (completions) {
+            console.log('Free inline completions', completions);
         }
     });
 }

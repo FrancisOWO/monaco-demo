@@ -2,7 +2,7 @@
  * Python 代码补全配置
  */
 import * as monaco from 'monaco-editor';
-import { registerLanguageCompletions } from './completion-utils.js';
+import { registerCompletionItem, registerInlineCompletions } from './completion-utils.js';
 
 export const pythonCompletions = [
 	{
@@ -140,5 +140,6 @@ export const pythonCompletions = [
 ];
 
 export function registerPythonCompletions() {
-	registerLanguageCompletions('python', pythonCompletions);
+	registerCompletionItem('python', pythonCompletions);
+	registerInlineCompletions('python');
 }

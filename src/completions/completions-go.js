@@ -2,7 +2,7 @@
  * Go 代码补全配置
  */
 import * as monaco from 'monaco-editor';
-import { registerLanguageCompletions } from './completion-utils.js';
+import { registerCompletionItem } from './completion-utils.js';
 
 export const goCompletions = [
 	{
@@ -128,5 +128,5 @@ export const goCompletions = [
 ];
 
 export function registerGoCompletions() {
-	registerLanguageCompletions('go', goCompletions);
+	registerCompletionItem('go', goCompletions);
 }

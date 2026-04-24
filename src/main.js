@@ -5,7 +5,7 @@ import './styles/theme-dark.css';
 import './styles/theme-light.css';
 
 import { sampleCode } from './sample-code/sample-code-index.js';
-import { registerCompletions } from './completions.js';
+import { registerBasicCompletions } from './completions.js';
 import { registerAICompletionProvider } from './ai-completion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';
@@ -99,10 +99,10 @@ lspToggleBtn.addEventListener('change', function () {
 // initLSP();
 
 // 注册 AI 补全提供者
-// registerAICompletionProvider(monaco, editor);
+registerAICompletionProvider(monaco, editor);
 
 // 注册基础代码补全（作为 LSP 的后备）
-registerCompletions();
+registerBasicCompletions();
 
 // 语言切换
 document.getElementById('language-select').addEventListener('change', function (e) {
