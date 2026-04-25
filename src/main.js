@@ -9,6 +9,7 @@ import { registerBasicCompletions } from './completions.js';
 import { registerAICompletionProvider } from './ai-completion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';
+import { setupInlineCompletion } from './inlineCompletion/setup.js';
 
 
 // 创建带 LSP URI 的模型
@@ -100,6 +101,16 @@ lspToggleBtn.addEventListener('change', function () {
 
 // 注册 AI 补全提供者
 registerAICompletionProvider(monaco, editor);
+
+// 注册新的 Inline Completion（Ghost Text）
+const aiServerUrl = 'http://localhost:3000/ai';
+setupInlineCompletion(monaco, editor, {
+    llm: {
+        endpoint: `${aiServerUrl}/completion`,
+        model: 'default',
+        apiKey: '',
+    },
+});
 
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();
