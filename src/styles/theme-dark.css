@@ -7,32 +7,6 @@ body[data-theme="dark"] {
 	color: #fff;
 }
 
-/* Toolbar */
-body[data-theme="dark"] #toolbar {
-	background-color: #252526;
-	border-color: #3c3c3c;
-}
-
-body[data-theme="dark"] .toolbar-btn {
-	color: #ccc;
-}
-
-body[data-theme="dark"] .toolbar-right label {
-	color: #ccc;
-}
-
-body[data-theme="dark"] #language-select,
-body[data-theme="dark"] #theme-select {
-	background-color: #3c3c3c;
-	border-color: #3c3c3c;
-	color: #fff;
-}
-
-body[data-theme="dark"] #language-select:hover,
-body[data-theme="dark"] #theme-select:hover {
-	background-color: #4c4c4c;
-}
-
 /* Sidebar */
 body[data-theme="dark"] #sidebar {
 	background-color: #252526;
@@ -59,6 +33,10 @@ body[data-theme="dark"] .tab.active {
 }
 
 body[data-theme="dark"] .tab.active::after {
+	background: #4fc3f7;
+}
+
+body[data-theme="dark"] .tab.dirty .tab-name::after {
 	background: #4fc3f7;
 }
 

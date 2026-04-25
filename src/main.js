@@ -16,10 +16,11 @@ import { setupInlineCompletion } from './inlineCompletion/setup.js';
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
 
-import { openFiles, activeFilePath, on } from './file-system/file-store.js';
+import { openFiles, activeFilePath, on, saveActiveFile, createNewFile, closeFile, forceCloseFile } from './file-system/file-store.js';
 import { setupToolbar, updateLanguageSelect } from './ui/toolbar.js';
 import { renderTabs, updateTabs } from './ui/tab-bar.js';
 import { updateSidebarHighlight } from './ui/sidebar.js';
+import { showDialog } from './ui/dialogs.js';
 
 const logger = getLogger('Main');
 
@@ -46,12 +47,11 @@ on('onActiveFileChanged', () => {
     updateSidebarHighlight();
 });
 
-// Setup toolbar（绑定所有按钮和控件事件）
+// Setup menu bar（绑定所有菜单事件）
 setupToolbar(editor);
 
-// LSP 状态显示
+// LSP 状态显示（状态栏）
 const lspStatusEl = document.getElementById('lsp-status');
-const lspToggleBtn = document.getElementById('lsp-toggle');
 let lspEnabled = true;
 let lspClient = null;
 let lspRetryTimer = null;
@@ -89,27 +89,6 @@ async function initLSP() {
         }
     }
 }
-
-// LSP 切换按钮
-lspToggleBtn.addEventListener('change', function () {
-    lspEnabled = lspToggleBtn.checked;
-
-    if (!lspEnabled) {
-        if (lspRetryTimer) {
-            clearTimeout(lspRetryTimer);
-            lspRetryTimer = null;
-        }
-        if (lspClient) {
-            lspClient.disconnect();
-        }
-        updateLSPStatus('disabled', '已关闭');
-        logger.info('LSP disabled');
-    } else {
-        lspClient = null;
-        initLSP();
-        logger.info('LSP enabled');
-    }
-});
 
 // 启动 LSP
 // initLSP();
@@ -152,46 +131,38 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         const descriptor = openFiles.get(activeFilePath);
         if (descriptor) {
-            import('./file-system/file-store.js').then(async ({ saveActiveFile }) => {
-                await saveActiveFile(editor);
-                renderTabs(editor);
-            });
+            saveActiveFile(editor).then(() => renderTabs(editor));
         }
     }
 
     // Ctrl+N 新建文件
     if (e.ctrlKey && e.key === 'n') {
         e.preventDefault();
-        const language = document.getElementById('language-select').value;
-        import('./file-system/file-store.js').then(({ createNewFile }) => {
-            createNewFile(language, editor);
-            renderTabs(editor);
-        });
+        const descriptor = openFiles.get(activeFilePath);
+        const language = descriptor ? descriptor.language : 'python';
+        createNewFile(language, editor);
+        renderTabs(editor);
     }
 
     // Ctrl+W 关闭当前 tab
     if (e.ctrlKey && e.key === 'w') {
         e.preventDefault();
-        import('./ui/tab-bar.js').then(async ({ renderTabs }) => {
-            // 直接使用 closeFile 的逻辑
-            const { closeFile, forceCloseFile, activeFilePath } = await import('./file-system/file-store.js');
-            const descriptor = openFiles.get(activeFilePath);
-            if (!descriptor) return;
+        const descriptor = openFiles.get(activeFilePath);
+        if (!descriptor) return;
 
-            if (descriptor.isDirty) {
-                const { showDialog } = await import('./ui/dialogs.js');
-                const confirmed = await showDialog(
-                    `文件 "${descriptor.name}" 有未保存的更改。\n是否不保存并关闭？`,
-                    { confirmLabel: '不保存关闭', cancelLabel: '取消' }
-                );
-                if (!confirmed) return;
-                forceCloseFile(activeFilePath, editor);
-            } else {
-                closeFile(activeFilePath, editor);
-            }
+        if (descriptor.isDirty) {
+            showDialog(
+                `文件 "${descriptor.name}" 有未保存的更改。\n是否不保存并关闭？`,
+                { confirmLabel: '不保存关闭', cancelLabel: '取消' }
+            ).then((confirmed) => {
+                if (confirmed) {
+                    forceCloseFile(activeFilePath, editor);
+                    renderTabs(editor);
+                }
+            });
+        } else {
+            closeFile(activeFilePath, editor);
             renderTabs(editor);
-        });
+        }
     }
 });
-
-// 主题切换（通过 toolbar.js 已绑定，此处无需重复）

@@ -8,55 +8,101 @@
 </head>
 
 <body data-theme="light">
-	<!-- Toolbar -->
-	<div id="toolbar">
-		<div class="toolbar-left">
-			<button id="btn-new-file" class="toolbar-btn" title="新建文件 (Ctrl+N)">
-				<span class="btn-icon">+</span>
-				<span class="btn-label">新建</span>
-			</button>
-			<button id="btn-open-folder" class="toolbar-btn" title="打开文件夹">
-				<span class="btn-icon">📁</span>
-				<span class="btn-label">打开文件夹</span>
-			</button>
-			<button id="btn-save" class="toolbar-btn" title="保存 (Ctrl+S)">
-				<span class="btn-icon">💾</span>
-				<span class="btn-label">保存</span>
-			</button>
-			<button id="btn-delete" class="toolbar-btn" title="删除文件">
-				<span class="btn-icon">🗑</span>
-				<span class="btn-label">删除</span>
-			</button>
+	<!-- Menu Bar -->
+	<div id="menu-bar">
+		<div class="menu-item" data-menu="file">文件</div>
+		<div class="menu-item" data-menu="edit">编辑</div>
+		<div class="menu-item" data-menu="selection">选择</div>
+		<div class="menu-item" data-menu="view">视图</div>
+		<div class="menu-item" data-menu="help">帮助</div>
+	</div>
+
+	<!-- Dropdown menus -->
+	<div id="menu-dropdowns">
+		<!-- 文件菜单 -->
+		<div class="menu-dropdown" data-menu="file">
+			<div class="menu-entry" data-action="new-file">新建文件<span class="shortcut">Ctrl+N</span></div>
+			<div class="menu-entry" data-action="new-window" disabled>新建窗口<span class="shortcut">Ctrl+Shift+N</span></div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="open-file">打开文件...</div>
+			<div class="menu-entry" data-action="open-folder">打开文件夹...</div>
+			<div class="menu-entry" data-action="open-recent" disabled>打开最近</div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="save">保存<span class="shortcut">Ctrl+S</span></div>
+			<div class="menu-entry" data-action="save-as" disabled>另存为...<span class="shortcut">Ctrl+Shift+S</span></div>
+			<div class="menu-entry" data-action="save-all" disabled>全部保存</div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="close-editor">关闭编辑器<span class="shortcut">Ctrl+W</span></div>
+			<div class="menu-entry" data-action="close-window" disabled>关闭窗口</div>
 		</div>
-		<div class="toolbar-right">
-			<div class="control-group">
-				<label for="language-select">语言：</label>
-				<select id="language-select">
-					<option value="python">Python</option>
-					<option value="cpp">C++</option>
-					<option value="go">Go</option>
-					<option value="javascript">JavaScript</option>
-					<option value="typescript">TypeScript</option>
-					<option value="json">JSON</option>
-					<option value="html">HTML</option>
-					<option value="css">CSS</option>
-					<option value="markdown">Markdown</option>
-					<option value="plaintext">纯文本</option>
-				</select>
-			</div>
-			<div class="control-group">
-				<label for="theme-select">主题：</label>
-				<select id="theme-select">
-					<option value="vs">浅色</option>
-					<option value="vs-dark">深色</option>
-				</select>
-			</div>
-			<div class="control-group">
-				<span id="lsp-status" class="lsp-status disconnected">LSP: 未连接</span>
-				<label class="toggle-switch">
-					<input type="checkbox" id="lsp-toggle" checked>
-					<span class="toggle-slider"></span>
-				</label>
+
+		<!-- 编辑菜单 -->
+		<div class="menu-dropdown" data-menu="edit">
+			<div class="menu-entry" data-action="undo" disabled>撤销<span class="shortcut">Ctrl+Z</span></div>
+			<div class="menu-entry" data-action="redo" disabled>恢复<span class="shortcut">Ctrl+Y</span></div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="cut" disabled>剪切<span class="shortcut">Ctrl+X</span></div>
+			<div class="menu-entry" data-action="copy" disabled>复制<span class="shortcut">Ctrl+C</span></div>
+			<div class="menu-entry" data-action="paste" disabled>粘贴<span class="shortcut">Ctrl+V</span></div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="find" disabled>查找<span class="shortcut">Ctrl+F</span></div>
+			<div class="menu-entry" data-action="replace" disabled>替换<span class="shortcut">Ctrl+H</span></div>
+		</div>
+
+		<!-- 选择菜单 -->
+		<div class="menu-dropdown" data-menu="selection">
+			<div class="menu-entry" data-action="select-all" disabled>全选<span class="shortcut">Ctrl+A</span></div>
+			<div class="menu-entry" data-action="expand-selection" disabled>展开选择<span class="shortcut">Ctrl+Shift+→</span></div>
+			<div class="menu-entry" data-action="shrink-selection" disabled>收缩选择<span class="shortcut">Ctrl+Shift+←</span></div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="copy-line-up" disabled>向上复制行<span class="shortcut">Alt+↑</span></div>
+			<div class="menu-entry" data-action="copy-line-down" disabled>向下复制行<span class="shortcut">Alt+↓</span></div>
+			<div class="menu-entry" data-action="move-line-up" disabled>向上移动行<span class="shortcut">Shift+Alt+↑</span></div>
+			<div class="menu-entry" data-action="move-line-down" disabled>向下移动行<span class="shortcut">Shift+Alt+↓</span></div>
+		</div>
+
+		<!-- 视图菜单 -->
+		<div class="menu-dropdown" data-menu="view">
+			<div class="menu-entry" data-action="command-palette" disabled>命令面板...<span class="shortcut">Ctrl+Shift+P</span></div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="explorer">资源管理器</div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="zoom-in" disabled>放大<span class="shortcut">Ctrl+=</span></div>
+			<div class="menu-entry" data-action="zoom-out" disabled>缩小<span class="shortcut">Ctrl+-</span></div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="minimap-toggle">切换缩略图</div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="theme-light">浅色主题</div>
+			<div class="menu-entry" data-action="theme-dark">深色主题</div>
+			<div class="menu-separator"></div>
+			<div class="menu-entry" data-action="language-select">语言模式...</div>
+		</div>
+
+		<!-- 帮助菜单 -->
+		<div class="menu-dropdown" data-menu="help">
+			<div class="menu-entry" data-action="about">关于</div>
+		</div>
+	</div>
+
+	<!-- Language Select Modal -->
+	<div id="language-modal" class="modal hidden">
+		<div class="modal-content">
+			<div class="modal-title">选择语言模式</div>
+			<select id="language-modal-select">
+				<option value="python">Python</option>
+				<option value="cpp">C++</option>
+				<option value="go">Go</option>
+				<option value="javascript">JavaScript</option>
+				<option value="typescript">TypeScript</option>
+				<option value="json">JSON</option>
+				<option value="html">HTML</option>
+				<option value="css">CSS</option>
+				<option value="markdown">Markdown</option>
+				<option value="plaintext">纯文本</option>
+			</select>
+			<div class="modal-buttons">
+				<button class="btn-primary" id="language-modal-ok">确定</button>
+				<button class="btn-secondary" id="language-modal-cancel">取消</button>
 			</div>
 		</div>
 	</div>
@@ -66,7 +112,7 @@
 		<aside id="sidebar">
 			<div id="sidebar-header">EXPLORER</div>
 			<div id="file-tree">
-				<div class="tree-empty">点击"打开文件夹"以浏览文件</div>
+				<div class="tree-empty">打开文件夹以浏览文件</div>
 			</div>
 		</aside>
 		<div id="editor-area">
@@ -85,6 +131,17 @@
 
 	<!-- Toast -->
 	<div id="toast-container"></div>
+
+	<!-- Status bar -->
+	<div id="status-bar">
+		<div id="status-left">
+			<span id="lsp-status" class="lsp-status disconnected">LSP: 未连接</span>
+		</div>
+		<div id="status-right">
+			<span id="status-language">语言</span>
+			<span id="status-line-col">行 1, 列 1</span>
+		</div>
+	</div>
 
 	<script type="module" src="./main.js"></script>
 </body>

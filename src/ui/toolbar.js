@@ -1,106 +1,250 @@
 /**
- * Toolbar 按钮事件绑定
+ * Menu Bar 事件绑定与菜单逻辑
+ * VSCode 风格多级菜单
  */
 
+import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
 import { isFileSystemAccessSupported, openDirectory } from '../file-system/fs-access.js';
-import { setRootDirectory, createNewFile, saveActiveFile, deleteActiveFile, setActiveFileLanguage, getActiveFile } from '../file-system/file-store.js';
+import { setRootDirectory, createNewFile, saveActiveFile, deleteActiveFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
 import { renderTabs } from '../ui/tab-bar.js';
 import { showDialog, showToast } from '../ui/dialogs.js';
 
-const logger = getLogger('Toolbar');
+const logger = getLogger('MenuBar');
+
+let activeMenu = null;
+let sidebarVisible = true;
 
 /**
- * 绑定 toolbar 所有按钮事件
- * @param {monaco.editor} editor Monaco 编辑器实例
+ * Setup menu bar
+ * @param {monaco.editor} editor
  */
 export function setupToolbar(editor) {
-    // 新建文件
-    document.getElementById('btn-new-file').addEventListener('click', () => {
-        const language = document.getElementById('language-select').value;
-        createNewFile(language, editor);
-        renderTabs(editor);
+    const menuBar = document.getElementById('menu-bar');
+    const dropdowns = document.getElementById('menu-dropdowns');
+
+    // 浏览器兼容性检查
+    const fsSupported = isFileSystemAccessSupported();
+
+    // 菜单项 hover/click 打开下拉
+    menuBar.querySelectorAll('.menu-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const menuName = item.dataset.menu;
+            if (activeMenu === menuName) {
+                closeAllMenus();
+            } else {
+                openMenu(menuName, item, dropdowns);
+            }
+        });
+
+        item.addEventListener('mouseenter', () => {
+            if (activeMenu) {
+                const menuName = item.dataset.menu;
+                openMenu(menuName, item, dropdowns);
+            }
+        });
     });
 
-    // 打开文件夹
-    document.getElementById('btn-open-folder').addEventListener('click', async () => {
-        if (!isFileSystemAccessSupported()) {
-            showToast('此功能需要 Chrome/Edge 浏览器支持 File System Access API', 'warning');
-            return;
-        }
-
-        const handle = await openDirectory();
-        if (!handle) return;
-
-        setRootDirectory(handle);
-        await renderFileTree(handle, editor);
-        showToast(`已打开文件夹: ${handle.name}`, 'info');
+    // 点击页面其他地方关闭菜单
+    document.addEventListener('click', () => {
+        closeAllMenus();
     });
 
-    // 保存
-    document.getElementById('btn-save').addEventListener('click', async () => {
-        const descriptor = getActiveFile();
-        if (!descriptor) {
-            showToast('没有打开的文件', 'warning');
-            return;
-        }
-        await saveActiveFile(editor);
-        renderTabs(editor);
-        if (descriptor.isDirty) {
-            showToast('文件已保存', 'info');
+    // 菜单项点击事件
+    dropdowns.querySelectorAll('.menu-entry').forEach(entry => {
+        entry.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (entry.hasAttribute('disabled')) return;
+
+            const action = entry.dataset.action;
+            handleAction(action, editor);
+            closeAllMenus();
+        });
+    });
+
+    // 语言选择弹窗
+    setupLanguageModal(editor);
+
+    // 文件变化时更新状态栏语言显示
+    on('onActiveFileChanged', () => {
+        updateStatusBar(editor);
+    });
+
+    // 编辑器光标位置更新状态栏
+    editor.onDidChangeCursorPosition((e) => {
+        const posEl = document.getElementById('status-line-col');
+        if (posEl) {
+            posEl.textContent = `行 ${e.position.lineNumber}, 列 ${e.position.column}`;
         }
     });
 
-    // 删除
-    document.getElementById('btn-delete').addEventListener('click', async () => {
-        const descriptor = getActiveFile();
-        if (!descriptor) {
-            showToast('没有打开的文件', 'warning');
-            return;
-        }
-        if (!descriptor.handle) {
-            showToast('无法删除未保存的文件', 'warning');
-            return;
-        }
+    logger.info('Menu bar setup complete');
+}
 
-        const confirmed = await showDialog(
-            `确定要删除文件 "${descriptor.name}" 吗？此操作不可撤销。`,
-            { confirmLabel: '删除', cancelLabel: '取消' }
-        );
-        if (!confirmed) return;
+/**
+ * 打开菜单
+ */
+function openMenu(menuName, triggerItem, dropdowns) {
+    closeAllMenus();
 
-        const success = await deleteActiveFile(editor);
-        if (success) {
+    const dropdown = dropdowns.querySelector(`.menu-dropdown[data-menu="${menuName}"]`);
+    if (!dropdown) return;
+
+    // 定位下拉菜单
+    const rect = triggerItem.getBoundingClientRect();
+    dropdown.style.left = rect.left + 'px';
+    dropdown.classList.add('visible');
+
+    triggerItem.classList.add('active');
+    activeMenu = menuName;
+}
+
+/**
+ * 关闭所有菜单
+ */
+function closeAllMenus() {
+    document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.remove('visible'));
+    document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+    activeMenu = null;
+}
+
+/**
+ * 处理菜单动作
+ */
+async function handleAction(action, editor) {
+    switch (action) {
+        case 'new-file': {
+            const language = getActiveFile()?.language || 'python';
+            createNewFile(language, editor);
             renderTabs(editor);
-            refreshFileTree(editor);
-            showToast('文件已删除', 'info');
+            break;
         }
-    });
+        case 'open-file': {
+            showToast('请使用"打开文件夹"浏览并选择文件', 'info');
+            break;
+        }
+        case 'open-folder': {
+            if (!isFileSystemAccessSupported()) {
+                showToast('此功能需要 Chrome/Edge 浏览器', 'warning');
+                return;
+            }
+            const handle = await openDirectory();
+            if (!handle) return;
+            setRootDirectory(handle);
+            await renderFileTree(handle, editor);
+            showToast(`已打开文件夹: ${handle.name}`, 'info');
+            break;
+        }
+        case 'save': {
+            const descriptor = getActiveFile();
+            if (!descriptor) {
+                showToast('没有打开的文件', 'warning');
+                return;
+            }
+            const wasDirty = descriptor.isDirty;
+            await saveActiveFile(editor);
+            renderTabs(editor);
+            if (wasDirty) {
+                showToast('文件已保存', 'info');
+            }
+            break;
+        }
+        case 'close-editor': {
+            const descriptor = getActiveFile();
+            if (!descriptor) return;
 
-    // 语言选择
-    document.getElementById('language-select').addEventListener('change', (e) => {
-        const language = e.target.value;
+            if (descriptor.isDirty) {
+                const confirmed = await showDialog(
+                    `文件 "${descriptor.name}" 有未保存的更改。\n是否不保存并关闭？`,
+                    { confirmLabel: '不保存关闭', cancelLabel: '取消' }
+                );
+                if (!confirmed) return;
+                const { forceCloseFile } = await import('../file-system/file-store.js');
+                forceCloseFile(descriptor.path, editor);
+            } else {
+                const { closeFile } = await import('../file-system/file-store.js');
+                closeFile(descriptor.path, editor);
+            }
+            renderTabs(editor);
+            break;
+        }
+        case 'explorer': {
+            sidebarVisible = !sidebarVisible;
+            const sidebar = document.getElementById('sidebar');
+            sidebar.style.display = sidebarVisible ? '' : 'none';
+            break;
+        }
+        case 'minimap-toggle': {
+            const current = editor.getOption(monaco.editor.EditorOption.minimap);
+            editor.updateOptions({ minimap: { enabled: !current.enabled } });
+            break;
+        }
+        case 'theme-light': {
+            monaco.editor.setTheme('vs');
+            document.body.setAttribute('data-theme', 'light');
+            break;
+        }
+        case 'theme-dark': {
+            monaco.editor.setTheme('vs-dark');
+            document.body.setAttribute('data-theme', 'dark');
+            break;
+        }
+        case 'language-select': {
+            document.getElementById('language-modal').classList.remove('hidden');
+            const descriptor = getActiveFile();
+            if (descriptor) {
+                document.getElementById('language-modal-select').value = descriptor.language;
+            }
+            break;
+        }
+        case 'about': {
+            showDialog('Monaco Editor Demo\n基于 Monaco Editor 0.55.1\n支持多文件编辑、代码补全、LSP 连接', { confirmLabel: '确定', cancelLabel: '' });
+            break;
+        }
+        default:
+            logger.info('Unhandled action:', action);
+    }
+}
+
+/**
+ * 语言选择弹窗
+ */
+function setupLanguageModal(editor) {
+    const modal = document.getElementById('language-modal');
+    const select = document.getElementById('language-modal-select');
+    const okBtn = document.getElementById('language-modal-ok');
+    const cancelBtn = document.getElementById('language-modal-cancel');
+
+    okBtn.addEventListener('click', () => {
+        const language = select.value;
         setActiveFileLanguage(language);
+        updateStatusBar(editor);
+        modal.classList.add('hidden');
     });
 
-    // 主题选择
-    document.getElementById('theme-select').addEventListener('change', (e) => {
-        const theme = e.target.value;
-        monaco.editor.setTheme(theme);
-        document.body.setAttribute('data-theme', theme === 'vs-dark' ? 'dark' : 'light');
+    cancelBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
     });
 
-    // 更新语言下拉框（当活跃文件变化时）
-    document.addEventListener('activeFileChanged', () => {
-        const descriptor = getActiveFile();
-        const select = document.getElementById('language-select');
-        if (descriptor) {
-            select.value = descriptor.language;
+    // 点击弹窗背景关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.classList.add('hidden');
         }
     });
+}
 
-    logger.info('Toolbar setup complete');
+/**
+ * 更新状态栏语言显示
+ */
+function updateStatusBar(editor) {
+    const descriptor = getActiveFile();
+    const langEl = document.getElementById('status-language');
+    if (langEl && descriptor) {
+        langEl.textContent = descriptor.language.toUpperCase();
+    }
 }
 
 /**
@@ -108,8 +252,9 @@ export function setupToolbar(editor) {
  */
 export function updateLanguageSelect() {
     const descriptor = getActiveFile();
-    const select = document.getElementById('language-select');
-    if (descriptor) {
+    const select = document.getElementById('language-modal-select');
+    if (descriptor && select) {
         select.value = descriptor.language;
     }
+    updateStatusBar(null);
 }
