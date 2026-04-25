@@ -104,7 +104,9 @@ export class DocumentSuffixComponent implements IPromptComponent {
         // 限制缓存大小
         if (this.cache.size > 100) {
             const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
+            if (firstKey !== undefined) {
+                this.cache.delete(firstKey);
+            }
         }
     }
 

@@ -8,6 +8,9 @@ import type {
     ITelemetryEmitter,
     TelemetryEvent,
 } from '../types.js';
+import { getLogger } from '../../utils/logger.js';
+
+const logger = getLogger('Telemetry');
 
 /**
  * 完整版遥测发射器配置
@@ -86,8 +89,7 @@ export class FullTelemetryEmitter implements ITelemetryEmitter {
         // 使用自定义发送函数或默认行为
         if (this.config.sendFn) {
             this.config.sendFn(eventsToSend).catch(error => {
-                // eslint-disable-next-line no-console
-                console.error('[Telemetry] Failed to send events:', error);
+                logger.error('Failed to send events:', error);
                 // 重新加入队列
                 this.queue.unshift(...eventsToSend);
             });
@@ -171,8 +173,7 @@ export class FullTelemetryEmitter implements ITelemetryEmitter {
      */
     private sendToConsole(events: TelemetryEvent[]): void {
         for (const event of events) {
-            // eslint-disable-next-line no-console
-            console.log(`[Telemetry] ${event.eventType}`, {
+            logger.info(event.eventType, {
                 requestId: event.requestId,
                 timestamp: event.timestamp,
                 properties: event.properties,

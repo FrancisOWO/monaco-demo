@@ -3,6 +3,10 @@
  * 保持 Monaco Editor 模型与 LSP 服务器同步
  */
 
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('Document Sync');
+
 let currentVersion = 1;
 
 /**
@@ -12,7 +16,7 @@ export function setupDocumentSync(editor, lspClient, uri = 'file:///workspace/ma
     const model = editor.getModel();
 
     if (!model) {
-        console.error('[Document Sync] No model found');
+        logger.error('No model found');
         return;
     }
 
@@ -36,7 +40,7 @@ export function setupDocumentSync(editor, lspClient, uri = 'file:///workspace/ma
         }, 300);
     });
 
-    console.log('[Document Sync] Setup complete, URI:', uri);
+    logger.info('Setup complete, URI:', uri);
 
     return {
         getUri() {

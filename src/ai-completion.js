@@ -3,6 +3,9 @@
  * 支持单行补全、多行补全、自动触发和快捷键触发
  */
 import * as monaco from 'monaco-editor';
+import { getLogger } from './utils/logger.js';
+
+const logger = getLogger('AI');
 
 // AI 补全状态
 const aiCompletionState = {
@@ -48,7 +51,7 @@ async function requestSingleLineCompletion(editor) {
 
     try {
         aiCompletionState.loading = true;
-        console.log('[AI] Requesting single-line completion...');
+        logger.info('Requesting single-line completion...');
 
         const response = await fetch(`${AI_SERVER_URL}/completion`, {
             method: 'POST',
@@ -69,7 +72,7 @@ async function requestSingleLineCompletion(editor) {
             const best = data.suggestions.reduce((a, b) => a.confidence > b.confidence ? a : b);
             aiCompletionState.currentSuggestion = best;
             aiCompletionState.loading = false;
-            console.log('[AI] Got suggestion:', best.text);
+            logger.info('Got suggestion:', best.text);
             return best;
         }
 
@@ -77,7 +80,7 @@ async function requestSingleLineCompletion(editor) {
         return null;
 
     } catch (error) {
-        console.error('[AI] Completion request failed:', error);
+        logger.error('Completion request failed:', error);
         aiCompletionState.loading = false;
         return null;
     }
@@ -118,7 +121,7 @@ async function showMultiLineCompletion(editor) {
 
     try {
         aiCompletionState.loading = true;
-        console.log('[AI] Requesting multi-line completion...');
+        logger.info('Requesting multi-line completion...');
 
         const position = editor.getPosition();
         const insertPosition = position;
@@ -170,7 +173,7 @@ async function showMultiLineCompletion(editor) {
                                     text: fullText,
                                     forceMoveMarkers: true,
                                 }]);
-                                console.log('[AI] Multi-line completion inserted:', fullText);
+                                logger.info('Multi-line completion inserted:', fullText);
                             }
 
                             aiCompletionState.loading = false;
@@ -187,7 +190,7 @@ async function showMultiLineCompletion(editor) {
         aiCompletionState.loading = false;
 
     } catch (error) {
-        console.error('[AI] Multi-line completion failed:', error);
+        logger.error('Multi-line completion failed:', error);
         aiCompletionState.loading = false;
     }
 }
@@ -196,24 +199,24 @@ async function showMultiLineCompletion(editor) {
  * 注册 AI 补全提供者
  */
 export function registerAICompletionProvider(monaco, editor) {
-    console.log('[AI] Registering AI completion provider');
+    logger.info('Registering AI completion provider');
 
     // 注册快捷键 Alt+Enter 触发单行补全
     editor.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
-        console.log('[AI] Hotkey Alt+Enter: Single-line completion');
+        logger.info('Hotkey Alt+Enter: Single-line completion');
         showSingleLineCompletion(editor);
     });
 
     // 注册 Ctrl+Alt+Enter 触发多行补全
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => {
-        console.log('[AI] Hotkey Ctrl+Alt+Enter: Multi-line completion');
+        logger.info('Hotkey Ctrl+Alt+Enter: Multi-line completion');
         showMultiLineCompletion(editor);
     });
 
     // 注册 Tab 键接受当前内联补全
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Tab, () => {
         if (aiCompletionState.inlineDecoration) {
-            console.log('[AI] Tab: Accept inline completion');
+            logger.info('Tab: Accept inline completion');
             const decorations = editor.getDecorations();
             const decoration = decorations.find(d => d.id === aiCompletionState.inlineDecoration[0]);
             if (decoration) {
@@ -235,7 +238,7 @@ export function registerAICompletionProvider(monaco, editor) {
     // 注册 Esc 键拒绝当前补全
     editor.addCommand(monaco.KeyCode.Escape, () => {
         if (aiCompletionState.inlineDecoration) {
-            console.log('[AI] Escape: Reject inline completion');
+            logger.info('Escape: Reject inline completion');
             editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
             aiCompletionState.inlineDecoration = null;
         }
@@ -269,23 +272,23 @@ export function registerAICompletionProvider(monaco, editor) {
                     }
                     lastTriggerTime = now;
 
-                    console.log('[AI] Auto-triggered, last line:', JSON.stringify(trimmedLine.substring(0, 50)));
+                    logger.info('Auto-triggered, last line:', JSON.stringify(trimmedLine.substring(0, 50)));
                     showSingleLineCompletion(editor);
                 } else {
-                    console.log('[AI] Auto-trigger skipped, last line:', JSON.stringify(trimmedLine.substring(0, 30)), 'lastChar:', JSON.stringify(lastChar));
+                    logger.info('Auto-trigger skipped, last line:', JSON.stringify(trimmedLine.substring(0, 30)), 'lastChar:', JSON.stringify(lastChar));
                 }
             }, 500);
         });
     }
 
-    console.log('[AI] AI completion provider registered');
-    console.log('[AI] Hotkeys:');
-    console.log('[AI]   Ctrl+Alt+L: Single-line completion');
-    console.log('[AI]   Alt+Enter:  Multi-line completion');
-    console.log('[AI]   Tab:        Accept inline completion');
-    console.log('[AI]   Escape:     Reject inline completion');
-    console.log('[AI] Auto-trigger: Enabled');
-    console.log('[AI]   Triggers on: . : ( def class function if for while try with import');
+    logger.info('AI completion provider registered');
+    logger.info('Hotkeys:');
+    logger.info('  Ctrl+Alt+L: Single-line completion');
+    logger.info('  Alt+Enter:  Multi-line completion');
+    logger.info('  Tab:        Accept inline completion');
+    logger.info('  Escape:     Reject inline completion');
+    logger.info('Auto-trigger: Enabled');
+    logger.info('  Triggers on: . : ( def class function if for while try with import');
 }
 
 export { showSingleLineCompletion, showMultiLineCompletion };

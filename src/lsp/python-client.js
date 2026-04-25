@@ -3,6 +3,9 @@
  * 连接 Monaco Editor 与后端 Pyright 语言服务器
  */
 import * as monaco from 'monaco-editor';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('LSP Client');
 
 // LSP 客户端状态
 let isConnected = false;
@@ -23,12 +26,12 @@ export function createPythonLSPClient(monaco, editor) {
          */
         connect() {
             return new Promise((resolve, reject) => {
-                console.log('[LSP Client] Connecting to', LSP_SERVER_URL);
+                logger.info('Connecting to', LSP_SERVER_URL);
 
                 webSocket = new WebSocket(LSP_SERVER_URL);
 
                 webSocket.onopen = () => {
-                    console.log('[LSP Client] WebSocket connected');
+                    logger.info('WebSocket connected');
                     isConnected = true;
 
                     // 发送初始化请求
@@ -38,12 +41,12 @@ export function createPythonLSPClient(monaco, editor) {
                 };
 
                 webSocket.onclose = (event) => {
-                    console.log('[LSP Client] WebSocket closed:', event.code, event.reason);
+                    logger.info('WebSocket closed:', event.code, event.reason);
                     isConnected = false;
                 };
 
                 webSocket.onerror = (error) => {
-                    console.error('[LSP Client] WebSocket error:', error);
+                    logger.error('WebSocket error:', error);
                     isConnected = false;
                     reject(error);
                 };
@@ -96,7 +99,7 @@ export function createPythonLSPClient(monaco, editor) {
                 const content = JSON.stringify(message);
                 const lspMessage = `Content-Length: ${content.length}\r\n\r\n${content}`;
 
-                console.log('[LSP Client] Sending request:', method, id);
+                logger.info('Sending request:', method, id);
                 webSocket.send(lspMessage);
             });
         },
@@ -106,7 +109,7 @@ export function createPythonLSPClient(monaco, editor) {
          */
         sendNotification(method, params) {
             if (!webSocket || !isConnected) {
-                console.warn('[LSP Client] Cannot send notification, not connected');
+                logger.warn('Cannot send notification, not connected');
                 return;
             }
 
@@ -119,7 +122,7 @@ export function createPythonLSPClient(monaco, editor) {
             const content = JSON.stringify(message);
             const lspMessage = `Content-Length: ${content.length}\r\n\r\n${content}`;
 
-            console.log('[LSP Client] Sending notification:', method);
+            logger.info('Sending notification:', method);
             webSocket.send(lspMessage);
         },
 
@@ -140,7 +143,7 @@ export function createPythonLSPClient(monaco, editor) {
 
             try {
                 const message = JSON.parse(content);
-                console.log('[LSP Client] Received message:', message.method || `response ${message.id}`);
+                logger.info('Received message:', message.method || `response ${message.id}`);
 
                 // 处理响应
                 if (message.id !== undefined && messageCallbacks.has(message.id)) {
@@ -159,7 +162,7 @@ export function createPythonLSPClient(monaco, editor) {
                     this.handleNotification(message.method, message.params);
                 }
             } catch (error) {
-                console.error('[LSP Client] Failed to parse message:', error);
+                logger.error('Failed to parse message:', error);
             }
         },
 
@@ -172,7 +175,7 @@ export function createPythonLSPClient(monaco, editor) {
                     this.handleDiagnostics(params);
                     break;
                 default:
-                    console.log('[LSP Client] Unhandled notification:', method);
+                    logger.info('Unhandled notification:', method);
             }
         },
 
@@ -196,7 +199,7 @@ export function createPythonLSPClient(monaco, editor) {
             }));
 
             monaco.editor.setModelMarkers(model, 'python-lsp', markers);
-            console.log('[LSP Client] Published', markers.length, 'diagnostics');
+            logger.info('Published', markers.length, 'diagnostics');
         },
 
         /**
@@ -256,7 +259,7 @@ export function createPythonLSPClient(monaco, editor) {
             };
 
             const result = await this.sendRequest('initialize', initParams);
-            console.log('[LSP Client] Initialized:', result);
+            logger.info('Initialized:', result);
 
             // 发送 initialized 通知
             this.sendNotification('initialized', {});
@@ -306,7 +309,7 @@ export function createPythonLSPClient(monaco, editor) {
                 const result = await this.sendRequest('textDocument/completion', params);
                 return result;
             } catch (error) {
-                console.error('[LSP Client] Completion error:', error);
+                logger.error('Completion error:', error);
                 return null;
             }
         },
@@ -324,7 +327,7 @@ export function createPythonLSPClient(monaco, editor) {
                 const result = await this.sendRequest('textDocument/hover', params);
                 return result;
             } catch (error) {
-                console.error('[LSP Client] Hover error:', error);
+                logger.error('Hover error:', error);
                 return null;
             }
         },
@@ -428,20 +431,20 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                                 }
                             })
                             .catch(err => {
-                                console.warn('[LSP Completions] LSP request failed:', err.message);
+                                logger.warn('LSP request failed:', err.message);
                             });
                     }
                 }
 
                 return allSuggestions.length > 0 ? { suggestions: allSuggestions } : null;
             } catch (err) {
-                console.error('[LSP Completions] error:', err);
+                logger.error('error:', err);
                 return null;
             }
         }
     });
 
-    console.log('[LSP Client] Completion provider registered (merged with base)');
+    logger.info('Completion provider registered (merged with base)');
 }
 
 /**
@@ -528,5 +531,5 @@ export function registerLSPHoverProvider(monaco, lspClient) {
         }
     });
 
-    console.log('[LSP Client] Hover provider registered');
+    logger.info('Hover provider registered');
 }

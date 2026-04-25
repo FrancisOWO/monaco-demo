@@ -10,6 +10,13 @@ import { registerAICompletionProvider } from './ai-completion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';
 import { setupInlineCompletion } from './inlineCompletion/setup.js';
+import { initLogPanel } from './utils/logPanel.js';
+import { getLogger } from './utils/logger.js';
+
+const logger = getLogger('Main');
+
+// 初始化日志控制面板
+initLogPanel();
 
 
 // 创建带 LSP URI 的模型
@@ -63,10 +70,10 @@ async function initLSP() {
         setupDocumentSync(editor, lspClient);
 
         updateLSPStatus('connected', '已连接');
-        console.log('[Main] LSP client initialized successfully');
+        logger.info('LSP client initialized successfully');
 
     } catch (error) {
-        console.error('[Main] LSP initialization failed:', error);
+        logger.error('LSP initialization failed:', error);
         updateLSPStatus('error', '连接失败');
 
         if (lspEnabled) {
@@ -88,11 +95,11 @@ lspToggleBtn.addEventListener('change', function () {
             lspClient.disconnect();
         }
         updateLSPStatus('disabled', '已关闭');
-        console.log('[Main] LSP disabled');
+        logger.info('LSP disabled');
     } else {
         lspClient = null;
         initLSP();
-        console.log('[Main] LSP enabled');
+        logger.info('LSP enabled');
     }
 });
 
@@ -107,7 +114,7 @@ registerAICompletionProvider(monaco, editor);
 const useDummyClient = true; // 设置为 false 可切换到真实 LLM
 
 if (useDummyClient) {
-    console.log('[Main] Using Dummy LLM Client for testing');
+    logger.info('Using Dummy LLM Client for testing');
     setupInlineCompletion(monaco, editor, {
         useDummy: true,
         dummy: {

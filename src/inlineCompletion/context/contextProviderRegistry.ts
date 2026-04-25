@@ -3,7 +3,11 @@
  * 上下文提供者注册与解析框架
  */
 
-import type { CompletionRequestContext, ResolvedContextItems } from '../types.js';
+import type { CompletionRequestContext } from '../types.js';
+import type { ResolvedContextItems } from '../prompt/components.js';
+import { getLogger } from '../../utils/logger.js';
+
+const logger = getLogger('ContextProvider');
 
 /** 上下文项 */
 export interface ContextItem {
@@ -72,8 +76,7 @@ export class ContextProviderRegistry {
                 this.categorizeItems(provider.id, items, results);
             } catch (error) {
                 // 超时或错误，忽略此提供者
-                // eslint-disable-next-line no-console
-                console.warn(`[ContextProvider] ${provider.id} failed:`, error);
+                logger.warn(`${provider.id} failed:`, error);
             }
         });
 

@@ -4,11 +4,13 @@
  */
 
 import type { ITelemetryEmitter, TelemetryEvent } from './types.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('Telemetry');
 
 /** 控制台遥测发射器 */
 export class ConsoleTelemetryEmitter implements ITelemetryEmitter {
     emit(event: TelemetryEvent): void {
-        // eslint-disable-next-line no-console
-        console.log(`[Telemetry] ${event.eventType}`, event);
+        logger.info(event.eventType, event);
     }
 }

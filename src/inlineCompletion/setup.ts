@@ -11,6 +11,9 @@ import { DummyLLMClient, type DummyLLMClientConfig } from './dummyLLMClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
 import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('InlineCompletion');
 
 export interface InlineCompletionConfig {
     /** 使用虚拟客户端（无需 API Key，用于测试） */
@@ -60,6 +63,5 @@ export function setupInlineCompletion(
         controller.cancelCurrentRequest();
     });
 
-    // eslint-disable-next-line no-console
-    console.log('[InlineCompletion] Setup complete');
+    logger.info('Setup complete');
 }
