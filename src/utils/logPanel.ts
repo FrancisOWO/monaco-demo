@@ -1,6 +1,6 @@
 /**
  * 日志控制面板 UI
- * 嵌入状态栏，点击展开设置面板
+ * 右下角浮动可拖动面板，状态栏按钮触发，可关闭
  */
 
 import {
@@ -22,51 +22,85 @@ function getLevelName(level: LogLevel): string {
     }
 }
 
-/** 面板是否展开 */
-let panelExpanded = false;
+/** 拖动状态 */
+let isDragging = false;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
 
 /** 初始化日志控制面板 */
 export function initLogPanel(): void {
-    // 在状态栏左侧添加 Logger 按钮
-    const statusLeft = document.getElementById('status-left');
-    if (!statusLeft) return;
+    // 在状态栏右侧添加 Logger 按钮
+    const statusRight = document.getElementById('status-right');
+    if (!statusRight) return;
 
     const logBtn = document.createElement('span');
     logBtn.id = 'status-log-btn';
     logBtn.className = 'status-log-btn';
     logBtn.textContent = 'Logger';
-    logBtn.title = '点击展开日志设置';
-    statusLeft.appendChild(logBtn);
+    logBtn.title = '打开日志设置面板';
+    statusRight.insertBefore(logBtn, statusRight.firstChild);
 
-    // 创建展开面板（挂在 statusLeft 下方）
+    // 创建浮动面板
     const panel = document.createElement('div');
     panel.id = 'log-panel';
     panel.className = 'log-panel hidden';
     panel.innerHTML = `
-        <div class="log-panel-header">
-            <span>日志模块开关</span>
+        <div class="log-panel-drag-bar">
+            <span class="log-panel-title">日志模块开关</span>
+            <button class="log-panel-close">&times;</button>
         </div>
         <div class="log-panel-content"></div>
     `;
-    // 插入到 status-bar 之前
-    const statusBar = document.getElementById('status-bar');
-    statusBar.parentNode.insertBefore(panel, statusBar);
+    document.body.appendChild(panel);
 
-    // 点击按钮展开/收起
+    // 点击状态栏按钮：显示面板
     logBtn.addEventListener('click', () => {
-        panelExpanded = !panelExpanded;
-        if (panelExpanded) {
-            panel.classList.remove('hidden');
-            logBtn.classList.add('active');
-            renderModules();
-        } else {
-            panel.classList.add('hidden');
-            logBtn.classList.remove('active');
+        panel.classList.remove('hidden');
+        logBtn.classList.add('active');
+        // 默认位置：右下角
+        if (!panel.style.left && !panel.style.top) {
+            const rect = logBtn.getBoundingClientRect();
+            panel.style.left = (rect.left - 220 + rect.width) + 'px';
+            panel.style.top = (rect.top - 10) + 'px';
         }
+        renderModules();
+    });
+
+    // 关闭按钮
+    panel.querySelector('.log-panel-close').addEventListener('click', () => {
+        panel.classList.add('hidden');
+        logBtn.classList.remove('active');
+    });
+
+    // 拖动逻辑：通过 drag-bar 拖动
+    const dragBar = panel.querySelector('.log-panel-drag-bar');
+
+    dragBar.addEventListener('mousedown', (e: MouseEvent) => {
+        // 排除关闭按钮的点击
+        if ((e.target as HTMLElement).classList.contains('log-panel-close')) return;
+        isDragging = true;
+        dragOffsetX = e.clientX - panel.offsetLeft;
+        dragOffsetY = e.clientY - panel.offsetTop;
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e: MouseEvent) => {
+        if (!isDragging) return;
+        let newLeft = e.clientX - dragOffsetX;
+        let newTop = e.clientY - dragOffsetY;
+        // 限制在视窗内
+        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - 220));
+        newTop = Math.max(0, Math.min(newTop, window.innerHeight - panel.offsetHeight));
+        panel.style.left = newLeft + 'px';
+        panel.style.top = newTop + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
     });
 
     // 渲染模块列表
-    const content = panel.querySelector('.log-panel-content');
+    const content = panel.querySelector('.log-panel-content') as HTMLElement;
     function renderModules() {
         const modules = getAllLoggerConfig();
         const html = modules.map(m => `
@@ -80,29 +114,29 @@ export function initLogPanel(): void {
         `).join('');
 
         content.innerHTML = html;
-
-        // 绑定点击事件
-        content.onclick = (e: Event) => {
-            const toggle = (e.target as HTMLElement).closest('.log-module-toggle') as HTMLElement;
-            if (!toggle) return;
-
-            const moduleName = toggle.getAttribute('data-module');
-            if (!moduleName) return;
-
-            const modules = getAllLoggerConfig();
-            const current = modules.find(m => m.name === moduleName);
-            if (!current) return;
-
-            const logger = getLogger(moduleName);
-            const newEnabled = !current.enabled;
-            logger.info(`logging ${newEnabled ? 'enabled' : 'disabled'}`);
-            setLoggerEnabled(moduleName, newEnabled);
-        };
     }
+
+    // 模块开关点击事件委托
+    content.onclick = (e: Event) => {
+        const toggle = (e.target as HTMLElement).closest('.log-module-toggle') as HTMLElement;
+        if (!toggle) return;
+
+        const moduleName = toggle.getAttribute('data-module');
+        if (!moduleName) return;
+
+        const modules = getAllLoggerConfig();
+        const current = modules.find(m => m.name === moduleName);
+        if (!current) return;
+
+        const logger = getLogger(moduleName);
+        const newEnabled = !current.enabled;
+        logger.info(`logging ${newEnabled ? 'enabled' : 'disabled'}`);
+        setLoggerEnabled(moduleName, newEnabled);
+    };
 
     // 监听配置变化
     onLoggerConfigChange(() => {
-        if (panelExpanded) {
+        if (!panel.classList.contains('hidden')) {
             renderModules();
         }
     });
