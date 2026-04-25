@@ -139,6 +139,9 @@ export interface MultilineDetermination {
     requestMultiline: boolean;
     blockPosition?: BlockPositionType;
 }
+
+/** 补全生命周期事件 */
+export enum CompletionLifecycleKind {
     Shown = 'shown',
     Accepted = 'accepted',
     Rejected = 'rejected',

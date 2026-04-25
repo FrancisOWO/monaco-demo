@@ -9,7 +9,7 @@ import { SimplePromptBuilder } from './promptBuilder.js';
 import { SimpleLLMClient, type LLMClientConfig } from './llmClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
-import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionProvider.js';
+import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
 
 export interface InlineCompletionConfig {
     llm: LLMClientConfig;
