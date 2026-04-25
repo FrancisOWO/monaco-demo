@@ -141,5 +141,6 @@ export const pythonCompletions = [
 
 export function registerPythonCompletions() {
 	registerCompletionItem('python', pythonCompletions);
-	registerInlineCompletions('python');
+	// 注释掉测试用的 inline completion provider，避免与正式的 inline completion provider 冲突
+	// registerInlineCompletions('python');
 }
