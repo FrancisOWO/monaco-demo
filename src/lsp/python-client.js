@@ -185,8 +185,20 @@ export function createPythonLSPClient(monaco, editor) {
         handleDiagnostics(params) {
             if (!params || !params.diagnostics) return;
 
-            const model = editor.getModel();
-            if (!model) return;
+            // 按 URI 定位目标 model，而非使用 editor.getModel()
+            const targetUri = params.uri;
+            let targetModel = null;
+
+            if (targetUri) {
+                targetModel = monaco.editor.getModel(monaco.Uri.parse(targetUri));
+            }
+
+            // fallback: 如果 URI 匹配失败，使用当前活跃 model
+            if (!targetModel) {
+                targetModel = editor.getModel();
+            }
+
+            if (!targetModel) return;
 
             const markers = params.diagnostics.map(diag => ({
                 severity: this.mapSeverity(diag.severity),
@@ -198,8 +210,8 @@ export function createPythonLSPClient(monaco, editor) {
                 source: diag.source || 'Pyright'
             }));
 
-            monaco.editor.setModelMarkers(model, 'python-lsp', markers);
-            logger.info('Published', markers.length, 'diagnostics');
+            monaco.editor.setModelMarkers(targetModel, 'python-lsp', markers);
+            logger.info('Published', markers.length, 'diagnostics for', targetUri || 'active model');
         },
 
         /**
