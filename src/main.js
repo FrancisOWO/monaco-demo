@@ -103,14 +103,30 @@ lspToggleBtn.addEventListener('change', function () {
 registerAICompletionProvider(monaco, editor);
 
 // 注册新的 Inline Completion（Ghost Text）
-const aiServerUrl = 'http://localhost:3000/ai';
-setupInlineCompletion(monaco, editor, {
-    llm: {
-        endpoint: `${aiServerUrl}/completion`,
-        model: 'default',
-        apiKey: '',
-    },
-});
+// 使用虚拟客户端进行测试（无需 API Key）
+const useDummyClient = true; // 设置为 false 可切换到真实 LLM
+
+if (useDummyClient) {
+    console.log('[Main] Using Dummy LLM Client for testing');
+    setupInlineCompletion(monaco, editor, {
+        useDummy: true,
+        dummy: {
+            delayMs: 500, // 模拟 500ms 延迟
+            randomEmpty: true, // 随机返回空结果
+            emptyProbability: 0.3, // 30% 概率无补全
+        },
+    });
+} else {
+    const aiServerUrl = 'http://localhost:3000/ai';
+    setupInlineCompletion(monaco, editor, {
+        useDummy: false,
+        llm: {
+            endpoint: `${aiServerUrl}/completion`,
+            model: 'default',
+            apiKey: '', // 需要填写真实的 API Key
+        },
+    });
+}
 
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();
