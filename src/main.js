@@ -166,3 +166,6 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// 所有初始化完成后，显示页面（防止 FOUC）
+document.body.style.visibility = 'visible';

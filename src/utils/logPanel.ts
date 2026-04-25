@@ -57,19 +57,37 @@ export function initLogPanel(): void {
     logBtn.addEventListener('click', () => {
         panel.classList.remove('hidden');
         logBtn.classList.add('active');
-        // 默认位置：右下角
-        if (!panel.style.left && !panel.style.top) {
-            const rect = logBtn.getBoundingClientRect();
-            panel.style.left = (rect.left - 220 + rect.width) + 'px';
-            panel.style.top = (rect.top - 10) + 'px';
-        }
         renderModules();
+        // 定位：编辑器区域右下角，确保面板完全在编辑器内
+        requestAnimationFrame(() => {
+            const editorEl = document.getElementById('editor-container');
+            const panelW = 220;
+            const panelH = panel.offsetHeight || 150;
+            if (editorEl) {
+                const rect = editorEl.getBoundingClientRect();
+                let left = rect.right - panelW - 8;
+                let top = rect.bottom - panelH - 8;
+                // 确保不超出编辑器上界和左界
+                left = Math.max(rect.left + 4, left);
+                top = Math.max(rect.top + 4, top);
+                // 只有首次打开或用户没拖动过时才自动定位
+                if (!panel.dataset.positioned) {
+                    panel.style.left = left + 'px';
+                    panel.style.top = top + 'px';
+                    panel.dataset.positioned = 'true';
+                }
+            }
+        });
     });
 
     // 关闭按钮
     panel.querySelector('.log-panel-close').addEventListener('click', () => {
         panel.classList.add('hidden');
         logBtn.classList.remove('active');
+        // 清除定位标记，下次打开重新定位到默认位置
+        delete panel.dataset.positioned;
+        panel.style.left = '';
+        panel.style.top = '';
     });
 
     // 拖动逻辑：通过 drag-bar 拖动
