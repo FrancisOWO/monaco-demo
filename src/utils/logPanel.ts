@@ -1,6 +1,6 @@
 /**
  * 日志控制面板 UI
- * 提供可展开的控制面板来开关各模块日志
+ * 嵌入状态栏，点击展开设置面板
  */
 
 import {
@@ -22,151 +22,57 @@ function getLevelName(level: LogLevel): string {
     }
 }
 
+/** 面板是否展开 */
+let panelExpanded = false;
+
 /** 初始化日志控制面板 */
 export function initLogPanel(): void {
-    // 避免重复初始化
-    if (document.getElementById('monaco-log-panel')) {
-        return;
-    }
+    // 在状态栏左侧添加 Logger 按钮
+    const statusLeft = document.getElementById('status-left');
+    if (!statusLeft) return;
 
+    const logBtn = document.createElement('span');
+    logBtn.id = 'status-log-btn';
+    logBtn.className = 'status-log-btn';
+    logBtn.textContent = 'Logger';
+    logBtn.title = '点击展开日志设置';
+    statusLeft.appendChild(logBtn);
+
+    // 创建展开面板（挂在 statusLeft 下方）
     const panel = document.createElement('div');
-    panel.id = 'monaco-log-panel';
+    panel.id = 'log-panel';
+    panel.className = 'log-panel hidden';
     panel.innerHTML = `
-        <style>
-            #monaco-log-panel {
-                position: fixed;
-                bottom: 10px;
-                right: 10px;
-                width: 220px;
-                background: #1e1e1e;
-                border: 1px solid #3c3c3c;
-                border-radius: 6px;
-                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                font-size: 12px;
-                color: #ccc;
-                z-index: 10000;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                overflow: hidden;
-            }
-            #monaco-log-panel.collapsed .log-panel-content {
-                display: none;
-            }
-            #monaco-log-panel .log-panel-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 8px 10px;
-                background: #2d2d2d;
-                cursor: pointer;
-                user-select: none;
-            }
-            #monaco-log-panel .log-panel-header:hover {
-                background: #3c3c3c;
-            }
-            #monaco-log-panel .log-panel-title {
-                font-weight: 600;
-                font-size: 12px;
-                color: #fff;
-            }
-            #monaco-log-panel .log-panel-toggle {
-                width: 18px;
-                height: 18px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                color: #888;
-                font-size: 14px;
-                transition: transform 0.2s;
-            }
-            #monaco-log-panel.collapsed .log-panel-toggle {
-                transform: rotate(180deg);
-            }
-            #monaco-log-panel .log-panel-content {
-                max-height: 300px;
-                overflow-y: auto;
-            }
-            #monaco-log-panel .log-module-item {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 6px 10px;
-                border-bottom: 1px solid #3c3c3c;
-            }
-            #monaco-log-panel .log-module-item:last-child {
-                border-bottom: none;
-            }
-            #monaco-log-panel .log-module-name {
-                font-weight: 500;
-                max-width: 120px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
-            #monaco-log-panel .log-module-toggle {
-                position: relative;
-                width: 32px;
-                height: 16px;
-                background: #555;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: background 0.2s;
-            }
-            #monaco-log-panel .log-module-toggle.enabled {
-                background: #0c7a58;
-            }
-            #monaco-log-panel .log-module-toggle::after {
-                content: '';
-                position: absolute;
-                top: 2px;
-                left: 2px;
-                width: 12px;
-                height: 12px;
-                background: #fff;
-                border-radius: 50%;
-                transition: transform 0.2s;
-            }
-            #monaco-log-panel .log-module-toggle.enabled::after {
-                transform: translateX(16px);
-            }
-            #monaco-log-panel .log-module-level {
-                font-size: 10px;
-                color: #888;
-                margin-right: 6px;
-            }
-            #monaco-log-panel::-webkit-scrollbar {
-                width: 6px;
-            }
-            #monaco-log-panel::-webkit-scrollbar-track {
-                background: #1e1e1e;
-            }
-            #monaco-log-panel::-webkit-scrollbar-thumb {
-                background: #555;
-                border-radius: 3px;
-            }
-        </style>
-        <div class="log-panel-header" id="monaco-log-header">
-            <span class="log-panel-title">Logger</span>
-            <span class="log-panel-toggle">&#9660;</span>
+        <div class="log-panel-header">
+            <span>日志模块开关</span>
         </div>
-        <div class="log-panel-content" id="monaco-log-content"></div>
+        <div class="log-panel-content"></div>
     `;
+    // 插入到 status-bar 之前
+    const statusBar = document.getElementById('status-bar');
+    statusBar.parentNode.insertBefore(panel, statusBar);
 
-    document.body.appendChild(panel);
-
-    // 展开/收起
-    const header = document.getElementById('monaco-log-header');
-    header.addEventListener('click', () => {
-        panel.classList.toggle('collapsed');
+    // 点击按钮展开/收起
+    logBtn.addEventListener('click', () => {
+        panelExpanded = !panelExpanded;
+        if (panelExpanded) {
+            panel.classList.remove('hidden');
+            logBtn.classList.add('active');
+            renderModules();
+        } else {
+            panel.classList.add('hidden');
+            logBtn.classList.remove('active');
+        }
     });
 
     // 渲染模块列表
-    const content = document.getElementById('monaco-log-content');
+    const content = panel.querySelector('.log-panel-content');
     function renderModules() {
         const modules = getAllLoggerConfig();
         const html = modules.map(m => `
             <div class="log-module-item" data-module="${m.name}">
                 <span class="log-module-name" title="${m.name}">${m.name}</span>
-                <div style="display:flex;align-items:center;">
+                <div class="log-module-controls">
                     <span class="log-module-level">${getLevelName(m.level)}</span>
                     <div class="log-module-toggle ${m.enabled ? 'enabled' : ''}" data-module="${m.name}"></div>
                 </div>
@@ -175,9 +81,9 @@ export function initLogPanel(): void {
 
         content.innerHTML = html;
 
-        // 绑定点击事件 - 使用事件委托
-        content.onclick = (e) => {
-            const toggle = (e.target as HTMLElement).closest('.log-module-toggle');
+        // 绑定点击事件
+        content.onclick = (e: Event) => {
+            const toggle = (e.target as HTMLElement).closest('.log-module-toggle') as HTMLElement;
             if (!toggle) return;
 
             const moduleName = toggle.getAttribute('data-module');
@@ -194,10 +100,10 @@ export function initLogPanel(): void {
         };
     }
 
-    renderModules();
-
     // 监听配置变化
     onLoggerConfigChange(() => {
-        renderModules();
+        if (panelExpanded) {
+            renderModules();
+        }
     });
 }
