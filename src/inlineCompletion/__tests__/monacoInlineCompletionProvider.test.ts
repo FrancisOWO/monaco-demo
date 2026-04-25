@@ -18,7 +18,7 @@ jest.mock('monaco-editor', () => ({
     },
 }));
 
-import { MonacoInlineCompletionsProvider } from '../monacoInlineCompletionProvider.js';
+import { MonacoInlineCompletionsProvider } from '../monacoInlineCompletionsProvider.js';
 import {
     InlineCompletionTriggerKind,
     CompletionSource,

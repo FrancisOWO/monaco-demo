@@ -15,4 +15,4 @@ pnpm-lock.yaml
 
 # 编译产物
 server/dist/
-
+src/dist/

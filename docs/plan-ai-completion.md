@@ -319,7 +319,7 @@ data: {"fullText": "radius ** 2\n    return result", "confidence": 0.95}
 
 ## 参考资源
 
-- [GitHub Copilot LSP Extension Protocol](https://github.com/github/copilot-ls)
-- [Monaco Inline Completions API](https://microsoft.github.io/monaco-editor/api/interfaces/monaco.languages.IInlineCompletionsProvider.html)
-- [LSP Completion Extension](https://microsoft.github.io/language-server-protocol/specifications/lsp/ specification/)
-- [OpenAI Completions API](https://platform.openai.com/docs/api-reference/completions)
+- [GitHub Copilot LSP Extension Protocol]()
+- [Monaco Inline Completions API](https://microsoft.github.io/monaco-editor/typedoc/interfaces/editor_editor_api.languages.InlineCompletionsProvider.html)
+- [LSP Completion Extension]()
+- [OpenAI Completions API]()

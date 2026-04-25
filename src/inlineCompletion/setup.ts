@@ -41,7 +41,7 @@ export function setupInlineCompletion(
     const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
     // 注册到 Monaco
-    monacoInstance.languages.registerInlineCompletionProvider(
+    monacoInstance.languages.registerInlineCompletionsProvider(
         { pattern: '**/*' },
         provider,
     );
