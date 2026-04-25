@@ -27,8 +27,13 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
         model: monaco.editor.ITextModel,
         position: monaco.Position,
         context: monaco.languages.InlineCompletionContext,
-        _token: monaco.CancellationToken,
+        token: monaco.CancellationToken,
     ): Promise<monaco.languages.InlineCompletions> {
+        // 检查是否已取消
+        if (token.isCancellationRequested) {
+            return { items: [] };
+        }
+
         // 构建请求上下文
         const requestContext: CompletionRequestContext = {
             requestId: `req-${++this.idCounter}-${Date.now()}`,
@@ -85,6 +90,7 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
      */
     disposeInlineCompletions(
         _completions: monaco.languages.InlineCompletions,
+        _reason: monaco.languages.InlineCompletionsDisposeReason,
     ): void {
         // 简易版无需特殊处理
     }
