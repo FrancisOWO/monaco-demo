@@ -8,15 +8,40 @@
 </head>
 
 <body data-theme="light">
-	<div id="header">
-		<h1>Monaco Editor 示例</h1>
-		<div class="controls">
+	<!-- Toolbar -->
+	<div id="toolbar">
+		<div class="toolbar-left">
+			<button id="btn-new-file" class="toolbar-btn" title="新建文件 (Ctrl+N)">
+				<span class="btn-icon">+</span>
+				<span class="btn-label">新建</span>
+			</button>
+			<button id="btn-open-folder" class="toolbar-btn" title="打开文件夹">
+				<span class="btn-icon">📁</span>
+				<span class="btn-label">打开文件夹</span>
+			</button>
+			<button id="btn-save" class="toolbar-btn" title="保存 (Ctrl+S)">
+				<span class="btn-icon">💾</span>
+				<span class="btn-label">保存</span>
+			</button>
+			<button id="btn-delete" class="toolbar-btn" title="删除文件">
+				<span class="btn-icon">🗑</span>
+				<span class="btn-label">删除</span>
+			</button>
+		</div>
+		<div class="toolbar-right">
 			<div class="control-group">
-				<label for="language-select">选择语言：</label>
+				<label for="language-select">语言：</label>
 				<select id="language-select">
 					<option value="python">Python</option>
 					<option value="cpp">C++</option>
 					<option value="go">Go</option>
+					<option value="javascript">JavaScript</option>
+					<option value="typescript">TypeScript</option>
+					<option value="json">JSON</option>
+					<option value="html">HTML</option>
+					<option value="css">CSS</option>
+					<option value="markdown">Markdown</option>
+					<option value="plaintext">纯文本</option>
 				</select>
 			</div>
 			<div class="control-group">
@@ -35,7 +60,31 @@
 			</div>
 		</div>
 	</div>
-	<div id="container"></div>
+
+	<!-- Workspace: sidebar + editor area -->
+	<div id="workspace">
+		<aside id="sidebar">
+			<div id="sidebar-header">EXPLORER</div>
+			<div id="file-tree">
+				<div class="tree-empty">点击"打开文件夹"以浏览文件</div>
+			</div>
+		</aside>
+		<div id="editor-area">
+			<div id="tab-bar"></div>
+			<div id="editor-container"></div>
+		</div>
+	</div>
+
+	<!-- Dialog overlay -->
+	<div id="dialog-overlay" class="hidden">
+		<div id="dialog-box">
+			<div id="dialog-message"></div>
+			<div id="dialog-buttons"></div>
+		</div>
+	</div>
+
+	<!-- Toast -->
+	<div id="toast-container"></div>
 
 	<script type="module" src="./main.js"></script>
 </body>

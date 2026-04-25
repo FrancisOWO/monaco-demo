@@ -7,12 +7,17 @@ body[data-theme="dark"] {
 	color: #fff;
 }
 
-body[data-theme="dark"] #header {
+/* Toolbar */
+body[data-theme="dark"] #toolbar {
 	background-color: #252526;
-	border-bottom: 1px solid #3c3c3c;
+	border-color: #3c3c3c;
 }
 
-body[data-theme="dark"] .controls label {
+body[data-theme="dark"] .toolbar-btn {
+	color: #ccc;
+}
+
+body[data-theme="dark"] .toolbar-right label {
 	color: #ccc;
 }
 
@@ -26,4 +31,45 @@ body[data-theme="dark"] #theme-select {
 body[data-theme="dark"] #language-select:hover,
 body[data-theme="dark"] #theme-select:hover {
 	background-color: #4c4c4c;
+}
+
+/* Sidebar */
+body[data-theme="dark"] #sidebar {
+	background-color: #252526;
+	border-color: #3c3c3c;
+}
+
+body[data-theme="dark"] .tree-label {
+	color: #ccc;
+}
+
+/* Tab Bar */
+body[data-theme="dark"] #tab-bar {
+	background-color: #252526;
+	border-color: #3c3c3c;
+}
+
+body[data-theme="dark"] .tab {
+	color: #ccc;
+	border-color: #3c3c3c;
+}
+
+body[data-theme="dark"] .tab.active {
+	color: #fff;
+}
+
+body[data-theme="dark"] .tab.active::after {
+	background: #4fc3f7;
+}
+
+/* Dialog */
+body[data-theme="dark"] #dialog-box {
+	background: #2d2d2d;
+	color: #fff;
+}
+
+body[data-theme="dark"] #dialog-buttons .btn-secondary {
+	color: #ccc;
+	border-color: #555;
+	background: #3c3c3c;
 }

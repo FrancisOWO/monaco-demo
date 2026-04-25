@@ -1,0 +1,66 @@
+/**
+ * Toolbar 样式
+ */
+
+#toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	height: 44px;
+	padding: 0 12px;
+	border-bottom: 1px solid;
+	transition: background-color 0.3s, border-color 0.3s;
+}
+
+.toolbar-left {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.toolbar-right {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+.toolbar-btn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 10px;
+	font-size: 13px;
+	border: 1px solid transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+	outline: none;
+	background: transparent;
+}
+
+.toolbar-btn:hover {
+	background: rgba(0, 0, 0, 0.08);
+	border-color: rgba(0, 0, 0, 0.12);
+}
+
+.toolbar-btn:active {
+	background: rgba(0, 0, 0, 0.15);
+}
+
+.toolbar-btn .btn-icon {
+	font-size: 14px;
+}
+
+.toolbar-btn .btn-label {
+	font-size: 12px;
+}
+
+/* 主题适配 */
+body[data-theme="dark"] .toolbar-btn:hover {
+	background: rgba(255, 255, 255, 0.1);
+	border-color: rgba(255, 255, 255, 0.15);
+}
+
+body[data-theme="dark"] .toolbar-btn:active {
+	background: rgba(255, 255, 255, 0.15);
+}

@@ -1,0 +1,89 @@
+/**
+ * Sidebar 样式
+ */
+
+#sidebar {
+	width: 220px;
+	min-width: 220px;
+	border-right: 1px solid;
+	overflow-y: auto;
+	overflow-x: hidden;
+	transition: background-color 0.3s, border-color 0.3s;
+}
+
+#sidebar-header {
+	padding: 8px 12px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 1px;
+	opacity: 0.7;
+}
+
+#file-tree {
+	padding: 0 4px;
+}
+
+.tree-empty {
+	padding: 20px 12px;
+	font-size: 13px;
+	opacity: 0.5;
+	text-align: center;
+}
+
+/* Tree item */
+.tree-item {
+	display: flex;
+	align-items: center;
+	padding: 2px 4px;
+	cursor: pointer;
+	border-radius: 3px;
+	transition: background-color 0.15s;
+	user-select: none;
+}
+
+.tree-item:hover {
+	background: rgba(0, 0, 0, 0.06);
+}
+
+.tree-item.active {
+	background: rgba(0, 122, 204, 0.15);
+}
+
+.tree-icon {
+	width: 16px;
+	text-align: center;
+	font-size: 12px;
+	flex-shrink: 0;
+}
+
+.tree-expand {
+	width: 16px;
+	text-align: center;
+	font-size: 11px;
+	flex-shrink: 0;
+	cursor: pointer;
+}
+
+.tree-label {
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.tree-children {
+	padding-left: 12px;
+}
+
+.tree-item.directory .tree-label {
+	font-weight: 500;
+}
+
+/* 主题适配 */
+body[data-theme="dark"] .tree-item:hover {
+	background: rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme="dark"] .tree-item.active {
+	background: rgba(0, 122, 204, 0.25);
+}

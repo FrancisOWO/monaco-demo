@@ -1,0 +1,15 @@
+/**
+ * Editor Area 样式
+ */
+
+#editor-area {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+#editor-container {
+	flex: 1;
+	min-height: 0;
+}

@@ -7,12 +7,17 @@ body[data-theme="light"] {
 	color: #333;
 }
 
-body[data-theme="light"] #header {
+/* Toolbar */
+body[data-theme="light"] #toolbar {
 	background-color: #f3f3f3;
-	border-bottom: 1px solid #e0e0e0;
+	border-color: #e0e0e0;
 }
 
-body[data-theme="light"] .controls label {
+body[data-theme="light"] .toolbar-btn {
+	color: #333;
+}
+
+body[data-theme="light"] .toolbar-right label {
 	color: #555;
 }
 
@@ -26,4 +31,25 @@ body[data-theme="light"] #theme-select {
 body[data-theme="light"] #language-select:hover,
 body[data-theme="light"] #theme-select:hover {
 	background-color: #f0f0f0;
+}
+
+/* Sidebar */
+body[data-theme="light"] #sidebar {
+	background-color: #f3f3f3;
+	border-color: #e0e0e0;
+}
+
+/* Tab Bar */
+body[data-theme="light"] #tab-bar {
+	background-color: #f3f3f3;
+	border-color: #e0e0e0;
+}
+
+body[data-theme="light"] .tab {
+	color: #333;
+	border-color: #e0e0e0;
+}
+
+body[data-theme="light"] .tab.active {
+	color: #333;
 }
