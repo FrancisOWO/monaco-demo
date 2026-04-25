@@ -62,6 +62,8 @@ export function registerDefaultCompletionItem(languageId) {
 /**
  * 注册语言补全 provider（自定义补全 + Monaco 内置词频补全）
  */
+
+
 export function registerCompletionItem(languageId, completions) {
     monaco.languages.registerCompletionItemProvider(languageId, {
         async provideCompletionItems(model, position) {

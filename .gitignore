@@ -1,8 +1,10 @@
 .claude/
 .qoder/
 .trae/
+.vscode/
 
 .notes/
+shared/
 
 .mcp.json
 .playwright-mcp/
