@@ -13,6 +13,8 @@ import {
     type FinishedCallback,
     type IStrategyManager,
 } from '../types.js';
+import type { IBlockTrimmerRegistry } from '../trim/blockTrimmerRegistry.js';
+import type { IMultilineModel } from '../trim/multilineModel.js';
 
 /** 策略管理器配置 */
 export interface StrategyManagerConfig {
@@ -24,39 +26,6 @@ export interface StrategyManagerConfig {
     lookAheadSmall: number;
     /** 接受后固定行数 */
     multilineAfterAcceptLines: number;
-}
-
-/** 多行评分模型接口 */
-export interface IMultilineModel {
-    /**
-     * 评分 prompt 是否应该生成多行补全
-     * @returns 0-1 的分数，>0.5 表示应该多行
-     */
-    score(prompt: PromptInfo, languageId: string): number;
-}
-
-/** BlockTrimmer 注册表接口 */
-export interface IBlockTrimmerRegistry {
-    /** 是否支持该语言的 AST 解析 */
-    isSupported(languageId: string): boolean;
-
-    /** 获取光标在块中的位置类型 */
-    getBlockPositionType(
-        document: string,
-        position: { lineNumber: number; column: number },
-    ): Promise<BlockPositionType>;
-
-    /** 检查是否在空块起始 */
-    isEmptyBlockStart(
-        document: string,
-        position: { lineNumber: number; column: number },
-    ): Promise<boolean>;
-
-    /** AST 解析块体完成判定回调 */
-    parsingBlockFinished(
-        document: string,
-        position: { lineNumber: number; column: number },
-    ): FinishedCallback;
 }
 
 /** 策略管理器 */
@@ -260,7 +229,7 @@ export class DefaultMultilineModel implements IMultilineModel {
         }
 
         // 检测是否在开括号后
-        const openBrackets = (lastLine.match(/[{([]/g) ?? [];
+        const openBrackets = (lastLine.match(/[{([]/g) ?? []);
         const closeBrackets = (lastLine.match(/[)}\]]/g) ?? []);
         if (openBrackets.length > closeBrackets.length) {
             return 0.6; // 中等概率

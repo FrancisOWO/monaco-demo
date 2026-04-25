@@ -6,6 +6,7 @@
 
 import type { CompletionResult, FinishedCallback } from '../types.js';
 import type { IBlockTrimmerRegistry } from './blockTrimmerRegistry.js';
+import { CompletionSource } from '../types.js';
 
 /**
  * MoreMultiline 流式补全分割器
@@ -175,7 +176,7 @@ export class StreamedCompletionSplitter {
                 endColumn: 1,
             },
             completionId: isFirst ? `completion-${Date.now()}` : '',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: text.includes('\n'),
         };
     }
@@ -197,7 +198,7 @@ export class StreamedCompletionSplitter {
                 endColumn: 1,
             },
             completionId: parentId ? `${parentId}-cached` : `cached-${Date.now()}`,
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: text.includes('\n'),
         };
 
