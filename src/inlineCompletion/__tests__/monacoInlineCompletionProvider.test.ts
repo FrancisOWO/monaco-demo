@@ -2,11 +2,30 @@
  * @jest-environment node
  */
 
+// Mock monaco-editor before importing the provider
+jest.mock('monaco-editor', () => ({
+    Range: jest.fn().mockImplementation((startLine, startCol, endLine, endCol) => ({
+        startLineNumber: startLine,
+        startColumn: startCol,
+        endLineNumber: endLine,
+        endColumn: endCol,
+    })),
+    languages: {
+        InlineCompletionTriggerKind: {
+            Automatic: 0,
+            Invoke: 1,
+        },
+    },
+}));
+
 import { MonacoInlineCompletionProvider } from '../monacoInlineCompletionProvider.js';
+import {
+    InlineCompletionTriggerKind,
+    CompletionSource,
+} from '../types.js';
 import type {
     IGhostTextController,
     CompletionResult,
-    InlineCompletionTriggerKind,
 } from '../types.js';
 
 // Mock Monaco
@@ -87,7 +106,7 @@ describe('MonacoInlineCompletionProvider', () => {
                     endColumn: 18,
                 },
                 completionId: 'req-1-0',
-                source: 'network' as const,
+                source: CompletionSource.Network,
                 isMultiline: false,
             };
 
@@ -144,7 +163,7 @@ describe('MonacoInlineCompletionProvider', () => {
                     endColumn: 5,
                 },
                 completionId: 'req-1-0',
-                source: 'network' as const,
+                source: CompletionSource.Network,
                 isMultiline: false,
             };
 

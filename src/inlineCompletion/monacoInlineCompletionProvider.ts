@@ -3,17 +3,19 @@
  * 适配 Monaco Editor 的 InlineCompletionProvider API
  */
 
-import type * as monaco from 'monaco-editor';
+import * as monaco from 'monaco-editor';
+import {
+    InlineCompletionTriggerKind,
+    BlockMode,
+} from './types.js';
 import type {
     IGhostTextController,
     CompletionRequestContext,
-    InlineCompletionTriggerKind,
-    BlockMode,
     PromptInfo,
 } from './types.js';
 
 /** Monaco Inline Completion Provider */
-export class MonacoInlineCompletionProvider implements monaco.languages.InlineCompletionProvider {
+export class MonacoInlineCompletionProvider implements monaco.languages.InlineCompletionsProvider {
     private idCounter = 0;
 
     constructor(
@@ -26,7 +28,7 @@ export class MonacoInlineCompletionProvider implements monaco.languages.InlineCo
         position: monaco.Position,
         context: monaco.languages.InlineCompletionContext,
         _token: monaco.CancellationToken,
-    ): Promise<monaco.languages.InlineCompletionList> {
+    ): Promise<monaco.languages.InlineCompletions> {
         // 构建请求上下文
         const requestContext: CompletionRequestContext = {
             requestId: `req-${++this.idCounter}-${Date.now()}`,
@@ -58,14 +60,14 @@ export class MonacoInlineCompletionProvider implements monaco.languages.InlineCo
         const completions = await this.controller.getCompletions(requestContext);
 
         // 转换为 Monaco 格式
-        const items: monaco.languages.InlineCompletionItem[] = completions.map(c => ({
+        const items: monaco.languages.InlineCompletion[] = completions.map(c => ({
             insertText: c.insertText,
-            range: new monaco.Range(
-                c.range.startLineNumber,
-                c.range.startColumn,
-                c.range.endLineNumber,
-                c.range.endColumn,
-            ),
+            range: {
+                startLineNumber: c.range.startLineNumber,
+                startColumn: c.range.startColumn,
+                endLineNumber: c.range.endLineNumber,
+                endColumn: c.range.endColumn,
+            },
         }));
 
         // 报告 shown 事件（取第一个）
@@ -75,15 +77,23 @@ export class MonacoInlineCompletionProvider implements monaco.languages.InlineCo
 
         return {
             items,
-            dispose: () => {},
         };
+    }
+
+    /**
+     * 释放补全资源
+     */
+    disposeInlineCompletions(
+        _completions: monaco.languages.InlineCompletions,
+    ): void {
+        // 简易版无需特殊处理
     }
 
     /**
      * 处理补全被接受的事件
      */
     handleDidShowCompletionItem?(
-        _completionItem: monaco.languages.InlineCompletionItem,
+        _completionItem: monaco.languages.InlineCompletion,
     ): void {
         // 简易版不做投机请求
     }
@@ -92,7 +102,7 @@ export class MonacoInlineCompletionProvider implements monaco.languages.InlineCo
      * 处理部分接受事件
      */
     handleDidPartiallyAcceptCompletionItem?(
-        _completionItem: monaco.languages.InlineCompletionItem,
+        _completionItem: monaco.languages.InlineCompletion,
     ): void {
         // 简易版不做 partial accept 追踪
     }
@@ -103,13 +113,10 @@ export class MonacoInlineCompletionProvider implements monaco.languages.InlineCo
     private mapTriggerKind(
         kind: monaco.languages.InlineCompletionTriggerKind,
     ): InlineCompletionTriggerKind {
-        switch (kind) {
-        case monaco.languages.InlineCompletionTriggerKind.Automatic:
-            return InlineCompletionTriggerKind.Automatic;
-        case monaco.languages.InlineCompletionTriggerKind.Invoke:
-            return InlineCompletionTriggerKind.Invoke;
-        default:
+        // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
+        if (kind === monaco.languages.InlineCompletionTriggerKind.Automatic) {
             return InlineCompletionTriggerKind.Automatic;
         }
+        return InlineCompletionTriggerKind.Invoke;
     }
 }

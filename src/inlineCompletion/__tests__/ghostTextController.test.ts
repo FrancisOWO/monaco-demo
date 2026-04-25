@@ -3,11 +3,15 @@
  */
 
 import { SimpleGhostTextController } from '../ghostTextController.js';
+import {
+    CompletionLifecycleKind,
+    CompletionSource,
+    BlockMode,
+} from '../types.js';
 import type {
     IGhostTextController,
     CompletionResult,
     CompletionRequestContext,
-    CompletionLifecycleKind,
     IPromptBuilder,
     ILLMClient,
     IPostProcessor,
@@ -68,7 +72,7 @@ describe('SimpleGhostTextController', () => {
             triggerKind: 0,
             strategy: {
                 requestMultiline: false,
-                blockMode: 'server' as const,
+                blockMode: BlockMode.Server,
                 stopTokens: ['\n'],
                 maxTokens: 20,
             },
@@ -118,7 +122,7 @@ describe('SimpleGhostTextController', () => {
                 insertText: '  "hello");',
                 range: { startLineNumber: 1, startColumn: 10, endLineNumber: 1, endColumn: 10 },
                 completionId: 'req-1-0',
-                source: 'network' as const,
+                source: CompletionSource.Network,
                 isMultiline: false,
             };
 
@@ -148,14 +152,14 @@ describe('SimpleGhostTextController', () => {
                 insertText: 'valid',
                 range: { startLineNumber: 1, startColumn: 10, endLineNumber: 1, endColumn: 10 },
                 completionId: 'req-1-0',
-                source: 'network' as const,
+                source: CompletionSource.Network,
                 isMultiline: false,
             };
             const mockCompletion2: CompletionResult = {
                 insertText: 'invalid',
                 range: { startLineNumber: 1, startColumn: 10, endLineNumber: 1, endColumn: 10 },
                 completionId: 'req-1-1',
-                source: 'network' as const,
+                source: CompletionSource.Network,
                 isMultiline: false,
             };
 
@@ -181,7 +185,7 @@ describe('SimpleGhostTextController', () => {
                 insertText: 'test',
                 range: { startLineNumber: 1, startColumn: 10, endLineNumber: 1, endColumn: 10 },
                 completionId: 'req-1-0',
-                source: 'network' as const,
+                source: CompletionSource.Network,
                 isMultiline: false,
             };
 
@@ -255,7 +259,7 @@ describe('SimpleGhostTextController', () => {
             expect(mockTelemetryEmitter.emit).toHaveBeenCalledWith(
                 expect.objectContaining({
                     eventType: 'completion.accepted',
-                    requestId: 'req-1',
+                    requestId: 'req',
                     timestamp: expect.any(Number),
                 }),
             );

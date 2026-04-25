@@ -3,14 +3,16 @@
  * 调用大模型获取补全结果
  */
 
+import {
+    CompletionSource,
+    InlineCompletionTriggerKind,
+} from './types.js';
 import type {
     ILLMClient,
     CompletionResult,
     PromptInfo,
     CompletionRequestContext,
     CompletionStrategy,
-    CompletionSource,
-    InlineCompletionTriggerKind,
 } from './types.js';
 
 /** LLM 客户端配置 */

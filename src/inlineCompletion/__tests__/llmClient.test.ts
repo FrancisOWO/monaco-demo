@@ -3,12 +3,15 @@
  */
 
 import { SimpleLLMClient } from '../llmClient.js';
+import {
+    InlineCompletionTriggerKind,
+    CompletionSource,
+    BlockMode,
+} from '../types.js';
 import type {
     PromptInfo,
     CompletionRequestContext,
     CompletionStrategy,
-    InlineCompletionTriggerKind,
-    CompletionSource,
 } from '../types.js';
 
 // Mock fetch globally
@@ -47,7 +50,7 @@ describe('SimpleLLMClient', () => {
 
         mockStrategy = {
             requestMultiline: false,
-            blockMode: 'server' as const,
+            blockMode: BlockMode.Server,
             stopTokens: ['\n'],
             maxTokens: 20,
         };
@@ -159,6 +162,17 @@ describe('SimpleLLMClient', () => {
             apiKey: 'test-key',
         });
 
+        // Start a request to initialize the abortController
+        const mockResponse = {
+            ok: true,
+            json: jest.fn().mockImplementation(() => new Promise(() => {})), // Never resolves
+        };
+        (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+        // Fire off the request (don't await)
+        const requestPromise = client.requestCompletion(mockPrompt, mockStrategy, mockContext);
+
+        // Cancel it
         client.cancelRequest('req-1');
 
         expect(mockAbort).toHaveBeenCalled();

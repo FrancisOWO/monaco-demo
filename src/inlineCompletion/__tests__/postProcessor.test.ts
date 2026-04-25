@@ -3,6 +3,7 @@
  */
 
 import { SimplePostProcessor } from '../postProcessor.js';
+import { CompletionSource, BlockMode } from '../types.js';
 import type { CompletionResult, CompletionStrategy } from '../types.js';
 
 describe('SimplePostProcessor', () => {
@@ -13,7 +14,7 @@ describe('SimplePostProcessor', () => {
         processor = new SimplePostProcessor();
         mockStrategy = {
             requestMultiline: false,
-            blockMode: 'server' as const,
+            blockMode: BlockMode.Server,
             stopTokens: ['\n'],
             maxTokens: 20,
         };
@@ -24,7 +25,7 @@ describe('SimplePostProcessor', () => {
             insertText: '  hello world  ',
             range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
             completionId: 'test-1',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: false,
         };
 
@@ -43,7 +44,7 @@ describe('SimplePostProcessor', () => {
             insertText: '   ',
             range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
             completionId: 'test-1',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: false,
         };
 
@@ -62,7 +63,7 @@ describe('SimplePostProcessor', () => {
             insertText: 'console.log("hello")',
             range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
             completionId: 'test-1',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: false,
         };
 
@@ -82,7 +83,7 @@ describe('SimplePostProcessor', () => {
             insertText: 'console.log("world")',
             range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
             completionId: 'test-1',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: false,
         };
 
@@ -102,7 +103,7 @@ describe('SimplePostProcessor', () => {
             insertText: 'line1\nline2\nline3',
             range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
             completionId: 'test-1',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: false,
         };
 
@@ -121,7 +122,7 @@ describe('SimplePostProcessor', () => {
             insertText: '\nline2',
             range: { startLineNumber: 1, startColumn: 1, endLineNumber: 1, endColumn: 1 },
             completionId: 'test-1',
-            source: 'network' as const,
+            source: CompletionSource.Network,
             isMultiline: false,
         };
 
@@ -132,6 +133,6 @@ describe('SimplePostProcessor', () => {
             mockStrategy,
         );
 
-        expect(processed?.insertText).toBe('');
+        expect(processed).toBeUndefined();
     });
 });
