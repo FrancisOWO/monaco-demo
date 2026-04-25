@@ -1,6 +1,6 @@
 /**
- * Monaco Inline Completion Provider
- * 适配 Monaco Editor 的 InlineCompletionProvider API
+ * Monaco Inline Completions Provider
+ * 适配 Monaco Editor 的 InlineCompletionsProvider API
  */
 
 import * as monaco from 'monaco-editor';
@@ -14,8 +14,8 @@ import type {
     PromptInfo,
 } from './types.js';
 
-/** Monaco Inline Completion Provider */
-export class MonacoInlineCompletionProvider implements monaco.languages.InlineCompletionsProvider {
+/** Monaco Inline Completions Provider */
+export class MonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
     private idCounter = 0;
 
     constructor(

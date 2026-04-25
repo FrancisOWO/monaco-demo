@@ -18,7 +18,7 @@ jest.mock('monaco-editor', () => ({
     },
 }));
 
-import { MonacoInlineCompletionProvider } from '../monacoInlineCompletionProvider.js';
+import { MonacoInlineCompletionsProvider } from '../monacoInlineCompletionProvider.js';
 import {
     InlineCompletionTriggerKind,
     CompletionSource,
@@ -29,8 +29,8 @@ import type {
 } from '../types.js';
 
 // Mock Monaco
-describe('MonacoInlineCompletionProvider', () => {
-    let provider: MonacoInlineCompletionProvider;
+describe('MonacoInlineCompletionsProvider', () => {
+    let provider: MonacoInlineCompletionsProvider;
     let mockController: jest.Mocked<IGhostTextController>;
     let mockEditor: {
         getModel: jest.Mock;
@@ -60,7 +60,7 @@ describe('MonacoInlineCompletionProvider', () => {
             getModel: jest.fn().mockReturnValue(mockModel),
         };
 
-        provider = new MonacoInlineCompletionProvider(
+        provider = new MonacoInlineCompletionsProvider(
             mockController,
             mockEditor as any,
         );

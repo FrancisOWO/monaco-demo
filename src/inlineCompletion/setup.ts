@@ -9,7 +9,7 @@ import { SimplePromptBuilder } from './promptBuilder.js';
 import { SimpleLLMClient, type LLMClientConfig } from './llmClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
-import { MonacoInlineCompletionProvider } from './monacoInlineCompletionProvider.js';
+import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionProvider.js';
 
 export interface InlineCompletionConfig {
     llm: LLMClientConfig;
@@ -38,7 +38,7 @@ export function setupInlineCompletion(
         telemetryEmitter,
         editor,
     );
-    const provider = new MonacoInlineCompletionProvider(controller, editor);
+    const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
     // 注册到 Monaco
     monacoInstance.languages.registerInlineCompletionProvider(
