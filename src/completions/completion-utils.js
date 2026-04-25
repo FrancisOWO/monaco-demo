@@ -78,7 +78,6 @@ export function registerCompletionItem(languageId, completions) {
 export function registerInlineCompletions(languageId) {
     monaco.languages.registerInlineCompletionsProvider(languageId, {
         provideInlineCompletions: function (model, position, context, token) {
-            console.log('Provide inline completion', position, context, token)
             return {
                 items: [
                     {
@@ -90,8 +89,8 @@ export function registerInlineCompletions(languageId) {
                 ]
             };
         },
-        freeInlineCompletions: function (completions) {
-            console.log('Free inline completions', completions);
+        disposeInlineCompletions: function (completions, reason) {
+            // 简易版无需特殊处理
         }
     });
 }
