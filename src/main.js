@@ -3,8 +3,11 @@ import * as monaco from 'monaco-editor';
 import './styles/main.css';
 import './styles/theme-dark.css';
 import './styles/theme-light.css';
+import './styles/toolbar.css';
+import './styles/sidebar.css';
+import './styles/tab-bar.css';
+import './styles/editor-area.css';
 
-import { sampleCode } from './sample-code/sample-code-index.js';
 import { registerBasicCompletions } from './completions.js';
 import { registerAICompletionProvider } from './ai-completion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
@@ -13,26 +16,18 @@ import { setupInlineCompletion } from './inlineCompletion/setup.js';
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
 
+import { openFiles, activeFilePath, on } from './file-system/file-store.js';
+import { setupToolbar, updateLanguageSelect } from './ui/toolbar.js';
+import { renderTabs, updateTabs } from './ui/tab-bar.js';
+import { updateSidebarHighlight } from './ui/sidebar.js';
+
 const logger = getLogger('Main');
 
 // 初始化日志控制面板
 initLogPanel();
 
-
-// 创建带 LSP URI 的模型
-const LSP_URI = 'file:///workspace/main.py';
-// const model = monaco.editor.createModel(sampleCode.python, 'python', monaco.Uri.parse(LSP_URI));
-// 指定语言初始化
-function initModel(language) {
-    const model = monaco.editor.createModel(sampleCode[language], language);
-    monaco.editor.setModelLanguage(model, language);
-    return model;
-}
-const model = initModel('python');
-
-// 创建编辑器
-const editor = monaco.editor.create(document.getElementById('container'), {
-    model,
+// 创建编辑器（无初始模型，等待文件打开）
+const editor = monaco.editor.create(document.getElementById('editor-container'), {
     theme: 'vs',
     automaticLayout: true,
     minimap: { enabled: true },
@@ -40,6 +35,19 @@ const editor = monaco.editor.create(document.getElementById('container'), {
     lineNumbers: 'on',
     scrollBeyondLastLine: false,
 });
+
+// 注册事件回调
+on('onTabsChanged', () => {
+    updateTabs(editor);
+});
+
+on('onActiveFileChanged', () => {
+    updateLanguageSelect();
+    updateSidebarHighlight();
+});
+
+// Setup toolbar（绑定所有按钮和控件事件）
+setupToolbar(editor);
 
 // LSP 状态显示
 const lspStatusEl = document.getElementById('lsp-status');
@@ -109,18 +117,17 @@ lspToggleBtn.addEventListener('change', function () {
 // 注册 AI 补全提供者
 registerAICompletionProvider(monaco, editor);
 
-// 注册新的 Inline Completion（Ghost Text）
-// 使用虚拟客户端进行测试（无需 API Key）
-const useDummyClient = true; // 设置为 false 可切换到真实 LLM
+// 注册 Inline Completion（Ghost Text）
+const useDummyClient = true;
 
 if (useDummyClient) {
     logger.info('Using Dummy LLM Client for testing');
     setupInlineCompletion(monaco, editor, {
         useDummy: true,
         dummy: {
-            delayMs: 500, // 模拟 500ms 延迟
-            randomEmpty: true, // 随机返回空结果
-            emptyProbability: 0.3, // 30% 概率无补全
+            delayMs: 500,
+            randomEmpty: true,
+            emptyProbability: 0.3,
         },
     });
 } else {
@@ -130,7 +137,7 @@ if (useDummyClient) {
         llm: {
             endpoint: `${aiServerUrl}/completion`,
             model: 'default',
-            apiKey: '', // 需要填写真实的 API Key
+            apiKey: '',
         },
     });
 }
@@ -138,16 +145,53 @@ if (useDummyClient) {
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();
 
-// 语言切换
-document.getElementById('language-select').addEventListener('change', function (e) {
-    const language = e.target.value;
-    monaco.editor.setModelLanguage(editor.getModel(), language);
-    editor.setValue(sampleCode[language]);
+// 键盘快捷键
+document.addEventListener('keydown', (e) => {
+    // Ctrl+S 保存
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        const descriptor = openFiles.get(activeFilePath);
+        if (descriptor) {
+            import('./file-system/file-store.js').then(async ({ saveActiveFile }) => {
+                await saveActiveFile(editor);
+                renderTabs(editor);
+            });
+        }
+    }
+
+    // Ctrl+N 新建文件
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        const language = document.getElementById('language-select').value;
+        import('./file-system/file-store.js').then(({ createNewFile }) => {
+            createNewFile(language, editor);
+            renderTabs(editor);
+        });
+    }
+
+    // Ctrl+W 关闭当前 tab
+    if (e.ctrlKey && e.key === 'w') {
+        e.preventDefault();
+        import('./ui/tab-bar.js').then(async ({ renderTabs }) => {
+            // 直接使用 closeFile 的逻辑
+            const { closeFile, forceCloseFile, activeFilePath } = await import('./file-system/file-store.js');
+            const descriptor = openFiles.get(activeFilePath);
+            if (!descriptor) return;
+
+            if (descriptor.isDirty) {
+                const { showDialog } = await import('./ui/dialogs.js');
+                const confirmed = await showDialog(
+                    `文件 "${descriptor.name}" 有未保存的更改。\n是否不保存并关闭？`,
+                    { confirmLabel: '不保存关闭', cancelLabel: '取消' }
+                );
+                if (!confirmed) return;
+                forceCloseFile(activeFilePath, editor);
+            } else {
+                closeFile(activeFilePath, editor);
+            }
+            renderTabs(editor);
+        });
+    }
 });
 
-// 主题切换
-document.getElementById('theme-select').addEventListener('change', function (e) {
-    const theme = e.target.value;
-    monaco.editor.setTheme(theme);
-    document.body.setAttribute('data-theme', theme === 'vs-dark' ? 'dark' : 'light');
-});
+// 主题切换（通过 toolbar.js 已绑定，此处无需重复）
