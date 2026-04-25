@@ -9,29 +9,7 @@ import {
     type CompletionStrategy,
 } from '../types.js';
 import type { IPostProcessor } from '../types.js';
-
-/** BlockTrimmer 注册表接口 */
-export interface IBlockTrimmerRegistry {
-    /** 是否支持该语言的 AST 解析 */
-    isSupported(languageId: string): boolean;
-
-    /** VerboseBlockTrimmer：获取最长合理补全 */
-    verboseTrim(
-        languageId: string,
-        prefix: string,
-        completion: string,
-        lineLimit: number,
-    ): Promise<number | undefined>;
-
-    /** TerseBlockTrimmer：获取更简洁的补全 */
-    terseTrim(
-        languageId: string,
-        prefix: string,
-        completion: string,
-        lineLimit: number,
-        lookAhead: number,
-    ): Promise<number | undefined>;
-}
+import type { IBlockTrimmerRegistry } from '../trim/blockTrimmerRegistry.js';
 
 /** 后处理器配置 */
 export interface PostProcessorConfig {
