@@ -563,7 +563,7 @@ export class SimpleNESController implements INESController {
 ```typescript
 // === nesMonacoAdapter.ts ===
 
-export class NESMonacoInlineCompletionProvider implements monaco.languages.InlineCompletionProvider {
+export class NESMonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
   private idCounter = 0;
   private currentSuggestion: InlineSuggestionEdit | undefined;
 
@@ -649,10 +649,10 @@ export function setupNES(
   const controller = new SimpleNESController(
     promptBuilder, llmClient, triggerer, telemetryEmitter, editor,
   );
-  const provider = new NESMonacoInlineCompletionProvider(controller, triggerer, editor);
+  const provider = new NESMonacoInlineCompletionsProvider(controller, triggerer, editor);
 
   // 注册到 Monaco
-  monaco.languages.registerInlineCompletionProvider(
+  monaco.languages.registerInlineCompletionsProvider(
     { pattern: '**/*' },
     provider,
   );
@@ -712,7 +712,7 @@ export function setupNES(
 
 ### Step 7：实现 NESMonacoAdapter
 
-- 实现 Monaco 的 `InlineCompletionProvider` 接口
+- 实现 Monaco 的 `InlineCompletionsProvider` 接口
 - 监听 `NesChangeHint` 事件触发重新请求
 - 将 `InlineSuggestionEdit` 转换为 Monaco `InlineCompletionItem`
 
@@ -732,7 +732,7 @@ src/
     nesLlmClient.ts                  INESLLMClient + SimpleNESLLMClient
     toInlineSuggestion.ts            toInlineSuggestion() 转换函数 + isSubword
     nesController.ts                 INESController + SimpleNESController
-    nesMonacoAdapter.ts              NESMonacoInlineCompletionProvider
+    nesMonacoAdapter.ts              NESMonacoInlineCompletionsProvider
     telemetryEmitter.ts              INesTelemetryEmitter + ConsoleNesTelemetryEmitter
     setup.ts                         setupNES() 入口
 ```
@@ -757,4 +757,4 @@ src/
 
 ## 与 Ghost Text 简易版的共存
 
-简易版 NES 和 Ghost Text 可以分别注册为独立的 `InlineCompletionProvider`。Monaco 会依次调用各 provider 并合并结果。但如果需要像 Copilot 的 `JointCompletionsProvider` 一样融合两者（行尾走 Ghost Text，行中走 NES），则需要实现联合提供者——这属于更高级的话题，简易版暂不考虑。
+简易版 NES 和 Ghost Text 可以分别注册为独立的 `InlineCompletionsProvider`。Monaco 会依次调用各 provider 并合并结果。但如果需要像 Copilot 的 `JointCompletionsProvider` 一样融合两者（行尾走 Ghost Text，行中走 NES），则需要实现联合提供者——这属于更高级的话题，简易版暂不考虑。

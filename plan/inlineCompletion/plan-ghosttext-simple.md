@@ -10,7 +10,7 @@
 ┌─────────────────────────────────────────────────┐
 │                  Monaco Editor                   │
 │  ┌───────────────────────────────────────────┐  │
-│  │         InlineCompletionProvider           │  │
+│  │         InlineCompletionsProvider           │  │
 │  │  (注册到 editor.registerInlineCompletions) │  │
 │  └──────────────────┬────────────────────────┘  │
 │                     │                            │
@@ -406,14 +406,14 @@ export class SimpleGhostTextController implements IGhostTextController {
 }
 ```
 
-### 6. MonacoInlineCompletionProvider — VS Code API 适配
+### 6. MonacoInlineCompletionsProvider — VS Code API 适配
 
 ```typescript
-// === monacoInlineCompletionProvider.ts ===
+// === monacoInlineCompletionsProvider.ts ===
 
 import * as monaco from 'monaco-editor';
 
-export class MonacoInlineCompletionProvider implements monaco.languages.InlineCompletionProvider {
+export class MonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
   private idCounter = 0;
 
   constructor(
@@ -513,10 +513,10 @@ export function setupInlineCompletion(
   const controller = new SimpleGhostTextController(
     promptBuilder, llmClient, postProcessor, telemetryEmitter,
   );
-  const provider = new MonacoInlineCompletionProvider(controller, editor);
+  const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
   // 注册到 Monaco
-  monaco.languages.registerInlineCompletionProvider(
+  monaco.languages.registerInlineCompletionsProvider(
     { pattern: '**/*' },
     provider,
   );
@@ -562,9 +562,9 @@ export function setupInlineCompletion(
 - 文档版本过期检测
 - 发出基础遥测事件
 
-### Step 6：实现 MonacoInlineCompletionProvider
+### Step 6：实现 MonacoInlineCompletionsProvider
 
-- 实现 Monaco 的 `InlineCompletionProvider` 接口
+- 实现 Monaco 的 `InlineCompletionsProvider` 接口
 - 行尾位置检查（`textAfterCursor.trim() === ''`）
 - 将 `CompletionResult[]` 转换为 Monaco `InlineCompletionItem[]`
 
@@ -588,7 +588,7 @@ src/
     llmClient.ts                  ILLMClient + SimpleLLMClient
     postProcessor.ts              IPostProcessor + SimplePostProcessor
     ghostTextController.ts        IGhostTextController + SimpleGhostTextController
-    monacoInlineCompletionProvider.ts  Monaco API 适配
+    monacoInlineCompletionsProvider.ts  Monaco API 适配
     telemetryEmitter.ts           ITelemetryEmitter + ConsoleTelemetryEmitter
     setup.ts                      setupInlineComposition() 入口
 ```

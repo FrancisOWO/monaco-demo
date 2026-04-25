@@ -10,7 +10,7 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Monaco Editor                             │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │            MonacoInlineCompletionProvider                │    │
+│  │            MonacoInlineCompletionsProvider                │    │
 │  │  (registerInlineCompletions → 行尾触发 → 返回补全列表)     │    │
 │  └──────────────────────────┬──────────────────────────────┘    │
 │                             │                                    │
@@ -725,12 +725,12 @@ export class FullGhostTextController implements IGhostTextController {
 }
 ```
 
-### 15. MonacoInlineCompletionProvider — 完整版适配
+### 15. MonacoInlineCompletionsProvider — 完整版适配
 
 ```typescript
-// === monacoInlineCompletionProvider.ts ===（扩展 Plan A）
+// === monacoInlineCompletionsProvider.ts ===（扩展 Plan A）
 
-export class FullMonacoInlineCompletionProvider implements monaco.languages.InlineCompletionProvider {
+export class FullMonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
   // 与简易版相同的 provideInlineCompletions 基础逻辑
   // ★ 新增：handleDidShow → 触发投机请求
   // ★ 新增：handleDidPartiallyAccept → 记录 partial accept 长度
@@ -858,7 +858,7 @@ src/
     telemetry/
       telemetryEmitter.ts                  FullTelemetryEmitter
       logContext.ts                        请求级日志
-    monacoInlineCompletionProvider.ts       Monaco API 适配（完整版）
+    monacoInlineCompletionsProvider.ts       Monaco API 适配（完整版）
     ghostTextController.ts                 FullGhostTextController
     setup.ts                               setupInlineCompletion() 入口
 ```

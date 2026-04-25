@@ -907,7 +907,7 @@ async function raceAndAll<T1, T2>(
 ```typescript
 // === nesMonacoAdapter.ts ===（扩展 Plan C）
 
-export class FullNESMonacoInlineCompletionProvider implements monaco.languages.InlineCompletionProvider {
+export class FullNESMonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
   // 与简易版相同的基础逻辑
   // ★ 新增：
   // - handleDidShow → 触发投机请求
@@ -1003,7 +1003,7 @@ src/
     controller/
       nesController.ts                    INESController + FullNESController
     adapter/
-      nesMonacoAdapter.ts                FullNESMonacoInlineCompletionProvider
+      nesMonacoAdapter.ts                FullNESMonacoInlineCompletionsProvider
     telemetry/
       telemetryEmitter.ts                INesTelemetryEmitter + FullNesTelemetryEmitter
       survivalRateTracker.ts             Survival Rate 追踪
