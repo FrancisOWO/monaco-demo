@@ -1,0 +1,91 @@
+import { FastMCP } from 'fastmcp';
+import { z } from 'zod';
+import { EditorCommandClient } from './client.js';
+import { EditorTools } from './tools.js';
+
+const client = new EditorCommandClient();
+const tools = new EditorTools(client);
+
+const server = new FastMCP({
+  name: 'monaco-editor-fastmcp',
+  version: '1.0.0',
+});
+
+server.addTool({
+  name: 'editor_status',
+  description: 'Get editor connection status, workspace, active file, and opened files.',
+  parameters: z.object({}),
+  execute: async () => tools.editorStatus(),
+});
+
+server.addTool({
+  name: 'open_folder',
+  description: 'Set the workspace folder used by external agents and sync it to the editor.',
+  parameters: z.object({ path: z.string().describe('Absolute path to the directory') }),
+  execute: async (args) => tools.openFolder(args.path),
+});
+
+server.addTool({
+  name: 'open_file',
+  description: 'Read a local file from disk and open it in the editor.',
+  parameters: z.object({
+    path: z.string().describe('Absolute path to the file'),
+    language: z.string().optional().describe('Language identifier for syntax highlighting'),
+  }),
+  execute: async (args) => tools.openFile(args.path, args.language),
+});
+
+server.addTool({
+  name: 'new_file',
+  description: 'Create a new editor file, optionally using an initial content string.',
+  parameters: z.object({
+    path: z.string().optional().describe('Path for the new file'),
+    name: z.string().optional().describe('Name for the new file'),
+    language: z.string().optional().describe('Language identifier (default: python)'),
+    content: z.string().optional().describe('Initial content for the file'),
+  }),
+  execute: async (args) => tools.newFile(args),
+});
+
+server.addTool({
+  name: 'edit_file',
+  description: 'Replace an opened file\'s editor content and optionally write it to disk.',
+  parameters: z.object({
+    path: z.string().describe('Absolute path to the file'),
+    content: z.string().describe('New content for the file'),
+    save: z.boolean().optional().describe('Whether to persist the content to disk'),
+  }),
+  execute: async (args) => tools.editFile(args.path, args.content, args.save),
+});
+
+server.addTool({
+  name: 'get_file_content',
+  description: 'Read the current editor content for an opened file, or the active file if omitted.',
+  parameters: z.object({
+    path: z.string().optional().describe('Absolute path to the file (omit for active file)'),
+  }),
+  execute: async (args) => tools.getFileContent(args.path),
+});
+
+server.addTool({
+  name: 'delete_file',
+  description: 'Close a file in the editor and optionally delete it from disk.',
+  parameters: z.object({
+    path: z.string().describe('Absolute path to the file'),
+    deleteFromDisk: z.boolean().optional().describe('Whether to delete the file from disk'),
+  }),
+  execute: async (args) => tools.deleteFile(args.path, args.deleteFromDisk),
+});
+
+server.addTool({
+  name: 'compare_files',
+  description: 'Open Monaco Diff view for two local files.',
+  parameters: z.object({
+    originalPath: z.string().describe('Absolute path to the original file'),
+    modifiedPath: z.string().describe('Absolute path to the modified file'),
+    language: z.string().optional().describe('Language identifier for diff highlighting'),
+  }),
+  execute: async (args) => tools.compareFiles(args.originalPath, args.modifiedPath, args.language),
+});
+
+server.start({ transportType: 'stdio' });
