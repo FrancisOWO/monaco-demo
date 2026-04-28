@@ -228,28 +228,37 @@ describe('toolbar', () => {
 
     it('routes global shortcuts through editor actions and prevents browser defaults', () => {
         let keydownHandler: Function | null = null;
+        let keydownOptions: unknown = null;
         const elements = {};
         const toolbar = loadToolbar(elements);
         fsAccess.isFileSystemAccessSupported.mockReturnValue(true);
         fsAccess.openFile.mockResolvedValue(null);
-        (global as any).document.addEventListener.mockImplementation((event: string, handler: Function) => {
+        (global as any).document.addEventListener.mockImplementation((event: string, handler: Function, options: unknown) => {
             if (event === 'keydown') keydownHandler = handler;
+            if (event === 'keydown') keydownOptions = options;
         });
         const editor = { trigger: jest.fn() };
 
         toolbar.setupGlobalShortcuts(editor);
 
-        const ctrlO = { key: 'o', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn() };
-        const ctrlF = { key: 'f', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn() };
-        const altDown = { key: 'ArrowDown', ctrlKey: false, metaKey: false, shiftKey: false, altKey: true, preventDefault: jest.fn() };
+        const ctrlN = { key: 'n', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+        const ctrlO = { key: 'o', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+        const ctrlF = { key: 'f', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn(), stopPropagation: jest.fn() };
+        const altDown = { key: 'ArrowDown', ctrlKey: false, metaKey: false, shiftKey: false, altKey: true, preventDefault: jest.fn(), stopPropagation: jest.fn() };
 
+        keydownHandler!(ctrlN);
         keydownHandler!(ctrlO);
         keydownHandler!(ctrlF);
         keydownHandler!(altDown);
 
+        expect(keydownOptions).toBe(true);
+        expect(ctrlN.preventDefault).toHaveBeenCalled();
+        expect(ctrlN.stopPropagation).toHaveBeenCalled();
         expect(ctrlO.preventDefault).toHaveBeenCalled();
+        expect(ctrlO.stopPropagation).toHaveBeenCalled();
         expect(ctrlF.preventDefault).toHaveBeenCalled();
         expect(altDown.preventDefault).toHaveBeenCalled();
+        expect(fileStore.createNewFile).toHaveBeenCalled();
         expect(fsAccess.openFile).toHaveBeenCalled();
         expect(editor.trigger).toHaveBeenCalledWith('menu', 'actions.find', null);
         expect(editor.trigger).toHaveBeenCalledWith('menu', 'editor.action.copyLinesDownAction', null);

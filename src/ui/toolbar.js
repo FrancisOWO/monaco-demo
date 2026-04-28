@@ -314,8 +314,9 @@ export function setupGlobalShortcuts(editor) {
         if (!action) return;
 
         e.preventDefault();
+        e.stopPropagation();
         handleAction(action, editor);
-    });
+    }, true);
 }
 
 export function openLanguageModal() {
