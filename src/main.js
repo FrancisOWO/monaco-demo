@@ -27,6 +27,7 @@ import { setupChatPanel } from './chat/chat-panel.js';
 import { showToast } from './ui/dialogs.js';
 import { addSelectionContext, openPanel } from './chat/chat-store.js';
 import { setupDiffViewer } from './ui/diff-viewer.js';
+import { setupEditorMcpClient } from './mcp/editor-mcp-client.js';
 
 const logger = getLogger('Main');
 
@@ -64,6 +65,9 @@ setupLayoutControls();
 
 // Setup Diff Viewer
 setupDiffViewer();
+
+// Setup MCP editor control bridge
+setupEditorMcpClient(editor);
 
 // LSP 状态显示（状态栏）
 const lspStatusEl = document.getElementById('lsp-status');

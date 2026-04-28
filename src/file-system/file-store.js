@@ -65,6 +65,14 @@ function rememberRecentFile(handle, path, language) {
     recentFiles.splice(10);
 }
 
+function basenameFromPath(path) {
+    return String(path || '')
+        .replace(/\\/g, '/')
+        .split('/')
+        .filter(Boolean)
+        .pop() || 'untitled';
+}
+
 /**
  * 设置根目录
  */
@@ -134,6 +142,59 @@ export async function openFileFromHandle(handle, path, editor) {
 }
 
 /**
+ * 从外部服务提供的内容打开文件。
+ * 该入口用于 MCP/自动化控制，不依赖 FileSystemAccess handle。
+ */
+export function openFileFromContent({ path, name, content = '', language }, editor) {
+    if (!path) {
+        throw new Error('path is required');
+    }
+
+    const fileName = name || basenameFromPath(path);
+    const detectedLanguage = language || detectLanguage(fileName);
+
+    if (openFiles.has(path)) {
+        const descriptor = openFiles.get(path);
+        descriptor.model.setValue(content);
+        descriptor.savedContent = content;
+        descriptor.isDirty = false;
+        descriptor.language = detectedLanguage;
+        monaco.editor.setModelLanguage(descriptor.model, detectedLanguage);
+        setActiveFile(path, editor);
+        return descriptor;
+    }
+
+    if (activeFilePath && openFiles.has(activeFilePath)) {
+        const prev = openFiles.get(activeFilePath);
+        prev.viewState = editor.saveViewState();
+    }
+
+    const model = createFileModel(path, content, detectedLanguage);
+    const descriptor = {
+        path,
+        name: fileName,
+        handle: null,
+        model,
+        isDirty: false,
+        language: detectedLanguage,
+        savedContent: content,
+        viewState: null,
+        external: true,
+    };
+
+    openFiles.set(path, descriptor);
+    setActiveFile(path, editor);
+
+    model.onDidChangeContent(() => {
+        descriptor.isDirty = model.getValue() !== descriptor.savedContent;
+        emit('onTabsChanged');
+    });
+
+    logger.info('External file opened:', path);
+    return descriptor;
+}
+
+/**
  * 打开最近文件
  */
 export async function openRecentFile(index, editor) {
@@ -187,6 +248,28 @@ export function createNewFile(language, editor) {
 }
 
 /**
+ * 创建由 MCP/自动化控制的新文件。
+ */
+export function createExternalNewFile({ name, path, language = 'python', content }, editor) {
+    const ext = getExtension(language);
+    const fileName = name || `untitled-${untitledIndex++}${ext}`;
+    const filePath = path || '/' + fileName;
+    const initialContent = content ?? sampleCode[language] ?? '';
+
+    const descriptor = openFileFromContent({
+        path: filePath,
+        name: fileName,
+        content: initialContent,
+        language,
+    }, editor);
+
+    descriptor.isDirty = true;
+    descriptor.savedContent = '';
+    emit('onTabsChanged');
+    return descriptor;
+}
+
+/**
  * 设置活跃文件
  * @param {string} path
  * @param {monaco.editor} editor
@@ -220,6 +303,51 @@ export function setActiveFile(path, editor) {
 export function getActiveFile() {
     if (!activeFilePath) return null;
     return openFiles.get(activeFilePath);
+}
+
+export function getOpenFileSnapshots() {
+    return [...openFiles.values()].map(descriptor => ({
+        path: descriptor.path,
+        name: descriptor.name,
+        language: descriptor.language,
+        isDirty: descriptor.isDirty,
+        content: descriptor.model.getValue(),
+    }));
+}
+
+export function getFileSnapshot(path) {
+    const descriptor = path ? openFiles.get(path) : getActiveFile();
+    if (!descriptor) return null;
+
+    return {
+        path: descriptor.path,
+        name: descriptor.name,
+        language: descriptor.language,
+        isDirty: descriptor.isDirty,
+        content: descriptor.model.getValue(),
+    };
+}
+
+export function updateFileContent(path, content, editor) {
+    const descriptor = path ? openFiles.get(path) : getActiveFile();
+    if (!descriptor) return null;
+
+    descriptor.model.setValue(content);
+    if (editor && activeFilePath === descriptor.path) {
+        editor.setModel(descriptor.model);
+    }
+    emit('onTabsChanged');
+    return getFileSnapshot(descriptor.path);
+}
+
+export function markFileSaved(path, savedContent) {
+    const descriptor = path ? openFiles.get(path) : getActiveFile();
+    if (!descriptor) return null;
+
+    descriptor.savedContent = savedContent ?? descriptor.model.getValue();
+    descriptor.isDirty = false;
+    emit('onTabsChanged');
+    return getFileSnapshot(descriptor.path);
 }
 
 /**

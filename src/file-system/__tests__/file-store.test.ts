@@ -193,6 +193,63 @@ describe('file-store', () => {
         expect(store.closeFile('/untitled-1.go', editor as any)).toBe(false);
     });
 
+    it('opens external content and exposes snapshots for MCP control', async () => {
+        const { store } = await loadStore();
+        const editor = createEditorMock();
+
+        const descriptor = store.openFileFromContent({
+            path: '/external/main.py',
+            content: 'print("mcp")',
+        }, editor as any);
+
+        expect(descriptor).toMatchObject({
+            path: '/external/main.py',
+            name: 'main.py',
+            language: 'python',
+            isDirty: false,
+            savedContent: 'print("mcp")',
+        });
+        expect(store.getFileSnapshot('/external/main.py')).toMatchObject({
+            path: '/external/main.py',
+            content: 'print("mcp")',
+        });
+        expect(store.getOpenFileSnapshots()).toHaveLength(1);
+    });
+
+    it('updates and marks external file content as saved', async () => {
+        const { store } = await loadStore();
+        const editor = createEditorMock();
+
+        store.openFileFromContent({
+            path: '/external/main.go',
+            content: 'package main',
+        }, editor as any);
+
+        expect(store.updateFileContent('/external/main.go', 'package main\nfunc main() {}', editor as any)).toMatchObject({
+            isDirty: true,
+            content: 'package main\nfunc main() {}',
+        });
+        expect(store.markFileSaved('/external/main.go')).toMatchObject({
+            isDirty: false,
+            content: 'package main\nfunc main() {}',
+        });
+    });
+
+    it('creates external new files with template content and dirty state', async () => {
+        const { store } = await loadStore();
+        const editor = createEditorMock();
+
+        const descriptor = store.createExternalNewFile({
+            name: 'scratch.cpp',
+            language: 'cpp',
+        }, editor as any);
+
+        expect(descriptor.path).toBe('/scratch.cpp');
+        expect(descriptor.language).toBe('cpp');
+        expect(descriptor.isDirty).toBe(true);
+        expect(descriptor.model.getValue()).toContain('#include');
+    });
+
     it('saves existing files and clears dirty state', async () => {
         const handle = { name: 'main.py' };
         const { store, fsAccess } = await loadStore({
