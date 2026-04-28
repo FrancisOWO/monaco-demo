@@ -8,7 +8,10 @@
 
 ```text
 外部 agent
-  -> MCP stdio 服务 server/src/mcp/editor-mcp-server.ts
+  -> MCP stdio 服务 (三种实现)
+     - server/src/mcp/editor-mcp-server.ts (手写 framing)
+     - python-mcp/src/editor_mcp_fastmcp/server.py (Python FastMCP)
+     - ts-mcp/src/server.ts (TypeScript FastMCP)
   -> HTTP 控制端点 /editor-control/command
   -> WebSocket 桥接 /editor-control
   -> 浏览器中的 Monaco 编辑器
@@ -19,8 +22,14 @@
 - `server/src/editor-control.ts`：管理浏览器编辑器 WebSocket 连接，转发命令并等待响应。
 - `server/src/server.ts`：提供 `/editor-control` WebSocket，以及 `/editor-control/status`、`/editor-control/command` HTTP 端点。
 - `src/mcp/editor-mcp-client.js`：浏览器侧命令处理器，实际调用 `file-store` 和 `diff-viewer`。
-- `server/src/mcp/editor-mcp-server.ts`：MCP stdio 入口。
-- `server/src/mcp/editor-tools.ts`：MCP tool 定义和工具实现。
+- `server/src/mcp/editor-mcp-server.ts`：手写 MCP stdio 入口。
+- `server/src/mcp/editor-tools.ts`：手写 MCP tool 定义和工具实现。
+- `python-mcp/src/editor_mcp_fastmcp/server.py`：Python FastMCP 服务器入口。
+- `python-mcp/src/editor_mcp_fastmcp/tools.py`：Python EditorTools 类。
+- `python-mcp/src/editor_mcp_fastmcp/client.py`：Python HTTP 客户端。
+- `ts-mcp/src/server.ts`：TypeScript FastMCP 服务器入口。
+- `ts-mcp/src/tools.ts`：TypeScript EditorTools 类。
+- `ts-mcp/src/client.ts`：TypeScript HTTP 客户端。
 
 ## 启动
 
@@ -101,6 +110,37 @@ cd python-mcp
 uv lock
 uv run pytest -q
 uv run monaco-editor-fastmcp
+```
+
+TypeScript FastMCP 版本源码位于：
+
+```text
+ts-mcp/
+```
+
+本地验证：
+
+```bash
+cd ts-mcp
+pnpm install
+pnpm test
+pnpm dev
+```
+
+TypeScript FastMCP 版本示例配置：
+
+```json
+{
+  "mcpServers": {
+    "monaco-editor-fastmcp-ts": {
+      "command": "node",
+      "args": ["ts-mcp/dist/server.js"],
+      "env": {
+        "EDITOR_MCP_SERVER_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
 ```
 
 ## 工具清单
@@ -234,14 +274,23 @@ uv run monaco-editor-fastmcp
 推荐验证命令：
 
 ```bash
+# 手写版 MCP 服务测试
 pnpm test -- --runInBand server/test/editor-mcp-server.test.js server/test/editor-control.test.js server/test/editor-control-http.test.js src/mcp/__tests__/editor-mcp-client.test.ts src/file-system/__tests__/file-store.test.ts
 pnpm exec tsc -p server/tsconfig.json --noEmit
+
+# Python FastMCP 测试
+cd python-mcp && uv run pytest -q
+
+# TypeScript FastMCP 测试
+cd ts-mcp && pnpm test
 ```
 
 完整测试：
 
 ```bash
 pnpm test -- --runInBand
+cd python-mcp && uv run pytest -q
+cd ts-mcp && pnpm test
 ```
 
 ## 限制
