@@ -2,20 +2,20 @@
  * @jest-environment node
  */
 
-import { ConsoleTelemetryEmitter } from '../telemetryEmitter.js';
 import type { TelemetryEvent } from '../types.js';
 
 describe('ConsoleTelemetryEmitter', () => {
-    let emitter: ConsoleTelemetryEmitter;
-    let consoleSpy: jest.SpyInstance;
+    let emitter: { emit(event: TelemetryEvent): void };
+    let logger: { info: jest.Mock };
 
     beforeEach(() => {
+        jest.resetModules();
+        logger = { info: jest.fn() };
+        jest.doMock('../../utils/logger.js', () => ({
+            getLogger: () => logger,
+        }));
+        const { ConsoleTelemetryEmitter } = require('../telemetryEmitter.js');
         emitter = new ConsoleTelemetryEmitter();
-        consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-        consoleSpy.mockRestore();
     });
 
     it('should emit event to console', () => {
@@ -28,10 +28,7 @@ describe('ConsoleTelemetryEmitter', () => {
 
         emitter.emit(event);
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            '[Telemetry] completion.issued',
-            event,
-        );
+        expect(logger.info).toHaveBeenCalledWith('completion.issued', event);
     });
 
     it('should handle events with empty properties', () => {
@@ -44,9 +41,6 @@ describe('ConsoleTelemetryEmitter', () => {
 
         emitter.emit(event);
 
-        expect(consoleSpy).toHaveBeenCalledWith(
-            '[Telemetry] completion.received',
-            event,
-        );
+        expect(logger.info).toHaveBeenCalledWith('completion.received', event);
     });
 });

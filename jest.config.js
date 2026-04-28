@@ -1,27 +1,20 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
-    preset: 'ts-jest/presets/default-esm',
     testEnvironment: 'node',
-    testMatch: ['<rootDir>/src/inlineCompletion/__tests__/**/*.test.ts'],
+    testMatch: [
+        '<rootDir>/server/test/**/*.test.js',
+        '<rootDir>/src/**/__tests__/**/*.test.ts',
+    ],
     testTimeout: 15000,
     verbose: true,
-    modulePathIgnorePatterns: ['<rootDir>/dist/'],
-    extensionsToTreatAsEsm: ['.ts'],
+    modulePathIgnorePatterns: [
+        '<rootDir>/dist/',
+        '<rootDir>/server/dist/',
+    ],
     transform: {
-        '^.+\\.tsx?$': [
-            'ts-jest',
-            {
-                useESM: true,
-                tsconfig: {
-                    module: 'ESNext',
-                    moduleResolution: 'node',
-                    esModuleInterop: true,
-                    allowSyntheticDefaultImports: true,
-                },
-            },
-        ],
+        '^.+\\.[tj]sx?$': '<rootDir>/test/jest-esbuild-transformer.cjs',
     },
     moduleNameMapper: {
         '^(\\.{1,2}/.*)\\.js$': '$1',
     },
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 };

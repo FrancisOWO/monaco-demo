@@ -18,11 +18,11 @@ jest.mock('monaco-editor', () => ({
     },
 }));
 
-import { MonacoInlineCompletionsProvider } from '../monacoInlineCompletionsProvider.js';
-import {
+const { MonacoInlineCompletionsProvider } = require('../monacoInlineCompletionsProvider.js');
+const {
     InlineCompletionTriggerKind,
     CompletionSource,
-} from '../types.js';
+} = require('../types.js');
 import type {
     IGhostTextController,
     CompletionResult,
