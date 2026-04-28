@@ -85,6 +85,10 @@ function renderPart(part) {
 			return renderThinkingPart(part);
 		case 'tool-call':
 			return renderToolCallPart(part);
+		case 'skill-call':
+			return renderSkillCallPart(part);
+		case 'mcp-call':
+			return renderMcpCallPart(part);
 		case 'code':
 			return renderCodePart(part);
 		default:
@@ -161,6 +165,68 @@ function renderToolCallPart(part) {
 				<span>${toolName}</span>
 			</div>
 			<div class="msg-tool-call-input">${escapeHtml(inputStr.substring(0, 200))}</div>
+			${outputHtml}
+		</div>
+	`;
+}
+
+/**
+ * 渲染 skill-call 部分 (紫色 SKILL badge)
+ */
+function renderSkillCallPart(part) {
+	const skillName = part.skillName || 'unknown';
+	const callId = part.callId || '';
+	const input = part.input || {};
+	const output = part.output;
+	const inputStr = typeof input === 'object' ? JSON.stringify(input) : String(input);
+
+	let outputHtml = '';
+	if (output) {
+		const outputStr = typeof output === 'object' ? JSON.stringify(output) : String(output);
+		const statusClass = output.error ? 'tool-status-error' : 'skill-status-success';
+		outputHtml = `<div class="msg-skill-call-output ${statusClass}">${escapeHtml(outputStr.substring(0, 300))}</div>`;
+	}
+
+	return `
+		<div class="msg-skill-call" data-call-id="${callId}">
+			<div class="msg-skill-call-header">
+				<span class="skill-icon"></span>
+				<span class="skill-badge">SKILL</span>
+				<span>${skillName}</span>
+			</div>
+			<div class="msg-skill-call-input">${escapeHtml(inputStr.substring(0, 200))}</div>
+			${outputHtml}
+		</div>
+	`;
+}
+
+/**
+ * 渲染 mcp-call 部分 (青色 MCP badge + server pill)
+ */
+function renderMcpCallPart(part) {
+	const server = part.mcpServer || 'unknown';
+	const toolName = part.mcpToolName || 'unknown';
+	const callId = part.callId || '';
+	const input = part.input || {};
+	const output = part.output;
+	const inputStr = typeof input === 'object' ? JSON.stringify(input) : String(input);
+
+	let outputHtml = '';
+	if (output) {
+		const outputStr = typeof output === 'object' ? JSON.stringify(output) : String(output);
+		const statusClass = output.error ? 'tool-status-error' : 'mcp-status-success';
+		outputHtml = `<div class="msg-mcp-call-output ${statusClass}">${escapeHtml(outputStr.substring(0, 300))}</div>`;
+	}
+
+	return `
+		<div class="msg-mcp-call" data-call-id="${callId}">
+			<div class="msg-mcp-call-header">
+				<span class="mcp-icon"></span>
+				<span class="mcp-badge">MCP</span>
+				<span class="mcp-server-pill">${server}</span>
+				<span>${toolName}</span>
+			</div>
+			<div class="msg-mcp-call-input">${escapeHtml(inputStr.substring(0, 200))}</div>
 			${outputHtml}
 		</div>
 	`;

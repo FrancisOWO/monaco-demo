@@ -226,6 +226,147 @@
 	color: #4caf50;
 }
 
+/* === Skill Call Part (紫色) === */
+
+.msg-skill-call {
+	border-left: 3px solid #7c3aed;
+	border-radius: 4px;
+	padding: 8px 12px;
+	background: #f3e8ff;
+	font-size: 12px;
+	position: relative;
+}
+
+.msg-skill-call-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 600;
+	color: #7c3aed;
+	margin-bottom: 4px;
+}
+
+.skill-icon::before {
+	content: "⚡";
+}
+
+.skill-badge {
+	background: #7c3aed;
+	color: #fff;
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.msg-skill-call-input {
+	color: #555;
+	font-size: 11px;
+	margin-top: 4px;
+}
+
+.msg-skill-call-output {
+	color: #333;
+	font-size: 11px;
+	margin-top: 4px;
+	padding-top: 4px;
+	border-top: 1px solid #e0e0e0;
+}
+
+.skill-status-success::before {
+	content: "✓ ";
+	color: #7c3aed;
+}
+
+/* === MCP Call Part (青色) === */
+
+.msg-mcp-call {
+	border-left: 3px solid #0d9488;
+	border-radius: 4px;
+	padding: 8px 12px;
+	background: #f0fdfa;
+	font-size: 12px;
+	position: relative;
+}
+
+.msg-mcp-call-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-weight: 600;
+	color: #0d9488;
+	margin-bottom: 4px;
+}
+
+.mcp-icon::before {
+	content: "🔌";
+}
+
+.mcp-badge {
+	background: #0d9488;
+	color: #fff;
+	padding: 1px 6px;
+	border-radius: 3px;
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.5px;
+}
+
+.mcp-server-pill {
+	background: #e0f2fe;
+	color: #0d9488;
+	padding: 1px 8px;
+	border-radius: 8px;
+	font-size: 10px;
+	border: 1px solid #0d9488;
+	font-weight: 500;
+}
+
+.msg-mcp-call-input {
+	color: #555;
+	font-size: 11px;
+	margin-top: 4px;
+}
+
+.msg-mcp-call-output {
+	color: #333;
+	font-size: 11px;
+	margin-top: 4px;
+	padding-top: 4px;
+	border-top: 1px solid #e0e0e0;
+}
+
+.mcp-status-success::before {
+	content: "✓ ";
+	color: #0d9488;
+}
+
+/* === Mention Category Badge === */
+
+.mention-category-badge {
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 9px;
+	font-weight: 700;
+	letter-spacing: 0.3px;
+}
+
+.mention-category-file {
+	background: #e8f4fd;
+	color: #007acc;
+}
+
+.mention-category-skill {
+	background: #f3e8ff;
+	color: #7c3aed;
+}
+
+.mention-category-mcp {
+	background: #f0fdfa;
+	color: #0d9488;
+}
+
 .tool-status-error::before {
 	content: "✗ ";
 	color: #f44336;
@@ -316,6 +457,27 @@
 
 .context-chip-selection .context-chip-icon::before {
 	content: "📝";
+}
+
+/* Skill/MCP context chips */
+.context-chip-skill {
+	background: #f3e8ff;
+	border-color: #7c3aed55;
+	color: #7c3aed;
+}
+
+.skill-chip-icon::before {
+	content: "⚡";
+}
+
+.context-chip-mcp {
+	background: #f0fdfa;
+	border-color: #0d948855;
+	color: #0d9488;
+}
+
+.mcp-chip-icon::before {
+	content: "🔌";
 }
 
 .context-chip-close {
@@ -637,6 +799,18 @@ body[data-theme="dark"] .context-chip {
 	color: #007acc;
 }
 
+body[data-theme="dark"] .context-chip-skill {
+	background: #2d1b69;
+	border-color: #7c3aed55;
+	color: #7c3aed;
+}
+
+body[data-theme="dark"] .context-chip-mcp {
+	background: #134e4a;
+	border-color: #0d948855;
+	color: #0d9488;
+}
+
 body[data-theme="dark"] #chat-mention-popup {
 	background: #2d2d2d;
 	border-color: #444;
@@ -681,4 +855,64 @@ body[data-theme="dark"] .msg-code-block {
 body[data-theme="dark"] .msg-code-header {
 	background: #333;
 	color: #aaa;
+}
+
+/* Dark theme: Skill Call */
+body[data-theme="dark"] .msg-skill-call {
+	background: #1a1030;
+	border-left-color: #7c3aed;
+}
+
+body[data-theme="dark"] .msg-skill-call-header {
+	color: #7c3aed;
+}
+
+body[data-theme="dark"] .msg-skill-call-input {
+	color: #888;
+}
+
+body[data-theme="dark"] .msg-skill-call-output {
+	color: #d4d4d4;
+	border-top-color: #444;
+}
+
+/* Dark theme: MCP Call */
+body[data-theme="dark"] .msg-mcp-call {
+	background: #0a1f1e;
+	border-left-color: #0d9488;
+}
+
+body[data-theme="dark"] .msg-mcp-call-header {
+	color: #0d9488;
+}
+
+body[data-theme="dark"] .mcp-server-pill {
+	background: #134e4a;
+	border-color: #0d9488;
+	color: #0d9488;
+}
+
+body[data-theme="dark"] .msg-mcp-call-input {
+	color: #888;
+}
+
+body[data-theme="dark"] .msg-mcp-call-output {
+	color: #d4d4d4;
+	border-top-color: #444;
+}
+
+/* Dark theme: Mention category badges */
+body[data-theme="dark"] .mention-category-file {
+	background: #094771;
+	color: #007acc;
+}
+
+body[data-theme="dark"] .mention-category-skill {
+	background: #2d1b69;
+	color: #7c3aed;
+}
+
+body[data-theme="dark"] .mention-category-mcp {
+	background: #134e4a;
+	color: #0d9488;
 }

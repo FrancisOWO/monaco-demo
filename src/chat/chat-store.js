@@ -15,6 +15,8 @@ const chatState = {
 	thinkingPhase: '',
 	panelVisible: false,
 	abortController: null,
+	skillRegistry: [],       // SkillDescriptor[]
+	mcpRegistry: [],         // McpToolDescriptor[]
 };
 
 /** 生成唯一 ID */
@@ -29,6 +31,8 @@ const callbacks = {
 	onContextChanged: [],
 	onStreamingStateChanged: [],
 	onPanelVisibilityChanged: [],
+	onSkillRegistryChanged: [],
+	onMcpRegistryChanged: [],
 };
 
 /**
@@ -251,6 +255,83 @@ export function abortStreaming() {
 		chatState.abortController.abort();
 	}
 	finishStreaming();
+}
+
+// ============ Skill & MCP Registry ============
+
+/**
+ * 设置 Skill 注册列表
+ * @param {Array} registry Skill 列表
+ */
+export function setSkillRegistry(registry) {
+	chatState.skillRegistry = registry;
+	emit('onSkillRegistryChanged');
+}
+
+/**
+ * 设置 MCP 工具注册列表
+ * @param {Array} registry MCP 工具列表
+ */
+export function setMcpRegistry(registry) {
+	chatState.mcpRegistry = registry;
+	emit('onMcpRegistryChanged');
+}
+
+/**
+ * 获取 Skill 注册列表
+ */
+export function getSkillRegistry() {
+	return chatState.skillRegistry;
+}
+
+/**
+ * 获取 MCP 工具注册列表
+ */
+export function getMcpRegistry() {
+	return chatState.mcpRegistry;
+}
+
+/**
+ * 添加 Skill 上下文
+ * @param {string} skillId Skill ID
+ * @param {string} skillName Skill 名称
+ */
+export function addSkillContext(skillId, skillName) {
+	if (chatState.contextItems.some(item => item.type === 'skill' && item.skillId === skillId)) {
+		return;
+	}
+	chatState.contextItems.push({ type: 'skill', skillId, skillName });
+	emit('onContextChanged');
+}
+
+/**
+ * 添加 MCP 工具上下文
+ * @param {string} mcpServer MCP 服务器名
+ * @param {string} mcpToolId MCP 工具 ID
+ * @param {string} mcpToolName MCP 工具名称
+ */
+export function addMcpContext(mcpServer, mcpToolId, mcpToolName) {
+	if (chatState.contextItems.some(item => item.type === 'mcp' && item.mcpServer === mcpServer && item.mcpToolId === mcpToolId)) {
+		return;
+	}
+	chatState.contextItems.push({ type: 'mcp', mcpServer, mcpToolId, mcpToolName });
+	emit('onContextChanged');
+}
+
+/**
+ * 更新 Skill/MCP 调用的 output (按 callId 匹配)
+ * @param {string} messageId 消息 ID
+ * @param {string} callId 调用 ID
+ * @param {object} output 输出结果
+ */
+export function updateCallOutput(messageId, callId, output) {
+	const msg = chatState.messages.find(m => m.id === messageId);
+	if (!msg) return;
+	const part = msg.parts.find(p => (p.type === 'skill-call' || p.type === 'mcp-call') && p.callId === callId);
+	if (part) {
+		part.output = output;
+		emit('onMessagesChanged');
+	}
 }
 
 // ============ 面板可见性 ============

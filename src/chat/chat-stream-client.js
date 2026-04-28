@@ -1,12 +1,14 @@
 /**
  * SSE 流式客户端
  * 处理与 AI Chat 服务端的 SSE 通信
+ * 支持 skill-call/mcp-call 等扩展事件
  */
 
 import * as chatStore from './chat-store.js';
 
 const AI_CHAT_URL = 'http://localhost:3000/ai/chat';
 const AI_CONTEXT_URL = 'http://localhost:3000/ai/chat/context/file';
+const AI_REGISTRY_URL = 'http://localhost:3000/ai/chat/registry';
 
 /**
  * 发送聊天消息并接收流式响应
@@ -120,6 +122,39 @@ function handleSSEEvent(event, data, messageId) {
 			chatStore.setThinkingPhase('');
 			break;
 
+		case 'skill-call':
+			chatStore.appendMessagePart(messageId, {
+				type: 'skill-call',
+				callId: data.callId || '',
+				skillId: data.skillId || '',
+				skillName: data.skillName || 'unknown',
+				input: data.input || {},
+				output: null,
+			});
+			break;
+
+		case 'skill-result':
+			chatStore.updateCallOutput(messageId, data.callId, data.output || {});
+			chatStore.setThinkingPhase('');
+			break;
+
+		case 'mcp-call':
+			chatStore.appendMessagePart(messageId, {
+				type: 'mcp-call',
+				callId: data.callId || '',
+				mcpServer: data.server || '',
+				mcpToolId: data.toolId || '',
+				mcpToolName: data.toolName || 'unknown',
+				input: data.input || {},
+				output: null,
+			});
+			break;
+
+		case 'mcp-result':
+			chatStore.updateCallOutput(messageId, data.callId, data.output || {});
+			chatStore.setThinkingPhase('');
+			break;
+
 		case 'code':
 			chatStore.appendMessagePart(messageId, {
 				type: 'code',
@@ -145,4 +180,29 @@ export async function fetchFileContext(path) {
 		throw new Error(`Failed to fetch file context: ${response.status}`);
 	}
 	return response.json();
+}
+
+/**
+ * 获取 Skill 和 MCP 注册列表，存入 chatStore
+ */
+export async function fetchSkillMcpRegistry() {
+	try {
+		const [skillRes, mcpRes] = await Promise.all([
+			fetch(`${AI_REGISTRY_URL}/skills`),
+			fetch(`${AI_REGISTRY_URL}/mcp`),
+		]);
+
+		if (skillRes.ok) {
+			const skills = await skillRes.json();
+			chatStore.setSkillRegistry(skills);
+		}
+
+		if (mcpRes.ok) {
+			const mcpTools = await mcpRes.json();
+			chatStore.setMcpRegistry(mcpTools);
+		}
+	} catch (e) {
+		// Registry fetch 失败时静默处理，不影响基本功能
+		console.warn('[StreamClient] Failed to fetch skill/MCP registry:', e);
+	}
 }

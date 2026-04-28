@@ -1,6 +1,7 @@
 /**
  * AI Chat SSE 流式端点
  * 支持 ask/plan/agent 三种对话模式
+ * 支持 Skill 和 MCP 工具调用
  */
 
 import express, { Router } from 'express';
@@ -10,6 +11,31 @@ const router: Router = express.Router();
 
 // 测试模式开关（设为 true 则使用本地模拟，无需 API）
 const TEST_MODE = true;
+
+// ============ Skill & MCP Registry ============
+
+const MOCK_SKILLS = [
+	{ id: 'read-file', name: 'Read File', description: '读取项目文件内容', category: 'filesystem' },
+	{ id: 'search-code', name: 'Search Code', description: '在项目文件中搜索代码', category: 'search' },
+	{ id: 'run-tests', name: 'Run Tests', description: '执行单元测试', category: 'execution' },
+];
+
+const MOCK_MCP_SERVERS = [
+	{
+		server: 'github',
+		tools: [
+			{ id: 'create-issue', name: 'Create Issue', description: '创建 GitHub Issue' },
+			{ id: 'list-prs', name: 'List PRs', description: '列出打开的 Pull Requests' },
+		],
+	},
+	{
+		server: 'filesystem',
+		tools: [
+			{ id: 'write-file', name: 'Write File', description: '写入文件内容' },
+			{ id: 'list-dir', name: 'List Directory', description: '列出目录内容' },
+		],
+	},
+];
 
 // ============ SSE 流式响应 ============
 
@@ -21,11 +47,16 @@ interface ChatRequest {
 		timestamp: number;
 	}>;
 	context: Array<{
-		type: 'file' | 'selection';
-		path: string;
-		name: string;
-		content: string;
+		type: 'file' | 'selection' | 'skill' | 'mcp';
+		path?: string;
+		name?: string;
+		content?: string;
 		range?: { startLine: number; endLine: number };
+		skillId?: string;
+		skillName?: string;
+		mcpServer?: string;
+		mcpToolId?: string;
+		mcpToolName?: string;
 	}>;
 	mode: 'ask' | 'plan' | 'agent';
 }
@@ -55,19 +86,66 @@ function mockChatSSE(res: express.Response, reqBody: ChatRequest) {
 
 	// Phase 2: Tool calls (agent mode only)
 	if (mode === 'agent' && reqBody.context.length > 0) {
-		const ctxFile = reqBody.context[0];
+		const ctxFile = reqBody.context.find(c => c.type === 'file');
+		if (ctxFile) {
+			setTimeout(() => {
+				writeSSE(res, 'tool-call', {
+					toolName: 'read_file',
+					input: { path: ctxFile.path },
+				});
+			}, delay);
+			delay += 400;
+
+			setTimeout(() => {
+				writeSSE(res, 'tool-result', {
+					toolName: 'read_file',
+					output: { content: (ctxFile.content || '').substring(0, 200) + '...' },
+				});
+			}, delay);
+			delay += 300;
+		}
+	}
+
+	// Phase 2b: Skill & MCP calls (agent mode)
+	if (mode === 'agent') {
+		// Skill call
 		setTimeout(() => {
-			writeSSE(res, 'tool-call', {
-				toolName: 'read_file',
-				input: { path: ctxFile.path },
+			writeSSE(res, 'skill-call', {
+				callId: 'skill_1',
+				skillId: 'read-file',
+				skillName: 'Read File',
+				input: { path: '/main.py' },
 			});
 		}, delay);
 		delay += 400;
 
 		setTimeout(() => {
-			writeSSE(res, 'tool-result', {
-				toolName: 'read_file',
-				output: { content: ctxFile.content.substring(0, 200) + '...' },
+			writeSSE(res, 'skill-result', {
+				callId: 'skill_1',
+				skillId: 'read-file',
+				output: { content: 'def main():\n    print("Hello")\n\nif __name__ == "__main__":\n    main()' },
+			});
+		}, delay);
+		delay += 300;
+
+		// MCP call
+		setTimeout(() => {
+			writeSSE(res, 'mcp-call', {
+				callId: 'mcp_1',
+				server: 'github',
+				toolId: 'create-issue',
+				toolName: 'Create Issue',
+				input: { title: 'Bug: 代码重构问题', body: '需要重构 main.py 的入口逻辑' },
+			});
+		}, delay);
+		delay += 400;
+
+		setTimeout(() => {
+			writeSSE(res, 'mcp-result', {
+				callId: 'mcp_1',
+				server: 'github',
+				toolId: 'create-issue',
+				output: { issueUrl: 'https://github.com/example/project/issues/42', issueNumber: 42 },
 			});
 		}, delay);
 		delay += 300;
@@ -77,7 +155,7 @@ function mockChatSSE(res: express.Response, reqBody: ChatRequest) {
 	const responseText = mode === 'plan'
 		? `## 实现方案\n\n基于您的需求 "${userText}"，建议按以下步骤实施：\n\n1. **分析现有代码** — 检查当前模块的接口和数据流\n2. **设计新组件** — 创建独立的模块，遵循现有架构\n3. **编写测试** — 先写单元测试确保行为正确\n4. **逐步实现** — 按依赖顺序逐个完成功能\n5. **集成验证** — 运行全量测试确认无副作用\n\n这样能保证代码质量和向后兼容。`
 		: mode === 'agent'
-		? `我已经分析了您的代码，以下是修改建议：\n\n`
+		? `我已经分析了您的代码，以下是修改建议：\n\n通过 **Read File** Skill 读取了文件内容，并通过 **GitHub MCP** 创建了 Issue #42 来跟踪重构需求。\n\n`
 		: `针对您的问题 "${userText}"，以下是我的回复：\n\n`;
 
 	const tokens = responseText.split(/(?<=\s)|(?=[\n])/);
@@ -162,6 +240,29 @@ router.get('/context/file', (req, res) => {
 		// TODO: 实际读取项目文件
 		res.status(501).json({ error: 'File reading not implemented yet' });
 	}
+});
+
+// GET /ai/chat/registry/skills — 返回 Skill 注册列表
+router.get('/registry/skills', (_req, res) => {
+	res.json(TEST_MODE ? MOCK_SKILLS : []);
+});
+
+// GET /ai/chat/registry/mcp — 返回 MCP 工具注册列表（扁平化）
+router.get('/registry/mcp', (_req, res) => {
+	const tools: Array<{ server: string; toolId: string; name: string; description: string }> = [];
+	if (TEST_MODE) {
+		for (const mcpServer of MOCK_MCP_SERVERS) {
+			for (const tool of mcpServer.tools) {
+				tools.push({
+					server: mcpServer.server,
+					toolId: tool.id,
+					name: tool.name,
+					description: tool.description,
+				});
+			}
+		}
+	}
+	res.json(tools);
 });
 
 export default router;

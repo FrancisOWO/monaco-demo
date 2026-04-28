@@ -8,6 +8,7 @@ import { setupModeSelector } from './chat-mode-selector.js';
 import { setupChatInput } from './chat-input.js';
 import { setupMessageRenderer } from './chat-message-renderer.js';
 import { setupContextManager } from './chat-context-manager.js';
+import { fetchSkillMcpRegistry } from './chat-stream-client.js';
 
 let editorInstance = null;
 
@@ -31,6 +32,9 @@ export function setupChatPanel(editor) {
 	setupChatInput(editor);
 	setupMessageRenderer();
 	setupContextManager();
+
+	// 获取 Skill & MCP 注册列表（异步，不影响基本功能）
+	fetchSkillMcpRegistry();
 
 	// 拖拽调整宽度
 	setupResize();
