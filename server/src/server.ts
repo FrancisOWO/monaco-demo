@@ -9,6 +9,7 @@ import { WebSocket } from 'ws';
 import { launchPyright } from './pyright-launcher';
 import { config } from './config';
 import aiCompletionRouter from './ai-completion';
+import aiChatRouter from './ai-chat';
 
 const app: express.Express = express();
 expressWs(app);
@@ -31,6 +32,9 @@ app.get('/health', (req, res) => {
 
 // AI 补全端点
 app.use('/ai', aiCompletionRouter);
+
+// AI Chat SSE 端点
+app.use('/ai/chat', aiChatRouter);
 
 // WebSocket 端点 - Pyright 语言服务器
 app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {

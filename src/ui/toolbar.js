@@ -8,6 +8,7 @@ import { getLogger } from '../utils/logger.js';
 import { isFileSystemAccessSupported, openDirectory, openFile } from '../file-system/fs-access.js';
 import { setRootDirectory, openFileFromHandle, openRecentFile, recentFiles, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, closeFile, forceCloseFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
+import { togglePanel } from '../chat/chat-store.js';
 import { renderTabs } from '../ui/tab-bar.js';
 import { showDialog, showToast } from '../ui/dialogs.js';
 
@@ -43,6 +44,7 @@ export const SHORTCUT_DEFINITIONS = [
     { action: 'zoom-in', key: '+', ctrlKey: true, label: 'Ctrl++' },
     { action: 'zoom-out', key: '-', ctrlKey: true, label: 'Ctrl+-' },
     { action: 'language-select', key: 'l', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+L' },
+    { action: 'ai-chat', key: 'e', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+E' },
 ];
 
 export const BROWSER_RESERVED_SHORTCUTS = new Set([
@@ -310,6 +312,9 @@ export async function handleAction(action, editor) {
             sidebar.style.display = sidebarVisible ? '' : 'none';
             break;
         }
+        case 'ai-chat':
+            togglePanel();
+            break;
         case 'zoom-in':
             updateEditorFontSize(editor, 1);
             break;

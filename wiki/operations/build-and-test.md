@@ -34,7 +34,7 @@ pnpm run server:build
 
 **运行测试**:
 ```bash
-npm test
+pnpm test
 ```
 
 **测试框架**: Jest 29

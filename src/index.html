@@ -81,6 +81,7 @@
 			<div class="menu-entry" data-action="command-palette" disabled>命令面板...<span class="shortcut">Ctrl+Shift+P</span></div>
 			<div class="menu-separator"></div>
 			<div class="menu-entry" data-action="explorer">资源管理器<span class="shortcut">Ctrl+B</span></div>
+				<div class="menu-entry" data-action="ai-chat">AI 对话<span class="shortcut">Ctrl+Shift+E</span></div>
 			<div class="menu-separator"></div>
 			<div class="menu-entry" data-action="zoom-in">放大<span class="shortcut">Ctrl+=</span></div>
 			<div class="menu-entry" data-action="zoom-out">缩小<span class="shortcut">Ctrl+-</span></div>
@@ -122,7 +123,7 @@
 		</div>
 	</div>
 
-	<!-- Workspace: sidebar + editor area -->
+	<!-- Workspace: sidebar + editor area + chat panel -->
 	<div id="workspace">
 		<aside id="sidebar">
 			<div id="sidebar-header">EXPLORER</div>
@@ -134,6 +135,36 @@
 			<div id="tab-bar"></div>
 			<div id="editor-container"></div>
 		</div>
+
+		<!-- AI Chat Panel -->
+		<div id="chat-panel" class="chat-hidden">
+			<div id="chat-resize-handle"></div>
+			<div id="chat-header">
+				<div id="chat-mode-selector">
+					<button class="chat-mode-btn active" data-mode="ask">Ask</button>
+					<button class="chat-mode-btn" data-mode="plan">Plan</button>
+					<button class="chat-mode-btn" data-mode="agent">Agent</button>
+				</div>
+				<button id="chat-close-btn" title="关闭">&#x2715;</button>
+			</div>
+			<div id="chat-messages"></div>
+			<div id="chat-context-bar"></div>
+			<div id="chat-thinking-indicator" class="hidden">
+				<span class="thinking-dot"></span>
+				<span id="thinking-text">思考中...</span>
+			</div>
+			<div id="chat-input-area">
+				<textarea id="chat-input" placeholder="输入消息... (@文件名 添加上下文, Shift+Enter 换行)" rows="2"></textarea>
+				<button id="chat-send-btn" title="发送">&#x27A4;</button>
+				<button id="chat-stop-btn" class="hidden" title="停止生成">&#x25A0;</button>
+			</div>
+		</div>
+
+		<!-- @mention popup -->
+		<div id="chat-mention-popup" class="hidden"></div>
+
+		<!-- File context menu overlay -->
+		<div id="chat-context-menu" class="hidden"></div>
 	</div>
 
 	<!-- Dialog overlay -->
@@ -142,6 +173,18 @@
 			<div id="dialog-message"></div>
 			<div id="dialog-buttons"></div>
 		</div>
+	</div>
+
+	<!-- Diff Viewer overlay -->
+	<div id="diff-overlay" class="hidden">
+		<div id="diff-header">
+			<span id="diff-header-original">原始文件</span>
+			<span class="diff-header-arrow">&rarr;</span>
+			<span id="diff-header-modified">修改文件</span>
+			<button id="diff-mode-btn">并排 &#x2194; 内联</button>
+			<button id="diff-close-btn" title="关闭 (Esc)">&times;</button>
+		</div>
+		<div id="diff-editor-container"></div>
 	</div>
 
 	<!-- Toast -->

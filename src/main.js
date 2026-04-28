@@ -7,6 +7,8 @@ import './styles/toolbar.css';
 import './styles/sidebar.css';
 import './styles/tab-bar.css';
 import './styles/editor-area.css';
+import './styles/chat-panel.css';
+import './styles/diff-viewer.css';
 
 import { registerBasicCompletions } from './completions.js';
 import { registerAICompletionProvider } from './ai-completion.js';
@@ -16,10 +18,14 @@ import { setupInlineCompletion } from './inlineCompletion/setup.js';
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
 
-import { on } from './file-system/file-store.js';
+import { on, getActiveFile } from './file-system/file-store.js';
 import { setupToolbar, updateLanguageSelect } from './ui/toolbar.js';
 import { updateTabs } from './ui/tab-bar.js';
 import { updateSidebarHighlight } from './ui/sidebar.js';
+import { setupChatPanel } from './chat/chat-panel.js';
+import { showToast } from './ui/dialogs.js';
+import { addSelectionContext, openPanel } from './chat/chat-store.js';
+import { setupDiffViewer } from './ui/diff-viewer.js';
 
 const logger = getLogger('Main');
 
@@ -48,6 +54,12 @@ on('onActiveFileChanged', () => {
 
 // Setup menu bar（绑定所有菜单事件）
 setupToolbar(editor);
+
+// Setup AI Chat Panel
+setupChatPanel(editor);
+
+// Setup Diff Viewer
+setupDiffViewer();
 
 // LSP 状态显示（状态栏）
 const lspStatusEl = document.getElementById('lsp-status');
@@ -122,6 +134,32 @@ if (useDummyClient) {
 
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();
+
+// 注册编辑器右键菜单项：添加选中内容到 AI 对话
+editor.addAction({
+    id: 'add-selection-to-chat',
+    label: '添加选中内容到 AI 对话',
+    contextMenuGroupId: '9_ai',
+    contextMenuOrder: 1,
+    run: (ed) => {
+        const selection = ed.getSelection();
+        if (!selection || selection.isEmpty()) {
+            showToast('请先选中代码内容', 'warning');
+            return;
+        }
+        const model = ed.getModel();
+        const content = model.getValueInRange(selection);
+        const activeFile = getActiveFile();
+        if (!activeFile) return;
+        addSelectionContext(
+            activeFile.path,
+            activeFile.name,
+            content,
+            { startLine: selection.startLineNumber, endLine: selection.endLineNumber }
+        );
+        openPanel();
+    },
+});
 
 // 所有初始化完成后，显示页面（防止 FOUC）
 document.body.style.visibility = 'visible';
