@@ -5,6 +5,9 @@
 import { getLogger } from '../utils/logger.js';
 import { buildTree, expandNode, collapseNode } from '../file-system/file-tree.js';
 import { openFileFromHandle, setActiveFile, activeFilePath, openFiles } from '../file-system/file-store.js';
+import { readFileContent } from '../file-system/fs-access.js';
+import { addFileContext, openPanel } from '../chat/chat-store.js';
+import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelection } from '../ui/diff-viewer.js';
 
 const logger = getLogger('Sidebar');
 
@@ -124,6 +127,13 @@ function renderNode(node, depth, editor) {
             updateActiveHighlight();
         });
 
+        // 右键添加到 AI Chat 上下文
+        item.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showFileContextMenu(e, node);
+        });
+
         wrapper.appendChild(item);
     }
 
@@ -168,4 +178,112 @@ function getFileIcon(name) {
  */
 export function updateSidebarHighlight() {
     updateActiveHighlight();
+}
+
+/**
+ * 获取文件树根节点（供 Chat 模块使用）
+ */
+export function getFileTreeRoot() {
+    return fileTreeRoot;
+}
+
+/**
+ * 显示文件右键菜单（添加到 AI Chat 上下文 / 选择用于 Diff）
+ */
+function showFileContextMenu(e, node) {
+    const menu = document.getElementById('chat-context-menu');
+    const selected = getDiffSelectedFile();
+    let menuHtml = `<div class="context-menu-item" data-action="add-to-chat">
+        添加到 AI 对话上下文
+    </div>`;
+
+    if (selected) {
+        // 已选了第一个文件，显示"与 xxx 对比"
+        menuHtml += `<div class="context-menu-item" data-action="compare-with">
+            与 "${selected.name}" 对比
+        </div>`;
+        menuHtml += `<div class="context-menu-item" data-action="clear-diff-selection">
+            取消 Diff 选择
+        </div>`;
+    } else {
+        menuHtml += `<div class="context-menu-item" data-action="select-for-diff">
+            选择用于 Diff 对比
+        </div>`;
+    }
+
+    menu.innerHTML = menuHtml;
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.classList.remove('hidden');
+
+    // 点击外部关闭
+    const closeMenu = () => {
+        menu.classList.add('hidden');
+        document.removeEventListener('click', closeMenu);
+    };
+
+    // 添加到 AI Chat
+    const addChatItem = menu.querySelector('[data-action="add-to-chat"]');
+    if (addChatItem) {
+        addChatItem.addEventListener('click', async () => {
+            const descriptor = openFiles.get(node.path);
+            if (descriptor) {
+                addFileContext(node.path, node.name, descriptor.model.getValue());
+            } else {
+                const content = await readFileContent(node.handle);
+                addFileContext(node.path, node.name, content);
+            }
+            openPanel();
+            closeMenu();
+        });
+    }
+
+    // 选择用于 Diff（第一个文件）
+    const selectDiffItem = menu.querySelector('[data-action="select-for-diff"]');
+    if (selectDiffItem) {
+        selectDiffItem.addEventListener('click', async () => {
+            const descriptor = openFiles.get(node.path);
+            const content = descriptor ? descriptor.model.getValue() : await readFileContent(node.handle);
+            const language = descriptor ? descriptor.language : detectLangFromName(node.name);
+            selectFileForDiff(node.path, node.name, content, language);
+            closeMenu();
+        });
+    }
+
+    // 与已选文件对比（第二个文件）
+    const compareItem = menu.querySelector('[data-action="compare-with"]');
+    if (compareItem) {
+        compareItem.addEventListener('click', async () => {
+            const descriptor = openFiles.get(node.path);
+            const content = descriptor ? descriptor.model.getValue() : await readFileContent(node.handle);
+            const language = descriptor ? descriptor.language : detectLangFromName(node.name);
+            openDiffView(selected, { path: node.path, name: node.name, content, language });
+            closeMenu();
+        });
+    }
+
+    // 取消 Diff 选择
+    const clearItem = menu.querySelector('[data-action="clear-diff-selection"]');
+    if (clearItem) {
+        clearItem.addEventListener('click', () => {
+            clearDiffSelection();
+            closeMenu();
+        });
+    }
+
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+/**
+ * 从文件名推断语言
+ */
+function detectLangFromName(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    const map = {
+        py: 'python', js: 'javascript', ts: 'typescript',
+        cpp: 'cpp', c: 'c', h: 'c', hpp: 'cpp',
+        go: 'go', css: 'css', html: 'html',
+        json: 'json', md: 'markdown', txt: 'plaintext',
+    };
+    return map[ext] || 'plaintext';
 }
