@@ -33,7 +33,7 @@ document.addEventListener('keydown', (e) => {
 1. 监听器运行在默认冒泡阶段，浏览器或其他处理器可能先于应用处理系统级快捷键。
 2. 只调用 `preventDefault()`，没有调用 `stopPropagation()`，事件仍可能继续传播给其他监听器。
 
-对 `Ctrl+N` 这类浏览器保留快捷键来说，处理时机需要尽可能靠前，并且需要明确阻断继续传播。
+对 `Ctrl+N`、`Ctrl+W` 这类浏览器保留快捷键来说，处理时机需要尽可能靠前，并且需要明确阻断继续传播。实际验证中 `Ctrl+N` 仍会触发浏览器新建窗口，因此最终将它替换为 `Alt+N`。
 
 ## 修复方案
 
@@ -41,9 +41,11 @@ document.addEventListener('keydown', (e) => {
 
 改动包括：
 
-1. 将 `keydown` 监听器注册到 capture 阶段。
-2. 识别到编辑器快捷键后，同时调用 `preventDefault()` 和 `stopPropagation()`。
-3. 继续统一走 `handleAction(action, editor)`，避免快捷键逻辑和菜单逻辑分叉。
+1. 将 `Ctrl+N` 替换为 `Alt+N`。
+2. 将高风险的 `Ctrl+W` 替换为 `Alt+W`，避免触发浏览器关闭标签页。
+3. 将 `keydown` 监听器注册到 capture 阶段。
+4. 识别到编辑器快捷键后，同时调用 `preventDefault()` 和 `stopPropagation()`。
+5. 继续统一走 `handleAction(action, editor)`，避免快捷键逻辑和菜单逻辑分叉。
 
 修复后的关键逻辑：
 
@@ -67,17 +69,19 @@ handleAction(action, editor);
 新增/加强的断言包括：
 
 - `setupGlobalShortcuts` 注册 `keydown` 时使用 capture。
-- `Ctrl+N` 会调用 `preventDefault()`。
-- `Ctrl+N` 会调用 `stopPropagation()`。
-- `Ctrl+N` 会进入 `createNewFile`。
+- 所有 `SHORTCUT_DEFINITIONS` 中的快捷键都会映射到对应编辑器 action。
+- 所有快捷键都会调用 `preventDefault()` 和 `stopPropagation()`。
+- `Alt+N` 会进入 `createNewFile`。
+- `Ctrl+N` 不再映射到任何编辑器 action，避免触发浏览器新建窗口。
+- `Ctrl+W` 不再映射到任何编辑器 action，避免触发浏览器关闭标签页。
 - `Ctrl+O`、`Ctrl+F`、`Alt+Down` 等快捷键仍正常路由到对应 editor action。
 
 测试覆盖的核心断言：
 
 ```ts
 expect(keydownOptions).toBe(true);
-expect(ctrlN.preventDefault).toHaveBeenCalled();
-expect(ctrlN.stopPropagation).toHaveBeenCalled();
+expect(altN.preventDefault).toHaveBeenCalled();
+expect(altN.stopPropagation).toHaveBeenCalled();
 expect(fileStore.createNewFile).toHaveBeenCalled();
 ```
 

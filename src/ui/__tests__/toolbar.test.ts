@@ -53,6 +53,8 @@ describe('toolbar', () => {
         saveActiveFile: jest.fn(),
         saveActiveFileAs: jest.fn(),
         saveAllFiles: jest.fn(),
+        closeFile: jest.fn(),
+        forceCloseFile: jest.fn(),
         setActiveFileLanguage: jest.fn(),
         getActiveFile: jest.fn(),
         on: jest.fn(),
@@ -226,7 +228,26 @@ describe('toolbar', () => {
         expect(preventDefault).toHaveBeenCalled();
     });
 
-    it('routes global shortcuts through editor actions and prevents browser defaults', () => {
+    function createKeyboardEvent(shortcut: Record<string, any>) {
+        const keyMap: Record<string, string> = {
+            arrowup: 'ArrowUp',
+            arrowdown: 'ArrowDown',
+            arrowleft: 'ArrowLeft',
+            arrowright: 'ArrowRight',
+        };
+
+        return {
+            key: keyMap[shortcut.key] ?? shortcut.key,
+            ctrlKey: Boolean(shortcut.ctrlKey),
+            metaKey: false,
+            shiftKey: Boolean(shortcut.shiftKey),
+            altKey: Boolean(shortcut.altKey),
+            preventDefault: jest.fn(),
+            stopPropagation: jest.fn(),
+        };
+    }
+
+    it('routes every declared global shortcut through editor actions and prevents browser defaults', () => {
         let keydownHandler: Function | null = null;
         let keydownOptions: unknown = null;
         const elements = {};
@@ -237,30 +258,60 @@ describe('toolbar', () => {
             if (event === 'keydown') keydownHandler = handler;
             if (event === 'keydown') keydownOptions = options;
         });
-        const editor = { trigger: jest.fn() };
+        const editor = {
+            trigger: jest.fn(),
+            getOption: jest.fn(() => 14),
+            updateOptions: jest.fn(),
+        };
 
         toolbar.setupGlobalShortcuts(editor);
 
-        const ctrlN = { key: 'n', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn(), stopPropagation: jest.fn() };
-        const ctrlO = { key: 'o', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn(), stopPropagation: jest.fn() };
-        const ctrlF = { key: 'f', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn(), stopPropagation: jest.fn() };
-        const altDown = { key: 'ArrowDown', ctrlKey: false, metaKey: false, shiftKey: false, altKey: true, preventDefault: jest.fn(), stopPropagation: jest.fn() };
-
-        keydownHandler!(ctrlN);
-        keydownHandler!(ctrlO);
-        keydownHandler!(ctrlF);
-        keydownHandler!(altDown);
-
         expect(keydownOptions).toBe(true);
-        expect(ctrlN.preventDefault).toHaveBeenCalled();
-        expect(ctrlN.stopPropagation).toHaveBeenCalled();
-        expect(ctrlO.preventDefault).toHaveBeenCalled();
-        expect(ctrlO.stopPropagation).toHaveBeenCalled();
-        expect(ctrlF.preventDefault).toHaveBeenCalled();
-        expect(altDown.preventDefault).toHaveBeenCalled();
+
+        for (const shortcut of toolbar.SHORTCUT_DEFINITIONS) {
+            const event = createKeyboardEvent(shortcut);
+
+            expect(toolbar.getShortcutAction(event)).toBe(shortcut.action);
+            keydownHandler!(event);
+
+            expect(event.preventDefault).toHaveBeenCalled();
+            expect(event.stopPropagation).toHaveBeenCalled();
+        }
+
         expect(fileStore.createNewFile).toHaveBeenCalled();
         expect(fsAccess.openFile).toHaveBeenCalled();
         expect(editor.trigger).toHaveBeenCalledWith('menu', 'actions.find', null);
         expect(editor.trigger).toHaveBeenCalledWith('menu', 'editor.action.copyLinesDownAction', null);
+    });
+
+    it('does not reserve shortcuts known to trigger hard browser actions', () => {
+        const toolbar = loadToolbar();
+        const labels = toolbar.SHORTCUT_DEFINITIONS.map((shortcut: Record<string, any>) => shortcut.label);
+
+        for (const reserved of toolbar.BROWSER_RESERVED_SHORTCUTS) {
+            expect(labels).not.toContain(reserved);
+        }
+
+        expect(labels).toContain('Alt+N');
+        expect(labels).toContain('Alt+W');
+    });
+
+    it('does not route Ctrl+N or Ctrl+W after replacing browser-conflicting shortcuts', () => {
+        const toolbar = loadToolbar();
+
+        expect(toolbar.getShortcutAction({
+            key: 'n',
+            ctrlKey: true,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+        })).toBeNull();
+        expect(toolbar.getShortcutAction({
+            key: 'w',
+            ctrlKey: true,
+            metaKey: false,
+            shiftKey: false,
+            altKey: false,
+        })).toBeNull();
     });
 });

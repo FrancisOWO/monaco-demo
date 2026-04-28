@@ -7,7 +7,7 @@
 | 优先级 | 菜单功能 | 当前状态 | 计划 |
 |---|---|---|---|
 | P0 | 新建文件、打开文件、保存、关闭编辑器 | 已实现 | 保持菜单和快捷键共用同一套 `handleAction`，避免行为分叉。 |
-| P0 | `Ctrl+N`、`Ctrl+O`、`Ctrl+S`、`Ctrl+W` | 已实现 | 拦截浏览器默认行为，转为编辑器操作。 |
+| P0 | `Alt+N`、`Ctrl+O`、`Ctrl+S`、`Alt+W` | 已实现 | 避开浏览器强保留快捷键，转为编辑器操作。 |
 | P0 | 查找、替换、全选 | 已实现 | 通过 Monaco 内置 action 执行：`actions.find`、`editor.action.startFindReplaceAction`、`editor.action.selectAll`。 |
 | P1 | 撤销、恢复、剪切、复制、粘贴 | 已实现 | 通过 Monaco 内置 action 执行，保留浏览器剪贴板权限模型。 |
 | P1 | 选择扩展/收缩、复制行、移动行 | 已实现 | 通过 Monaco 内置 selection/line action 执行。 |
@@ -33,11 +33,11 @@
 
 | 快捷键 | 功能 |
 |---|---|
-| `Ctrl+N` | 新建文件 |
+| `Alt+N` | 新建文件 |
 | `Ctrl+O` | 打开文件 |
 | `Ctrl+S` | 保存 |
 | `Ctrl+Shift+S` | 另存为 |
-| `Ctrl+W` | 关闭编辑器 |
+| `Alt+W` | 关闭编辑器 |
 | `Ctrl+Z` | 撤销 |
 | `Ctrl+Y` / `Ctrl+Shift+Z` | 恢复 |
 | `Ctrl+X` | 剪切 |

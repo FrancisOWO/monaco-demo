@@ -6,7 +6,7 @@
 import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
 import { isFileSystemAccessSupported, openDirectory, openFile } from '../file-system/fs-access.js';
-import { setRootDirectory, openFileFromHandle, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
+import { setRootDirectory, openFileFromHandle, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, closeFile, forceCloseFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
 import { renderTabs } from '../ui/tab-bar.js';
 import { showDialog, showToast } from '../ui/dialogs.js';
@@ -15,6 +15,42 @@ const logger = getLogger('MenuBar');
 
 let activeMenu = null;
 let sidebarVisible = true;
+
+export const SHORTCUT_DEFINITIONS = [
+    { action: 'new-file', key: 'n', altKey: true, label: 'Alt+N' },
+    { action: 'open-file', key: 'o', ctrlKey: true, label: 'Ctrl+O' },
+    { action: 'save', key: 's', ctrlKey: true, label: 'Ctrl+S' },
+    { action: 'save-as', key: 's', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+S' },
+    { action: 'close-editor', key: 'w', altKey: true, label: 'Alt+W' },
+    { action: 'undo', key: 'z', ctrlKey: true, label: 'Ctrl+Z' },
+    { action: 'redo', key: 'y', ctrlKey: true, label: 'Ctrl+Y' },
+    { action: 'redo', key: 'z', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+Z' },
+    { action: 'cut', key: 'x', ctrlKey: true, label: 'Ctrl+X' },
+    { action: 'copy', key: 'c', ctrlKey: true, label: 'Ctrl+C' },
+    { action: 'paste', key: 'v', ctrlKey: true, label: 'Ctrl+V' },
+    { action: 'find', key: 'f', ctrlKey: true, label: 'Ctrl+F' },
+    { action: 'replace', key: 'h', ctrlKey: true, label: 'Ctrl+H' },
+    { action: 'select-all', key: 'a', ctrlKey: true, label: 'Ctrl+A' },
+    { action: 'expand-selection', key: 'arrowright', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+Right' },
+    { action: 'shrink-selection', key: 'arrowleft', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+Left' },
+    { action: 'copy-line-up', key: 'arrowup', altKey: true, label: 'Alt+Up' },
+    { action: 'copy-line-down', key: 'arrowdown', altKey: true, label: 'Alt+Down' },
+    { action: 'move-line-up', key: 'arrowup', altKey: true, shiftKey: true, label: 'Shift+Alt+Up' },
+    { action: 'move-line-down', key: 'arrowdown', altKey: true, shiftKey: true, label: 'Shift+Alt+Down' },
+    { action: 'explorer', key: 'b', ctrlKey: true, label: 'Ctrl+B' },
+    { action: 'zoom-in', key: '=', ctrlKey: true, label: 'Ctrl+=' },
+    { action: 'zoom-in', key: '+', ctrlKey: true, label: 'Ctrl++' },
+    { action: 'zoom-out', key: '-', ctrlKey: true, label: 'Ctrl+-' },
+    { action: 'language-select', key: 'l', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+L' },
+];
+
+export const BROWSER_RESERVED_SHORTCUTS = new Set([
+    'Ctrl+N',
+    'Ctrl+W',
+    'Ctrl+T',
+    'Ctrl+R',
+    'Ctrl+L',
+]);
 
 /**
  * Setup menu bar
@@ -184,10 +220,8 @@ export async function handleAction(action, editor) {
                     { confirmLabel: '不保存关闭', cancelLabel: '取消' }
                 );
                 if (!confirmed) return;
-                const { forceCloseFile } = await import('../file-system/file-store.js');
                 forceCloseFile(descriptor.path, editor);
             } else {
-                const { closeFile } = await import('../file-system/file-store.js');
                 closeFile(descriptor.path, editor);
             }
             renderTabs(editor);
@@ -238,6 +272,7 @@ export async function handleAction(action, editor) {
         case 'explorer': {
             sidebarVisible = !sidebarVisible;
             const sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
             sidebar.style.display = sidebarVisible ? '' : 'none';
             break;
         }
@@ -283,33 +318,7 @@ function updateEditorFontSize(editor, delta) {
 
 export function setupGlobalShortcuts(editor) {
     document.addEventListener('keydown', (e) => {
-        const key = e.key.toLowerCase();
-        const ctrlOrMeta = e.ctrlKey || e.metaKey;
-        let action = null;
-
-        if (ctrlOrMeta && !e.shiftKey && key === 'n') action = 'new-file';
-        if (ctrlOrMeta && !e.shiftKey && key === 'o') action = 'open-file';
-        if (ctrlOrMeta && !e.shiftKey && key === 's') action = 'save';
-        if (ctrlOrMeta && e.shiftKey && key === 's') action = 'save-as';
-        if (ctrlOrMeta && !e.shiftKey && key === 'w') action = 'close-editor';
-        if (ctrlOrMeta && !e.shiftKey && key === 'z') action = 'undo';
-        if (ctrlOrMeta && (key === 'y' || (e.shiftKey && key === 'z'))) action = 'redo';
-        if (ctrlOrMeta && !e.shiftKey && key === 'x') action = 'cut';
-        if (ctrlOrMeta && !e.shiftKey && key === 'c') action = 'copy';
-        if (ctrlOrMeta && !e.shiftKey && key === 'v') action = 'paste';
-        if (ctrlOrMeta && !e.shiftKey && key === 'f') action = 'find';
-        if (ctrlOrMeta && !e.shiftKey && key === 'h') action = 'replace';
-        if (ctrlOrMeta && !e.shiftKey && key === 'a') action = 'select-all';
-        if (ctrlOrMeta && e.shiftKey && key === 'arrowright') action = 'expand-selection';
-        if (ctrlOrMeta && e.shiftKey && key === 'arrowleft') action = 'shrink-selection';
-        if (e.altKey && !ctrlOrMeta && !e.shiftKey && key === 'arrowup') action = 'copy-line-up';
-        if (e.altKey && !ctrlOrMeta && !e.shiftKey && key === 'arrowdown') action = 'copy-line-down';
-        if (e.altKey && e.shiftKey && key === 'arrowup') action = 'move-line-up';
-        if (e.altKey && e.shiftKey && key === 'arrowdown') action = 'move-line-down';
-        if (ctrlOrMeta && !e.shiftKey && key === 'b') action = 'explorer';
-        if (ctrlOrMeta && !e.shiftKey && (key === '=' || key === '+')) action = 'zoom-in';
-        if (ctrlOrMeta && !e.shiftKey && key === '-') action = 'zoom-out';
-        if (ctrlOrMeta && e.shiftKey && key === 'l') action = 'language-select';
+        const action = getShortcutAction(e);
 
         if (!action) return;
 
@@ -317,6 +326,20 @@ export function setupGlobalShortcuts(editor) {
         e.stopPropagation();
         handleAction(action, editor);
     }, true);
+}
+
+export function getShortcutAction(event) {
+    const key = event.key.toLowerCase();
+    const ctrlOrMeta = event.ctrlKey || event.metaKey;
+
+    const match = SHORTCUT_DEFINITIONS.find(shortcut => (
+        shortcut.key === key &&
+        Boolean(shortcut.ctrlKey) === Boolean(ctrlOrMeta) &&
+        Boolean(shortcut.altKey) === Boolean(event.altKey) &&
+        Boolean(shortcut.shiftKey) === Boolean(event.shiftKey)
+    ));
+
+    return match ? match.action : null;
 }
 
 export function openLanguageModal() {
