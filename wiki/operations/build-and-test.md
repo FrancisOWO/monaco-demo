@@ -17,7 +17,7 @@ managed_sections:
 
 **前端构建**:
 ```bash
-npm run build
+pnpm run build
 ```
 - Vite 生产模式构建
 - 输出到 `dist/` 目录
@@ -25,7 +25,7 @@ npm run build
 
 **后端构建**:
 ```bash
-npm run server:build
+pnpm run server:build
 ```
 - TypeScript 编译
 - 输出到 `server/dist/` 目录
@@ -77,4 +77,4 @@ npm test
 ## Team Notes
 
 - 建议在提交前运行完整测试
-- 可以使用 `npm run test:watch` 进行开发时测试
+- 可以使用 `pnpm run test:watch` 进行开发时测试

@@ -21,13 +21,13 @@ managed_sections:
 
 **前端**:
 ```bash
-npm run build
+pnpm run build
 ```
 输出目录: `dist/`
 
 **后端**:
 ```bash
-npm run server:build
+pnpm run server:build
 ```
 输出目录: `server/dist/`
 
@@ -52,14 +52,16 @@ npm run server:build
 # Dockerfile (示例)
 FROM node:18-alpine
 
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --only=production
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod
 
 COPY . .
-RUN npm run build
-RUN npm run server:build
+RUN pnpm run build
+RUN pnpm run server:build
 
 EXPOSE 3000
 

@@ -107,10 +107,10 @@ add("hello", "world")  # 类型错误：str 不能赋值给 int
 
 ```bash
 # 1. 安装后端依赖
-cd server && npm install
+cd server && pnpm install
 
 # 2. 启动服务器
-npm run dev
+pnpm run dev
 ```
 
 服务器启动后，前端编辑器会自动连接。状态栏显示"LSP: 已连接"表示连接成功。
@@ -182,7 +182,7 @@ lspClient.disconnect();
 
 ```bash
 cd server
-npm test
+pnpm test
 ```
 
 ### 测试用例

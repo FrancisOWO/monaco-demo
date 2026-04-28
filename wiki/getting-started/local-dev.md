@@ -16,7 +16,7 @@ managed_sections:
 ## Prerequisites
 
 - Node.js 18+
-- pnpm 或 npm
+- pnpm
 - Python 3.8+ (用于 LSP 后端)
 
 ## Installation
@@ -24,9 +24,6 @@ managed_sections:
 ```bash
 # 安装依赖
 pnpm install
-
-# 或 npm
-npm install
 ```
 
 ## Development Server
