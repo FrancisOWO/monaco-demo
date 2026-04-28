@@ -39,6 +39,27 @@ describe('fs-access', () => {
         expect(logger.info).toHaveBeenCalledWith('Directory picker cancelled');
     });
 
+    it('opens a single file with the file picker', async () => {
+        const handle = { name: 'main.py' };
+        (global as any).window.showOpenFilePicker = jest.fn().mockResolvedValue([handle]);
+        const fsAccess = require('../fs-access.js');
+
+        await expect(fsAccess.openFile()).resolves.toBe(handle);
+        expect((global as any).window.showOpenFilePicker).toHaveBeenCalledWith(expect.objectContaining({
+            multiple: false,
+        }));
+        expect(logger.info).toHaveBeenCalledWith('File opened:', 'main.py');
+    });
+
+    it('returns null when file picker is cancelled', async () => {
+        const abort = Object.assign(new Error('cancelled'), { name: 'AbortError' });
+        (global as any).window.showOpenFilePicker = jest.fn().mockRejectedValue(abort);
+        const fsAccess = require('../fs-access.js');
+
+        await expect(fsAccess.openFile()).resolves.toBeNull();
+        expect(logger.info).toHaveBeenCalledWith('File picker cancelled');
+    });
+
     it('reads and writes file handles', async () => {
         const write = jest.fn();
         const close = jest.fn();

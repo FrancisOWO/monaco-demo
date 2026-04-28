@@ -109,10 +109,11 @@ describe('file-store', () => {
         expect(store.activeFilePath).toBe('/main.py');
         expect(editor.setModel).toHaveBeenCalledWith(store.openFiles.get('/main.py')!.model);
         expect(activeChanged).toHaveBeenCalledTimes(1);
+        expect(tabsChanged).toHaveBeenCalledTimes(1);
 
         (store.openFiles.get('/main.py')!.model as MockModel).setValue('print("bye")');
         expect(store.openFiles.get('/main.py')!.isDirty).toBe(true);
-        expect(tabsChanged).toHaveBeenCalledTimes(1);
+        expect(tabsChanged).toHaveBeenCalledTimes(2);
     });
 
     it('reuses an already-open file and restores its view state', async () => {
@@ -133,6 +134,26 @@ describe('file-store', () => {
         expect(store.openFiles.size).toBe(2);
         expect(editor.setModel).toHaveBeenLastCalledWith(firstDescriptor.model);
         expect(editor.restoreViewState).toHaveBeenCalled();
+    });
+
+    it('emits tab changes when switching between open files', async () => {
+        const { store } = await loadStore({
+            readFileContent: jest.fn()
+                .mockResolvedValueOnce('a = 1')
+                .mockResolvedValueOnce('b = 2'),
+        });
+        const editor = createEditorMock();
+        const tabsChanged = jest.fn();
+
+        store.on('onTabsChanged', tabsChanged);
+        await store.openFileFromHandle({ name: 'a.py' } as any, '/a.py', editor as any);
+        await store.openFileFromHandle({ name: 'b.py' } as any, '/b.py', editor as any);
+        tabsChanged.mockClear();
+
+        store.setActiveFile('/a.py', editor as any);
+
+        expect(store.activeFilePath).toBe('/a.py');
+        expect(tabsChanged).toHaveBeenCalledTimes(1);
     });
 
     it('creates untitled files from language defaults and blocks dirty close', async () => {
@@ -240,10 +261,13 @@ describe('file-store', () => {
         const editor = createEditorMock();
 
         await store.openFileFromHandle({ name: 'main.js' } as any, '/main.js', editor as any);
+        const activeChanged = jest.fn();
+        store.on('onActiveFileChanged', activeChanged);
         store.setActiveFileLanguage('typescript');
 
         const descriptor = store.getActiveFile()!;
         expect(monacoMock.monaco.editor.setModelLanguage).toHaveBeenCalledWith(descriptor.model, 'typescript');
         expect(descriptor.language).toBe('typescript');
+        expect(activeChanged).toHaveBeenCalledTimes(1);
     });
 });

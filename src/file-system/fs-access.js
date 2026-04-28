@@ -15,6 +15,30 @@ export function isFileSystemAccessSupported() {
 }
 
 /**
+ * 打开文件选择器，返回 FileSystemFileHandle
+ */
+export async function openFile() {
+    try {
+        const [handle] = await window.showOpenFilePicker({
+            multiple: false,
+            types: [{
+                description: '文本文件',
+                accept: { 'text/plain': ['.py', '.cpp', '.c', '.h', '.go', '.js', '.ts', '.json', '.md', '.html', '.css', '.txt'] }
+            }]
+        });
+        logger.info('File opened:', handle.name);
+        return handle;
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            logger.info('File picker cancelled');
+            return null;
+        }
+        logger.error('Failed to open file:', e);
+        throw e;
+    }
+}
+
+/**
  * 打开目录选择器，返回 FileSystemDirectoryHandle
  */
 export async function openDirectory() {

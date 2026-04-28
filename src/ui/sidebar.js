@@ -18,6 +18,7 @@ let fileTreeRoot = null;
 export async function renderFileTree(rootHandle, editor) {
     fileTreeRoot = await buildTree(rootHandle);
     const treeEl = document.getElementById('file-tree');
+    if (!treeEl) return;
     treeEl.innerHTML = '';
     treeEl.appendChild(renderNode(fileTreeRoot, 0, editor));
     logger.info('File tree rendered for:', rootHandle.name);
@@ -30,6 +31,7 @@ export async function renderFileTree(rootHandle, editor) {
 export async function refreshFileTree(editor) {
     if (!fileTreeRoot) return;
     const treeEl = document.getElementById('file-tree');
+    if (!treeEl) return;
     treeEl.innerHTML = '';
     // 重新从 handle 构建
     fileTreeRoot = await buildTree(fileTreeRoot.handle);
@@ -80,6 +82,7 @@ function renderNode(node, depth, editor) {
             }
             // 重渲染
             const treeEl = document.getElementById('file-tree');
+            if (!treeEl) return;
             treeEl.innerHTML = '';
             treeEl.appendChild(renderNode(fileTreeRoot, 0, editor));
         });

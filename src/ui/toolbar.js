@@ -5,8 +5,8 @@
 
 import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
-import { isFileSystemAccessSupported, openDirectory } from '../file-system/fs-access.js';
-import { setRootDirectory, createNewFile, saveActiveFile, deleteActiveFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
+import { isFileSystemAccessSupported, openDirectory, openFile } from '../file-system/fs-access.js';
+import { setRootDirectory, openFileFromHandle, createNewFile, saveActiveFile, deleteActiveFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
 import { renderTabs } from '../ui/tab-bar.js';
 import { showDialog, showToast } from '../ui/dialogs.js';
@@ -23,9 +23,6 @@ let sidebarVisible = true;
 export function setupToolbar(editor) {
     const menuBar = document.getElementById('menu-bar');
     const dropdowns = document.getElementById('menu-dropdowns');
-
-    // 浏览器兼容性检查
-    const fsSupported = isFileSystemAccessSupported();
 
     // 菜单项 hover/click 打开下拉
     menuBar.querySelectorAll('.menu-item').forEach(item => {
@@ -66,6 +63,7 @@ export function setupToolbar(editor) {
 
     // 语言选择弹窗
     setupLanguageModal(editor);
+    setupStatusLanguagePicker(editor);
 
     // 文件变化时更新状态栏语言显示
     on('onActiveFileChanged', () => {
@@ -113,7 +111,7 @@ function closeAllMenus() {
 /**
  * 处理菜单动作
  */
-async function handleAction(action, editor) {
+export async function handleAction(action, editor) {
     switch (action) {
         case 'new-file': {
             const language = getActiveFile()?.language || 'python';
@@ -122,7 +120,14 @@ async function handleAction(action, editor) {
             break;
         }
         case 'open-file': {
-            showToast('请使用"打开文件夹"浏览并选择文件', 'info');
+            if (!isFileSystemAccessSupported()) {
+                showToast('此功能需要 Chrome/Edge 浏览器', 'warning');
+                return;
+            }
+            const handle = await openFile();
+            if (!handle) return;
+            await openFileFromHandle(handle, '/' + handle.name, editor);
+            renderTabs(editor);
             break;
         }
         case 'open-folder': {
@@ -192,11 +197,7 @@ async function handleAction(action, editor) {
             break;
         }
         case 'language-select': {
-            document.getElementById('language-modal').classList.remove('hidden');
-            const descriptor = getActiveFile();
-            if (descriptor) {
-                document.getElementById('language-modal-select').value = descriptor.language;
-            }
+            openLanguageModal();
             break;
         }
         case 'about': {
@@ -206,6 +207,21 @@ async function handleAction(action, editor) {
         default:
             logger.info('Unhandled action:', action);
     }
+}
+
+export function openLanguageModal() {
+    const descriptor = getActiveFile();
+    if (!descriptor) {
+        showToast('没有打开的文件', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('language-modal');
+    const select = document.getElementById('language-modal-select');
+    if (!modal || !select) return;
+
+    select.value = descriptor.language;
+    modal.classList.remove('hidden');
 }
 
 /**
@@ -236,14 +252,36 @@ function setupLanguageModal(editor) {
     });
 }
 
+export function setupStatusLanguagePicker() {
+    const langEl = document.getElementById('status-language');
+    if (!langEl) return;
+
+    langEl.setAttribute('role', 'button');
+    langEl.setAttribute('tabindex', '0');
+    langEl.title = '选择语言模式';
+
+    const open = () => openLanguageModal();
+    langEl.addEventListener('click', open);
+    langEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            open();
+        }
+    });
+}
+
 /**
  * 更新状态栏语言显示
  */
 function updateStatusBar(editor) {
     const descriptor = getActiveFile();
     const langEl = document.getElementById('status-language');
-    if (langEl && descriptor) {
+    if (!langEl) return;
+
+    if (descriptor) {
         langEl.textContent = descriptor.language.toUpperCase();
+    } else {
+        langEl.textContent = '语言';
     }
 }
 

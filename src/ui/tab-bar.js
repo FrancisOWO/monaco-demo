@@ -14,6 +14,7 @@ const logger = getLogger('Tab Bar');
  */
 export function renderTabs(editor) {
     const tabBar = document.getElementById('tab-bar');
+    if (!tabBar) return;
     tabBar.innerHTML = '';
 
     for (const [path, descriptor] of openFiles) {

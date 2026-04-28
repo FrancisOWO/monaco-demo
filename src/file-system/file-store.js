@@ -177,6 +177,7 @@ export function setActiveFile(path, editor) {
 
     // 更新语言下拉框
     emit('onActiveFileChanged');
+    emit('onTabsChanged');
 }
 
 /**
@@ -208,11 +209,13 @@ export function closeFile(path, editor) {
         prev.viewState = editor.saveViewState();
     }
 
+    const closingActiveFile = activeFilePath === path;
+
     descriptor.model.dispose();
     openFiles.delete(path);
 
     // 如果关闭的是活跃文件，切换到相邻 tab
-    if (activeFilePath === path) {
+    if (closingActiveFile) {
         const keys = [...openFiles.keys()];
         if (keys.length > 0) {
             setActiveFile(keys[keys.length - 1], editor);
@@ -220,10 +223,12 @@ export function closeFile(path, editor) {
             activeFilePath = null;
             editor.setModel(null);
             emit('onActiveFileChanged');
+            emit('onTabsChanged');
         }
+    } else {
+        emit('onTabsChanged');
     }
 
-    emit('onTabsChanged');
     logger.info('File closed:', path);
     return true;
 }
@@ -240,10 +245,12 @@ export function forceCloseFile(path, editor) {
         prev.viewState = editor.saveViewState();
     }
 
+    const closingActiveFile = activeFilePath === path;
+
     descriptor.model.dispose();
     openFiles.delete(path);
 
-    if (activeFilePath === path) {
+    if (closingActiveFile) {
         const keys = [...openFiles.keys()];
         if (keys.length > 0) {
             setActiveFile(keys[keys.length - 1], editor);
@@ -251,10 +258,12 @@ export function forceCloseFile(path, editor) {
             activeFilePath = null;
             editor.setModel(null);
             emit('onActiveFileChanged');
+            emit('onTabsChanged');
         }
+    } else {
+        emit('onTabsChanged');
     }
 
-    emit('onTabsChanged');
 }
 
 /**
@@ -342,4 +351,5 @@ export function setActiveFileLanguage(language) {
 
     monaco.editor.setModelLanguage(descriptor.model, language);
     descriptor.language = language;
+    emit('onActiveFileChanged');
 }
