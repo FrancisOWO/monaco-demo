@@ -37,6 +37,27 @@ app.use('/ai', aiCompletionRouter);
 // AI Chat SSE 端点
 app.use('/ai/chat', aiChatRouter);
 
+app.get('/editor-control/status', (_req, res) => {
+    res.json({ connected: editorControlHub.isEditorConnected() });
+});
+
+app.post('/editor-control/command', async (req, res) => {
+    const { method, params, timeoutMs } = req.body || {};
+    if (!method || typeof method !== 'string') {
+        res.status(400).json({ error: 'method is required' });
+        return;
+    }
+
+    try {
+        const result = await editorControlHub.sendCommand(method, params || {}, timeoutMs);
+        res.json({ result });
+    } catch (error) {
+        res.status(503).json({
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+});
+
 // WebSocket 端点 - MCP 编辑器控制桥接
 app.ws('/editor-control', (ws: WebSocket) => {
     console.log('[Editor Control] Editor client connected');
