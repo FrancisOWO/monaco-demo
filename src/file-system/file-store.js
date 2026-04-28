@@ -323,6 +323,71 @@ export async function saveActiveFile(editor) {
 }
 
 /**
+ * 另存为活跃文件
+ * @param {monaco.editor} editor
+ */
+export async function saveActiveFileAs(editor) {
+    const descriptor = getActiveFile();
+    if (!descriptor) return;
+
+    const content = descriptor.model.getValue();
+    const handle = await saveNewFile(descriptor.name, content);
+    if (!handle) return;
+
+    descriptor.model.dispose();
+    const newPath = '/' + handle.name;
+    const newLanguage = detectLanguage(handle.name);
+    const newModel = createFileModel(newPath, content, newLanguage);
+
+    openFiles.delete(descriptor.path);
+    const newDescriptor = {
+        path: newPath,
+        name: handle.name,
+        handle,
+        model: newModel,
+        isDirty: false,
+        language: newLanguage,
+        savedContent: content,
+        viewState: null,
+    };
+
+    newModel.onDidChangeContent(() => {
+        newDescriptor.isDirty = newModel.getValue() !== newDescriptor.savedContent;
+        emit('onTabsChanged');
+    });
+
+    openFiles.set(newPath, newDescriptor);
+    activeFilePath = newPath;
+    editor.setModel(newModel);
+
+    emit('onTabsChanged');
+    emit('onActiveFileChanged');
+    logger.info('File saved as:', handle.name);
+}
+
+/**
+ * 保存所有已打开文件
+ */
+export async function saveAllFiles(editor) {
+    const paths = [...openFiles.keys()];
+    const originalActivePath = activeFilePath;
+
+    for (const path of paths) {
+        const descriptor = openFiles.get(path);
+        if (!descriptor || !descriptor.isDirty) continue;
+
+        setActiveFile(path, editor);
+        await saveActiveFile(editor);
+    }
+
+    if (originalActivePath && openFiles.has(originalActivePath)) {
+        setActiveFile(originalActivePath, editor);
+    }
+
+    emit('onTabsChanged');
+}
+
+/**
  * 删除活跃文件
  * @param {monaco.editor} editor
  */

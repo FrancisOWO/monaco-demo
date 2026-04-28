@@ -216,6 +216,59 @@ describe('file-store', () => {
         expect(store.activeFilePath).toBe('/saved.py');
     });
 
+    it('saves the active file as a new handle and replaces descriptor path', async () => {
+        const saveHandle = { name: 'copy.ts' };
+        const { store, fsAccess } = await loadStore({
+            readFileContent: jest.fn().mockResolvedValue('const x = 1;'),
+            saveNewFile: jest.fn().mockResolvedValue(saveHandle),
+        });
+        const editor = createEditorMock();
+
+        await store.openFileFromHandle({ name: 'main.js' } as any, '/main.js', editor as any);
+        const oldDescriptor = store.getActiveFile()!;
+        (oldDescriptor.model as MockModel).setValue('const x = 2;');
+
+        await store.saveActiveFileAs(editor as any);
+
+        expect(fsAccess.saveNewFile).toHaveBeenCalledWith('main.js', 'const x = 2;');
+        expect(oldDescriptor.model.dispose).toHaveBeenCalled();
+        expect(store.openFiles.has('/main.js')).toBe(false);
+        expect(store.openFiles.get('/copy.ts')).toMatchObject({
+            path: '/copy.ts',
+            name: 'copy.ts',
+            handle: saveHandle,
+            isDirty: false,
+            language: 'typescript',
+            savedContent: 'const x = 2;',
+        });
+    });
+
+    it('saves all dirty files and restores the original active file', async () => {
+        const { store, fsAccess } = await loadStore({
+            readFileContent: jest.fn()
+                .mockResolvedValueOnce('a')
+                .mockResolvedValueOnce('b'),
+            writeFileContent: jest.fn().mockResolvedValue(undefined),
+        });
+        const editor = createEditorMock();
+        const handleA = { name: 'a.py' };
+        const handleB = { name: 'b.py' };
+
+        await store.openFileFromHandle(handleA as any, '/a.py', editor as any);
+        await store.openFileFromHandle(handleB as any, '/b.py', editor as any);
+        (store.openFiles.get('/a.py')!.model as MockModel).setValue('a2');
+        (store.openFiles.get('/b.py')!.model as MockModel).setValue('b2');
+        store.setActiveFile('/a.py', editor as any);
+
+        await store.saveAllFiles(editor as any);
+
+        expect(fsAccess.writeFileContent).toHaveBeenCalledWith(handleA, 'a2');
+        expect(fsAccess.writeFileContent).toHaveBeenCalledWith(handleB, 'b2');
+        expect(store.activeFilePath).toBe('/a.py');
+        expect(store.openFiles.get('/a.py')!.isDirty).toBe(false);
+        expect(store.openFiles.get('/b.py')!.isDirty).toBe(false);
+    });
+
     it('closes files, activates the previous tab, and clears editor when no files remain', async () => {
         const { store } = await loadStore({
             readFileContent: jest.fn()

@@ -6,7 +6,7 @@
 import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
 import { isFileSystemAccessSupported, openDirectory, openFile } from '../file-system/fs-access.js';
-import { setRootDirectory, openFileFromHandle, createNewFile, saveActiveFile, deleteActiveFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
+import { setRootDirectory, openFileFromHandle, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
 import { renderTabs } from '../ui/tab-bar.js';
 import { showDialog, showToast } from '../ui/dialogs.js';
@@ -64,6 +64,7 @@ export function setupToolbar(editor) {
     // 语言选择弹窗
     setupLanguageModal(editor);
     setupStatusLanguagePicker(editor);
+    setupGlobalShortcuts(editor);
 
     // 文件变化时更新状态栏语言显示
     on('onActiveFileChanged', () => {
@@ -156,6 +157,23 @@ export async function handleAction(action, editor) {
             }
             break;
         }
+        case 'save-as': {
+            const descriptor = getActiveFile();
+            if (!descriptor) {
+                showToast('没有打开的文件', 'warning');
+                return;
+            }
+            await saveActiveFileAs(editor);
+            renderTabs(editor);
+            showToast('文件已另存为', 'info');
+            break;
+        }
+        case 'save-all': {
+            await saveAllFiles(editor);
+            renderTabs(editor);
+            showToast('已保存所有文件', 'info');
+            break;
+        }
         case 'close-editor': {
             const descriptor = getActiveFile();
             if (!descriptor) return;
@@ -175,12 +193,60 @@ export async function handleAction(action, editor) {
             renderTabs(editor);
             break;
         }
+        case 'undo':
+            editor.trigger('menu', 'undo', null);
+            break;
+        case 'redo':
+            editor.trigger('menu', 'redo', null);
+            break;
+        case 'cut':
+            editor.trigger('menu', 'editor.action.clipboardCutAction', null);
+            break;
+        case 'copy':
+            editor.trigger('menu', 'editor.action.clipboardCopyAction', null);
+            break;
+        case 'paste':
+            editor.trigger('menu', 'editor.action.clipboardPasteAction', null);
+            break;
+        case 'find':
+            editor.trigger('menu', 'actions.find', null);
+            break;
+        case 'replace':
+            editor.trigger('menu', 'editor.action.startFindReplaceAction', null);
+            break;
+        case 'select-all':
+            editor.trigger('menu', 'editor.action.selectAll', null);
+            break;
+        case 'expand-selection':
+            editor.trigger('menu', 'editor.action.smartSelect.expand', null);
+            break;
+        case 'shrink-selection':
+            editor.trigger('menu', 'editor.action.smartSelect.shrink', null);
+            break;
+        case 'copy-line-up':
+            editor.trigger('menu', 'editor.action.copyLinesUpAction', null);
+            break;
+        case 'copy-line-down':
+            editor.trigger('menu', 'editor.action.copyLinesDownAction', null);
+            break;
+        case 'move-line-up':
+            editor.trigger('menu', 'editor.action.moveLinesUpAction', null);
+            break;
+        case 'move-line-down':
+            editor.trigger('menu', 'editor.action.moveLinesDownAction', null);
+            break;
         case 'explorer': {
             sidebarVisible = !sidebarVisible;
             const sidebar = document.getElementById('sidebar');
             sidebar.style.display = sidebarVisible ? '' : 'none';
             break;
         }
+        case 'zoom-in':
+            updateEditorFontSize(editor, 1);
+            break;
+        case 'zoom-out':
+            updateEditorFontSize(editor, -1);
+            break;
         case 'minimap-toggle': {
             const current = editor.getOption(monaco.editor.EditorOption.minimap);
             editor.updateOptions({ minimap: { enabled: !current.enabled } });
@@ -207,6 +273,49 @@ export async function handleAction(action, editor) {
         default:
             logger.info('Unhandled action:', action);
     }
+}
+
+function updateEditorFontSize(editor, delta) {
+    const current = editor.getOption(monaco.editor.EditorOption.fontSize);
+    const next = Math.min(40, Math.max(8, current + delta));
+    editor.updateOptions({ fontSize: next });
+}
+
+export function setupGlobalShortcuts(editor) {
+    document.addEventListener('keydown', (e) => {
+        const key = e.key.toLowerCase();
+        const ctrlOrMeta = e.ctrlKey || e.metaKey;
+        let action = null;
+
+        if (ctrlOrMeta && !e.shiftKey && key === 'n') action = 'new-file';
+        if (ctrlOrMeta && !e.shiftKey && key === 'o') action = 'open-file';
+        if (ctrlOrMeta && !e.shiftKey && key === 's') action = 'save';
+        if (ctrlOrMeta && e.shiftKey && key === 's') action = 'save-as';
+        if (ctrlOrMeta && !e.shiftKey && key === 'w') action = 'close-editor';
+        if (ctrlOrMeta && !e.shiftKey && key === 'z') action = 'undo';
+        if (ctrlOrMeta && (key === 'y' || (e.shiftKey && key === 'z'))) action = 'redo';
+        if (ctrlOrMeta && !e.shiftKey && key === 'x') action = 'cut';
+        if (ctrlOrMeta && !e.shiftKey && key === 'c') action = 'copy';
+        if (ctrlOrMeta && !e.shiftKey && key === 'v') action = 'paste';
+        if (ctrlOrMeta && !e.shiftKey && key === 'f') action = 'find';
+        if (ctrlOrMeta && !e.shiftKey && key === 'h') action = 'replace';
+        if (ctrlOrMeta && !e.shiftKey && key === 'a') action = 'select-all';
+        if (ctrlOrMeta && e.shiftKey && key === 'arrowright') action = 'expand-selection';
+        if (ctrlOrMeta && e.shiftKey && key === 'arrowleft') action = 'shrink-selection';
+        if (e.altKey && !ctrlOrMeta && !e.shiftKey && key === 'arrowup') action = 'copy-line-up';
+        if (e.altKey && !ctrlOrMeta && !e.shiftKey && key === 'arrowdown') action = 'copy-line-down';
+        if (e.altKey && e.shiftKey && key === 'arrowup') action = 'move-line-up';
+        if (e.altKey && e.shiftKey && key === 'arrowdown') action = 'move-line-down';
+        if (ctrlOrMeta && !e.shiftKey && key === 'b') action = 'explorer';
+        if (ctrlOrMeta && !e.shiftKey && (key === '=' || key === '+')) action = 'zoom-in';
+        if (ctrlOrMeta && !e.shiftKey && key === '-') action = 'zoom-out';
+        if (ctrlOrMeta && e.shiftKey && key === 'l') action = 'language-select';
+
+        if (!action) return;
+
+        e.preventDefault();
+        handleAction(action, editor);
+    });
 }
 
 export function openLanguageModal() {

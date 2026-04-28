@@ -51,7 +51,8 @@ describe('toolbar', () => {
         openFileFromHandle: jest.fn(),
         createNewFile: jest.fn(),
         saveActiveFile: jest.fn(),
-        deleteActiveFile: jest.fn(),
+        saveActiveFileAs: jest.fn(),
+        saveAllFiles: jest.fn(),
         setActiveFileLanguage: jest.fn(),
         getActiveFile: jest.fn(),
         on: jest.fn(),
@@ -74,7 +75,7 @@ describe('toolbar', () => {
 
         jest.doMock('monaco-editor', () => ({
             editor: {
-                EditorOption: { minimap: 'minimap' },
+                EditorOption: { minimap: 'minimap', fontSize: 'fontSize' },
                 setTheme: jest.fn(),
             },
         }));
@@ -144,6 +145,54 @@ describe('toolbar', () => {
         expect(dialogs.showToast).not.toHaveBeenCalled();
     });
 
+    it('dispatches common editor commands from menu actions', async () => {
+        const toolbar = loadToolbar();
+        const editor = {
+            trigger: jest.fn(),
+        };
+
+        await toolbar.handleAction('undo', editor);
+        await toolbar.handleAction('redo', editor);
+        await toolbar.handleAction('find', editor);
+        await toolbar.handleAction('replace', editor);
+        await toolbar.handleAction('select-all', editor);
+        await toolbar.handleAction('copy-line-down', editor);
+
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'undo', null);
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'redo', null);
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'actions.find', null);
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'editor.action.startFindReplaceAction', null);
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'editor.action.selectAll', null);
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'editor.action.copyLinesDownAction', null);
+    });
+
+    it('updates editor font size for zoom actions', async () => {
+        const toolbar = loadToolbar();
+        const editor = {
+            getOption: jest.fn(() => 14),
+            updateOptions: jest.fn(),
+        };
+
+        await toolbar.handleAction('zoom-in', editor);
+        await toolbar.handleAction('zoom-out', editor);
+
+        expect(editor.updateOptions).toHaveBeenCalledWith({ fontSize: 15 });
+        expect(editor.updateOptions).toHaveBeenCalledWith({ fontSize: 13 });
+    });
+
+    it('handles save-as and save-all menu actions', async () => {
+        fileStore.getActiveFile.mockReturnValue({ language: 'python', isDirty: true });
+        const toolbar = loadToolbar();
+        const editor = {};
+
+        await toolbar.handleAction('save-as', editor);
+        await toolbar.handleAction('save-all', editor);
+
+        expect(fileStore.saveActiveFileAs).toHaveBeenCalledWith(editor);
+        expect(fileStore.saveAllFiles).toHaveBeenCalledWith(editor);
+        expect(tabBar.renderTabs).toHaveBeenCalledWith(editor);
+    });
+
     it('shows a warning when selecting language without an active file', () => {
         fileStore.getActiveFile.mockReturnValue(null);
         const toolbar = loadToolbar();
@@ -175,5 +224,34 @@ describe('toolbar', () => {
         expect(select.value).toBe('python');
         expect(modal.classList.remove).toHaveBeenCalledWith('hidden');
         expect(preventDefault).toHaveBeenCalled();
+    });
+
+    it('routes global shortcuts through editor actions and prevents browser defaults', () => {
+        let keydownHandler: Function | null = null;
+        const elements = {};
+        const toolbar = loadToolbar(elements);
+        fsAccess.isFileSystemAccessSupported.mockReturnValue(true);
+        fsAccess.openFile.mockResolvedValue(null);
+        (global as any).document.addEventListener.mockImplementation((event: string, handler: Function) => {
+            if (event === 'keydown') keydownHandler = handler;
+        });
+        const editor = { trigger: jest.fn() };
+
+        toolbar.setupGlobalShortcuts(editor);
+
+        const ctrlO = { key: 'o', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn() };
+        const ctrlF = { key: 'f', ctrlKey: true, metaKey: false, shiftKey: false, altKey: false, preventDefault: jest.fn() };
+        const altDown = { key: 'ArrowDown', ctrlKey: false, metaKey: false, shiftKey: false, altKey: true, preventDefault: jest.fn() };
+
+        keydownHandler!(ctrlO);
+        keydownHandler!(ctrlF);
+        keydownHandler!(altDown);
+
+        expect(ctrlO.preventDefault).toHaveBeenCalled();
+        expect(ctrlF.preventDefault).toHaveBeenCalled();
+        expect(altDown.preventDefault).toHaveBeenCalled();
+        expect(fsAccess.openFile).toHaveBeenCalled();
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'actions.find', null);
+        expect(editor.trigger).toHaveBeenCalledWith('menu', 'editor.action.copyLinesDownAction', null);
     });
 });
