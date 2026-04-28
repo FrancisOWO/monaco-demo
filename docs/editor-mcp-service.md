@@ -56,7 +56,7 @@ EDITOR_MCP_SERVER_URL=http://localhost:3001 pnpm mcp:editor
 
 ## MCP Client 配置示例
 
-示例配置：
+Node/TypeScript 版本示例配置：
 
 ```json
 {
@@ -70,6 +70,37 @@ EDITOR_MCP_SERVER_URL=http://localhost:3001 pnpm mcp:editor
     }
   }
 }
+```
+
+Python FastMCP 版本示例配置：
+
+```json
+{
+  "mcpServers": {
+    "monaco-editor-python": {
+      "command": "uv",
+      "args": ["run", "--directory", "D:/Users/Lenovo/_Demo/_Projects/monaco-start/python-mcp", "monaco-editor-fastmcp"],
+      "env": {
+        "EDITOR_MCP_SERVER_URL": "http://localhost:3000"
+      }
+    }
+  }
+}
+```
+
+Python FastMCP 版本源码位于：
+
+```text
+python-mcp/
+```
+
+本地验证：
+
+```bash
+cd python-mcp
+uv lock
+uv run pytest -q
+uv run monaco-editor-fastmcp
 ```
 
 ## 工具清单
