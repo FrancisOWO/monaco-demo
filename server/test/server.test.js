@@ -4,28 +4,60 @@
 
 const WebSocket = require('ws');
 const { spawn } = require('child_process');
+const net = require('net');
 
-const SERVER_URL = 'ws://localhost:3000/pyright';
+function getAvailablePort() {
+    return new Promise((resolve, reject) => {
+        const server = net.createServer();
+        server.on('error', reject);
+        server.listen(0, () => {
+            const address = server.address();
+            const port = address.port;
+            server.close(() => resolve(port));
+        });
+    });
+}
 
 describe('Python LSP Server', () => {
     let serverProcess;
+    let serverUrl;
 
-    beforeAll((done) => {
+    beforeAll(async () => {
+        const port = await getAvailablePort();
+        serverUrl = `ws://localhost:${port}/pyright`;
+
         // 启动服务器
-        serverProcess = spawn('node', ['dist/index.js'], {
-            cwd: __dirname + '/../'
-        });
-
-        serverProcess.stdout.on('data', (data) => {
-            if (data.toString().includes('Python LSP Server running')) {
-                // 服务器启动后连接
-                setTimeout(done, 1000);
-            }
+        serverProcess = spawn('node', ['-r', 'ts-node/register/transpile-only', 'src/index.ts'], {
+            cwd: __dirname + '/../',
+            env: {
+                ...process.env,
+                PORT: String(port),
+            },
         });
 
         serverProcess.stderr.on('data', (data) => {
             console.error('Server stderr:', data.toString());
         });
+
+        await new Promise((resolve, reject) => {
+            const timer = setTimeout(() => {
+                reject(new Error('Server did not start within 15 seconds'));
+            }, 15000);
+
+            serverProcess.stdout.on('data', (data) => {
+                if (data.toString().includes('Python LSP Server running')) {
+                    clearTimeout(timer);
+                    // 服务器启动后连接
+                    setTimeout(resolve, 1000);
+                }
+            });
+
+            serverProcess.on('exit', (code) => {
+                clearTimeout(timer);
+                reject(new Error(`Server exited before startup with code ${code}`));
+            });
+        });
+
     });
 
     afterAll((done) => {
@@ -36,7 +68,7 @@ describe('Python LSP Server', () => {
     });
 
     test('should connect to WebSocket', (done) => {
-        const ws = new WebSocket(SERVER_URL);
+        const ws = new WebSocket(serverUrl);
 
         ws.on('open', () => {
             expect(ws.readyState).toBe(WebSocket.OPEN);
@@ -50,7 +82,7 @@ describe('Python LSP Server', () => {
     });
 
     test('should respond to initialize request', (done) => {
-        const ws = new WebSocket(SERVER_URL);
+        const ws = new WebSocket(serverUrl);
 
         ws.on('open', () => {
             console.log('[Test Init] WebSocket opened');
@@ -103,7 +135,7 @@ describe('Python LSP Server', () => {
     }, 20000);
 
     test('should handle textDocument/completion request', (done) => {
-        const ws = new WebSocket(SERVER_URL);
+        const ws = new WebSocket(serverUrl);
         let initialized = false;
 
         ws.on('open', () => {

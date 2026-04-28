@@ -4,7 +4,7 @@
 
 export const config = {
     // 服务器端口
-    port: 3000,
+    port: Number(process.env.PORT || 3000),
 
     // WebSocket 路径
     pyrightPath: '/pyright',
