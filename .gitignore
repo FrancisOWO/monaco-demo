@@ -6,6 +6,8 @@
 .notes/
 shared/
 
+test*.png
+
 .mcp.json
 .playwright-mcp/
 .repo-wiki/
