@@ -136,6 +136,29 @@ describe('file-store', () => {
         expect(editor.restoreViewState).toHaveBeenCalled();
     });
 
+    it('remembers opened files and can reopen the most recent file', async () => {
+        const { store, fsAccess } = await loadStore({
+            readFileContent: jest.fn()
+                .mockResolvedValueOnce('print("a")')
+                .mockResolvedValueOnce('print("b")'),
+        });
+        const editor = createEditorMock();
+        const handleA = { name: 'a.py' };
+        const handleB = { name: 'b.py' };
+
+        await store.openFileFromHandle(handleA as any, '/a.py', editor as any);
+        await store.openFileFromHandle(handleB as any, '/b.py', editor as any);
+
+        expect(store.recentFiles.map((item: any) => item.path)).toEqual(['/b.py', '/a.py']);
+
+        store.forceCloseFile('/b.py', editor as any);
+        await expect(store.openRecentFile(0, editor as any)).resolves.toBe(true);
+
+        expect(fsAccess.readFileContent).toHaveBeenCalledTimes(3);
+        expect(store.activeFilePath).toBe('/b.py');
+        await expect(store.openRecentFile(99, editor as any)).resolves.toBe(false);
+    });
+
     it('emits tab changes when switching between open files', async () => {
         const { store } = await loadStore({
             readFileContent: jest.fn()

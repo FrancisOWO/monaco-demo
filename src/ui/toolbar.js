@@ -6,7 +6,7 @@
 import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
 import { isFileSystemAccessSupported, openDirectory, openFile } from '../file-system/fs-access.js';
-import { setRootDirectory, openFileFromHandle, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, closeFile, forceCloseFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
+import { setRootDirectory, openFileFromHandle, openRecentFile, recentFiles, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, closeFile, forceCloseFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
 import { renderTabs } from '../ui/tab-bar.js';
 import { showDialog, showToast } from '../ui/dialogs.js';
@@ -18,6 +18,7 @@ let sidebarVisible = true;
 
 export const SHORTCUT_DEFINITIONS = [
     { action: 'new-file', key: 'n', altKey: true, label: 'Alt+N' },
+    { action: 'new-window', key: 'n', altKey: true, shiftKey: true, label: 'Shift+Alt+N' },
     { action: 'open-file', key: 'o', ctrlKey: true, label: 'Ctrl+O' },
     { action: 'save', key: 's', ctrlKey: true, label: 'Ctrl+S' },
     { action: 'save-as', key: 's', ctrlKey: true, shiftKey: true, label: 'Ctrl+Shift+S' },
@@ -156,6 +157,25 @@ export async function handleAction(action, editor) {
             renderTabs(editor);
             break;
         }
+        case 'new-template-python':
+            createNewFile('python', editor);
+            renderTabs(editor);
+            break;
+        case 'new-template-cpp':
+            createNewFile('cpp', editor);
+            renderTabs(editor);
+            break;
+        case 'new-template-go':
+            createNewFile('go', editor);
+            renderTabs(editor);
+            break;
+        case 'new-window': {
+            const opened = window.open(window.location.href, '_blank', 'noopener');
+            if (!opened) {
+                showToast('浏览器阻止了新建窗口', 'warning');
+            }
+            break;
+        }
         case 'open-file': {
             if (!isFileSystemAccessSupported()) {
                 showToast('此功能需要 Chrome/Edge 浏览器', 'warning');
@@ -165,6 +185,20 @@ export async function handleAction(action, editor) {
             if (!handle) return;
             await openFileFromHandle(handle, '/' + handle.name, editor);
             renderTabs(editor);
+            break;
+        }
+        case 'open-recent': {
+            if (recentFiles.length === 0) {
+                showToast('没有最近打开的文件', 'info');
+                return;
+            }
+            const opened = await openRecentFile(0, editor);
+            if (!opened) {
+                showToast('最近文件不可用', 'warning');
+                return;
+            }
+            renderTabs(editor);
+            showToast(`已打开最近文件: ${recentFiles[0].name}`, 'info');
             break;
         }
         case 'open-folder': {
@@ -303,6 +337,11 @@ export async function handleAction(action, editor) {
         }
         case 'about': {
             showDialog('Monaco Editor Demo\n基于 Monaco Editor 0.55.1\n支持多文件编辑、代码补全、LSP 连接', { confirmLabel: '确定', cancelLabel: '' });
+            break;
+        }
+        case 'close-window': {
+            window.close();
+            showToast('如果窗口未关闭，请使用浏览器关闭按钮', 'info');
             break;
         }
         default:

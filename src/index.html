@@ -26,20 +26,29 @@
 	<!-- Dropdown menus -->
 	<div id="menu-dropdowns">
 		<!-- 文件菜单 -->
-		<div class="menu-dropdown" data-menu="file">
+			<div class="menu-dropdown" data-menu="file">
 			<div class="menu-entry" data-action="new-file">新建文件<span class="shortcut">Alt+N</span></div>
-			<div class="menu-entry" data-action="new-window" disabled>新建窗口<span class="shortcut">Ctrl+Shift+N</span></div>
+			<div class="menu-entry menu-entry-submenu">
+				<span>从模板新建文件</span>
+				<span class="submenu-arrow">›</span>
+				<div class="submenu">
+					<div class="menu-entry" data-action="new-template-python">Python</div>
+					<div class="menu-entry" data-action="new-template-cpp">C++</div>
+					<div class="menu-entry" data-action="new-template-go">Go</div>
+				</div>
+			</div>
+			<div class="menu-entry" data-action="new-window">新建窗口<span class="shortcut">Shift+Alt+N</span></div>
 			<div class="menu-separator"></div>
 			<div class="menu-entry" data-action="open-file">打开文件...<span class="shortcut">Ctrl+O</span></div>
 			<div class="menu-entry" data-action="open-folder">打开文件夹...</div>
-			<div class="menu-entry" data-action="open-recent" disabled>打开最近</div>
+			<div class="menu-entry" data-action="open-recent">打开最近</div>
 			<div class="menu-separator"></div>
 			<div class="menu-entry" data-action="save">保存<span class="shortcut">Ctrl+S</span></div>
 			<div class="menu-entry" data-action="save-as">另存为...<span class="shortcut">Ctrl+Shift+S</span></div>
 			<div class="menu-entry" data-action="save-all">全部保存</div>
 			<div class="menu-separator"></div>
 			<div class="menu-entry" data-action="close-editor">关闭编辑器<span class="shortcut">Alt+W</span></div>
-			<div class="menu-entry" data-action="close-window" disabled>关闭窗口</div>
+			<div class="menu-entry" data-action="close-window">关闭窗口</div>
 		</div>
 
 		<!-- 编辑菜单 -->

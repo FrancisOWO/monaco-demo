@@ -20,6 +20,9 @@ export let activeFilePath = null;
 /** 根目录 handle */
 export let rootDirectoryHandle = null;
 
+/** 最近打开文件（当前会话，FileSystemHandle 不能可靠 JSON 持久化） */
+export const recentFiles = [];
+
 /** untitled 文件序号 */
 let untitledIndex = 1;
 
@@ -41,6 +44,25 @@ export function on(event, callback) {
 
 function emit(event) {
     callbacks[event].forEach(cb => cb());
+}
+
+function rememberRecentFile(handle, path, language) {
+    if (!handle) return;
+
+    const existingIndex = recentFiles.findIndex(item => item.path === path);
+    if (existingIndex !== -1) {
+        recentFiles.splice(existingIndex, 1);
+    }
+
+    recentFiles.unshift({
+        name: handle.name,
+        path,
+        handle,
+        language,
+        openedAt: Date.now(),
+    });
+
+    recentFiles.splice(10);
 }
 
 /**
@@ -99,6 +121,7 @@ export async function openFileFromHandle(handle, path, editor) {
     }
 
     openFiles.set(path, descriptor);
+    rememberRecentFile(handle, path, language);
     setActiveFile(path, editor);
 
     // 监听内容变化 → 标记脏
@@ -108,6 +131,17 @@ export async function openFileFromHandle(handle, path, editor) {
     });
 
     logger.info('File opened:', path);
+}
+
+/**
+ * 打开最近文件
+ */
+export async function openRecentFile(index, editor) {
+    const recent = recentFiles[index];
+    if (!recent) return false;
+
+    await openFileFromHandle(recent.handle, recent.path, editor);
+    return true;
 }
 
 /**

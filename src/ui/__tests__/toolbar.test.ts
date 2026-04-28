@@ -12,6 +12,7 @@ function createElement(id = '') {
     const listeners = new Map<string, Function[]>();
     return {
         id,
+        hasAttribute: jest.fn(() => false),
         value: '',
         textContent: '',
         title: '',
@@ -34,6 +35,13 @@ function createElement(id = '') {
     };
 }
 
+function createMenuEntry(action?: string) {
+    const entry = createElement('menu-entry');
+    entry.dataset = action ? { action } : {};
+    entry.hasAttribute = jest.fn(() => false);
+    return entry;
+}
+
 describe('toolbar', () => {
     const logger = {
         info: jest.fn(),
@@ -49,6 +57,8 @@ describe('toolbar', () => {
     const fileStore = {
         setRootDirectory: jest.fn(),
         openFileFromHandle: jest.fn(),
+        openRecentFile: jest.fn(),
+        recentFiles: [] as any[],
         createNewFile: jest.fn(),
         saveActiveFile: jest.fn(),
         saveActiveFileAs: jest.fn(),
@@ -74,6 +84,7 @@ describe('toolbar', () => {
     function loadToolbar(elements: Record<string, any> = {}) {
         jest.resetModules();
         jest.clearAllMocks();
+        fileStore.recentFiles.length = 0;
 
         jest.doMock('monaco-editor', () => ({
             editor: {
@@ -98,12 +109,18 @@ describe('toolbar', () => {
             querySelectorAll: jest.fn(() => []),
             addEventListener: jest.fn(),
         };
+        (global as any).window = {
+            location: { href: 'http://localhost:5173/' },
+            open: jest.fn(() => ({})),
+            close: jest.fn(),
+        };
 
         return require('../toolbar.js');
     }
 
     afterEach(() => {
         delete (global as any).document;
+        delete (global as any).window;
     });
 
     it('opens a standalone file without requiring a folder', async () => {
@@ -119,6 +136,87 @@ describe('toolbar', () => {
         expect(fileStore.openFileFromHandle).toHaveBeenCalledWith(handle, '/main.py', editor);
         expect(tabBar.renderTabs).toHaveBeenCalledWith(editor);
         expect(dialogs.showToast).not.toHaveBeenCalledWith('请使用"打开文件夹"浏览并选择文件', 'info');
+    });
+
+    it('creates files from Python, C++, and Go templates', async () => {
+        const toolbar = loadToolbar();
+        const editor = {};
+
+        await toolbar.handleAction('new-template-python', editor);
+        await toolbar.handleAction('new-template-cpp', editor);
+        await toolbar.handleAction('new-template-go', editor);
+
+        expect(fileStore.createNewFile).toHaveBeenCalledWith('python', editor);
+        expect(fileStore.createNewFile).toHaveBeenCalledWith('cpp', editor);
+        expect(fileStore.createNewFile).toHaveBeenCalledWith('go', editor);
+        expect(tabBar.renderTabs).toHaveBeenCalledTimes(3);
+    });
+
+    it('binds submenu template entries without treating the parent submenu as an action', () => {
+        const menuBar = createElement('menu-bar');
+        const dropdowns = createElement('menu-dropdowns');
+        const parentSubmenu = createMenuEntry();
+        const pythonEntry = createMenuEntry('new-template-python');
+        const cppEntry = createMenuEntry('new-template-cpp');
+        const goEntry = createMenuEntry('new-template-go');
+        const toolbar = loadToolbar({
+            'menu-bar': menuBar,
+            'menu-dropdowns': dropdowns,
+            'language-modal': createElement('language-modal'),
+            'language-modal-select': createElement('language-modal-select'),
+            'language-modal-ok': createElement('language-modal-ok'),
+            'language-modal-cancel': createElement('language-modal-cancel'),
+            'status-language': createElement('status-language'),
+        });
+        menuBar.querySelectorAll = jest.fn(() => []);
+        dropdowns.querySelectorAll = jest.fn(() => [parentSubmenu, pythonEntry, cppEntry, goEntry]);
+        const editor = {
+            onDidChangeCursorPosition: jest.fn(),
+        };
+
+        toolbar.setupToolbar(editor);
+        parentSubmenu.dispatch('click', { stopPropagation: jest.fn() });
+        pythonEntry.dispatch('click', { stopPropagation: jest.fn() });
+        cppEntry.dispatch('click', { stopPropagation: jest.fn() });
+        goEntry.dispatch('click', { stopPropagation: jest.fn() });
+
+        expect(fileStore.createNewFile).toHaveBeenCalledTimes(3);
+        expect(fileStore.createNewFile).toHaveBeenCalledWith('python', editor);
+        expect(fileStore.createNewFile).toHaveBeenCalledWith('cpp', editor);
+        expect(fileStore.createNewFile).toHaveBeenCalledWith('go', editor);
+    });
+
+    it('opens a new browser window and closes the current window from menu actions', async () => {
+        const toolbar = loadToolbar();
+
+        await toolbar.handleAction('new-window', {});
+        await toolbar.handleAction('close-window', {});
+
+        expect((global as any).window.open).toHaveBeenCalledWith('http://localhost:5173/', '_blank', 'noopener');
+        expect((global as any).window.close).toHaveBeenCalled();
+        expect(dialogs.showToast).toHaveBeenCalledWith('如果窗口未关闭，请使用浏览器关闭按钮', 'info');
+    });
+
+    it('opens the most recent file when recent entries exist', async () => {
+        fileStore.openRecentFile.mockResolvedValue(true);
+        const toolbar = loadToolbar();
+        fileStore.recentFiles.push({ name: 'recent.py', path: '/recent.py' });
+        const editor = {};
+
+        await toolbar.handleAction('open-recent', editor);
+
+        expect(fileStore.openRecentFile).toHaveBeenCalledWith(0, editor);
+        expect(tabBar.renderTabs).toHaveBeenCalledWith(editor);
+        expect(dialogs.showToast).toHaveBeenCalledWith('已打开最近文件: recent.py', 'info');
+    });
+
+    it('shows a message when there are no recent files', async () => {
+        const toolbar = loadToolbar();
+
+        await toolbar.handleAction('open-recent', {});
+
+        expect(fileStore.openRecentFile).not.toHaveBeenCalled();
+        expect(dialogs.showToast).toHaveBeenCalledWith('没有最近打开的文件', 'info');
     });
 
     it('warns when standalone file open is not supported', async () => {
