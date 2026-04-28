@@ -21,6 +21,11 @@
 		<div class="menu-item" data-menu="selection">选择</div>
 		<div class="menu-item" data-menu="view">视图</div>
 		<div class="menu-item" data-menu="help">帮助</div>
+		<div id="layout-controls" aria-label="布局控制">
+			<button id="layout-primary-toggle" class="layout-toggle active" title="Toggle Primary Sidebar" aria-pressed="true">P</button>
+			<button id="layout-panel-toggle" class="layout-toggle" title="Toggle Panel" aria-pressed="false">Panel</button>
+			<button id="layout-secondary-toggle" class="layout-toggle" title="Toggle Secondary Sidebar" aria-pressed="false">S</button>
+		</div>
 	</div>
 
 	<!-- Dropdown menus -->
@@ -165,6 +170,14 @@
 
 		<!-- File context menu overlay -->
 		<div id="chat-context-menu" class="hidden"></div>
+	</div>
+
+	<!-- Bottom Panel -->
+	<div id="bottom-panel" class="layout-hidden">
+		<div id="bottom-panel-header">PANEL</div>
+		<div id="bottom-panel-content">
+			<div class="bottom-panel-empty">暂无面板内容</div>
+		</div>
 	</div>
 
 	<!-- Dialog overlay -->

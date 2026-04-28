@@ -13,6 +13,34 @@
 	user-select: none;
 }
 
+#layout-controls {
+	margin-left: auto;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.layout-toggle {
+	height: 22px;
+	min-width: 28px;
+	padding: 0 7px;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	background: transparent;
+	color: inherit;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.layout-toggle:hover {
+	background: rgba(0, 0, 0, 0.08);
+}
+
+.layout-toggle.active {
+	background: rgba(0, 122, 204, 0.18);
+	border-color: rgba(0, 122, 204, 0.35);
+}
+
 .menu-item {
 	padding: 2px 8px;
 	cursor: pointer;
@@ -221,6 +249,15 @@ body[data-theme="dark"] .submenu {
 
 body[data-theme="dark"] .menu-entry:hover:not([disabled]) {
 	background: rgba(0, 122, 204, 0.3);
+}
+
+body[data-theme="dark"] .layout-toggle:hover {
+	background: rgba(255, 255, 255, 0.1);
+}
+
+body[data-theme="dark"] .layout-toggle.active {
+	background: rgba(0, 122, 204, 0.3);
+	border-color: rgba(0, 122, 204, 0.5);
 }
 
 body[data-theme="dark"] .menu-separator {

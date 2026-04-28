@@ -22,6 +22,7 @@ import { on, getActiveFile } from './file-system/file-store.js';
 import { setupToolbar, updateLanguageSelect } from './ui/toolbar.js';
 import { updateTabs } from './ui/tab-bar.js';
 import { updateSidebarHighlight } from './ui/sidebar.js';
+import { setupLayoutControls } from './ui/layout-controls.js';
 import { setupChatPanel } from './chat/chat-panel.js';
 import { showToast } from './ui/dialogs.js';
 import { addSelectionContext, openPanel } from './chat/chat-store.js';
@@ -57,6 +58,9 @@ setupToolbar(editor);
 
 // Setup AI Chat Panel
 setupChatPanel(editor);
+
+// Setup layout controls
+setupLayoutControls();
 
 // Setup Diff Viewer
 setupDiffViewer();
