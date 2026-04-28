@@ -10,6 +10,7 @@ import { launchPyright } from './pyright-launcher';
 import { config } from './config';
 import aiCompletionRouter from './ai-completion';
 import aiChatRouter from './ai-chat';
+import { editorControlHub } from './editor-control';
 
 const app: express.Express = express();
 expressWs(app);
@@ -35,6 +36,12 @@ app.use('/ai', aiCompletionRouter);
 
 // AI Chat SSE 端点
 app.use('/ai/chat', aiChatRouter);
+
+// WebSocket 端点 - MCP 编辑器控制桥接
+app.ws('/editor-control', (ws: WebSocket) => {
+    console.log('[Editor Control] Editor client connected');
+    editorControlHub.registerEditor(ws);
+});
 
 // WebSocket 端点 - Pyright 语言服务器
 app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
