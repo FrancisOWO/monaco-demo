@@ -143,6 +143,70 @@
 	padding: 4px 0;
 }
 
+.msg-assistant-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-top: 8px;
+	min-height: 28px;
+	font-size: 11px;
+	color: #6b7280;
+}
+
+.msg-complete-status,
+.msg-actions {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.msg-complete-status {
+	flex: 1;
+	min-width: 0;
+}
+
+.msg-complete-check {
+	width: 16px;
+	height: 16px;
+	border-radius: 50%;
+	background: #22c55e;
+	color: #fff;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	font-size: 11px;
+	font-weight: 700;
+}
+
+.msg-complete-check::before {
+	content: "✓";
+}
+
+.msg-actions {
+	justify-content: flex-end;
+	flex-wrap: wrap;
+}
+
+.msg-action-btn {
+	border: 1px solid transparent;
+	background: transparent;
+	color: #6b7280;
+	cursor: pointer;
+	padding: 3px 7px;
+	border-radius: 4px;
+	font-size: 11px;
+	line-height: 1.2;
+}
+
+.msg-action-btn:hover,
+.msg-action-btn.active {
+	background: #eef6ff;
+	border-color: #bfdbfe;
+	color: #007acc;
+}
+
 /* === Thinking Part === */
 
 .msg-thinking {
@@ -752,6 +816,21 @@ body[data-theme="dark"] .chat-msg-user .msg-output {
 
 body[data-theme="dark"] .chat-msg-assistant .msg-output {
 	color: #d4d4d4;
+}
+
+body[data-theme="dark"] .msg-assistant-footer {
+	color: #9ca3af;
+}
+
+body[data-theme="dark"] .msg-action-btn {
+	color: #9ca3af;
+}
+
+body[data-theme="dark"] .msg-action-btn:hover,
+body[data-theme="dark"] .msg-action-btn.active {
+	background: #1a3a4a;
+	border-color: #007acc55;
+	color: #66bfff;
 }
 
 body[data-theme="dark"] .msg-thinking {

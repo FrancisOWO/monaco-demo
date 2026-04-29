@@ -4,6 +4,7 @@
  */
 
 import * as chatStore from './chat-store.js';
+import { streamChatMessage } from './chat-stream-client.js';
 import * as monaco from 'monaco-editor';
 
 let monacoReady = false;
@@ -24,6 +25,7 @@ export function setupMessageRenderer() {
 function renderAllMessages() {
 	const container = document.getElementById('chat-messages');
 	const messages = chatStore.getMessages();
+	const state = chatStore.getState();
 
 	if (messages.length === 0) {
 		renderEmptyState(container);
@@ -37,6 +39,9 @@ function renderAllMessages() {
 		let partsHtml = '';
 		for (const part of msg.parts) {
 			partsHtml += renderPart(part);
+		}
+		if (shouldRenderAssistantFooter(msg, messages, state)) {
+			partsHtml += renderAssistantFooter(msg);
 		}
 		html += `<div class="chat-msg ${roleClass}">${partsHtml}</div>`;
 	}
@@ -54,6 +59,32 @@ function renderAllMessages() {
 
 	// 绑定代码复制按钮
 	bindCopyButtons(container);
+
+	// 绑定助手消息操作按钮
+	bindAssistantActionButtons(container);
+}
+
+function shouldRenderAssistantFooter(msg, messages, state) {
+	if (msg.role !== 'assistant' || msg.parts.length === 0) return false;
+	const lastMsg = messages[messages.length - 1];
+	return !(state.isStreaming && lastMsg?.id === msg.id);
+}
+
+function renderAssistantFooter(msg) {
+	return `
+		<div class="msg-assistant-footer" data-message-id="${escapeAttr(msg.id)}">
+			<div class="msg-complete-status">
+				<span class="msg-complete-check" aria-hidden="true"></span>
+				<span>消息已完成</span>
+			</div>
+			<div class="msg-actions" aria-label="消息操作">
+				<button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">赞</button>
+				<button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">踩</button>
+				<button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">复制</button>
+				<button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">重试</button>
+			</div>
+		</div>
+	`;
 }
 
 /**
@@ -310,6 +341,88 @@ function bindCopyButtons(container) {
 			}
 		});
 	});
+}
+
+function bindAssistantActionButtons(container) {
+	container.querySelectorAll('.msg-action-btn').forEach(btn => {
+		btn.addEventListener('click', async () => {
+			const footer = btn.closest('.msg-assistant-footer');
+			const messageId = footer?.dataset.messageId;
+			const action = btn.dataset.action;
+			const message = chatStore.getMessages().find(msg => msg.id === messageId);
+			if (!message) return;
+
+			if (action === 'like' || action === 'dislike') {
+				setFeedbackState(footer, action);
+				return;
+			}
+
+			if (action === 'copy') {
+				await copyAssistantMessage(message, btn);
+				return;
+			}
+
+			if (action === 'retry') {
+				retryAssistantMessage(messageId);
+			}
+		});
+	});
+}
+
+function setFeedbackState(footer, action) {
+	footer.querySelectorAll('[data-action="like"], [data-action="dislike"]').forEach(btn => {
+		btn.classList.toggle('active', btn.dataset.action === action);
+	});
+}
+
+async function copyAssistantMessage(message, btn) {
+	const text = message.parts.map(partToPlainText).filter(Boolean).join('\n\n');
+	if (!text) return;
+
+	try {
+		await navigator.clipboard.writeText(text);
+		btn.textContent = '已复制';
+		setTimeout(() => btn.textContent = '复制', 2000);
+	} catch (e) {
+		console.warn('[ChatRenderer] Failed to copy assistant message:', e);
+	}
+}
+
+function retryAssistantMessage(messageId) {
+	const state = chatStore.getState();
+	if (state.isStreaming) return;
+
+	const messages = chatStore.getMessages();
+	const assistantIndex = messages.findIndex(msg => msg.id === messageId);
+	if (assistantIndex <= 0) return;
+
+	const previousUserMessage = messages
+		.slice(0, assistantIndex)
+		.reverse()
+		.find(msg => msg.role === 'user');
+	const text = previousUserMessage?.parts.map(partToPlainText).filter(Boolean).join('\n\n').trim();
+	if (!text) return;
+
+	chatStore.addUserMessage(text);
+	streamChatMessage();
+}
+
+function partToPlainText(part) {
+	switch (part.type) {
+		case 'output':
+		case 'thinking':
+			return part.text || '';
+		case 'code':
+			return part.code || '';
+		case 'tool-call':
+			return `[Tool] ${part.toolName || 'unknown'}`;
+		case 'skill-call':
+			return `[Skill] ${part.skillName || 'unknown'}`;
+		case 'mcp-call':
+			return `[MCP] ${part.mcpToolName || 'unknown'}`;
+		default:
+			return part.text || '';
+	}
 }
 
 /**
