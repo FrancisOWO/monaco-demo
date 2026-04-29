@@ -1,6 +1,7 @@
 /**
  * Chat 消息渲染组件
  * 渲染不同类型的消息部分（output, thinking, tool-call, code）
+ * 使用 <template> 元素分离 HTML 结构与 JS 逻辑
  */
 
 import * as chatStore from './chat-store.js';
@@ -10,12 +11,24 @@ import * as monaco from 'monaco-editor';
 let monacoReady = false;
 
 /**
+ * 克隆 <template> 内容，返回 DocumentFragment
+ */
+function cloneTemplate(id) {
+	return document.getElementById(id).content.cloneNode(true);
+}
+
+/**
  * 初始化消息渲染器
  */
 export function setupMessageRenderer() {
 	chatStore.on('onMessagesChanged', renderAllMessages);
-	chatStore.on('onStreamingStateChanged', updateStreamingUI);
+	chatStore.on('onStreamingStateChanged', handleStreamingStateChanged);
 
+	renderAllMessages();
+}
+
+function handleStreamingStateChanged() {
+	updateStreamingUI();
 	renderAllMessages();
 }
 
@@ -27,41 +40,38 @@ function renderAllMessages() {
 	const messages = chatStore.getMessages();
 	const state = chatStore.getState();
 
+	container.innerHTML = '';
+
 	if (messages.length === 0) {
-		renderEmptyState(container);
+		container.appendChild(cloneTemplate('tmpl-empty-state'));
 		return;
 	}
 
-	// 构建消息 DOM
-	let html = '';
 	for (const msg of messages) {
-		const roleClass = msg.role === 'user' ? 'chat-msg-user' : 'chat-msg-assistant';
-		let partsHtml = '';
-		for (const part of msg.parts) {
-			partsHtml += renderPart(part);
-		}
-		if (shouldRenderAssistantFooter(msg, messages, state)) {
-			partsHtml += renderAssistantFooter(msg);
-		}
-		html += `<div class="chat-msg ${roleClass}">${partsHtml}</div>`;
+		container.appendChild(createMessageNode(msg, messages, state));
 	}
 
-	container.innerHTML = html;
-
-	// 异步渲染代码块（Monaco colorize）
 	renderCodeBlocksAsync(container);
-
-	// 自动滚动到底部
 	autoScroll(container);
-
-	// 绑定 thinking 折叠事件
 	bindThinkingCollapse(container);
-
-	// 绑定代码复制按钮
 	bindCopyButtons(container);
-
-	// 绑定助手消息操作按钮
 	bindAssistantActionButtons(container);
+}
+
+function createMessageNode(msg, messages, state) {
+	const roleClass = msg.role === 'user' ? 'chat-msg-user' : 'chat-msg-assistant';
+	const div = document.createElement('div');
+	div.className = `chat-msg ${roleClass}`;
+
+	for (const part of msg.parts) {
+		div.appendChild(createPartNode(part));
+	}
+
+	if (shouldRenderAssistantFooter(msg, messages, state)) {
+		div.appendChild(createAssistantFooter(msg));
+	}
+
+	return div;
 }
 
 function shouldRenderAssistantFooter(msg, messages, state) {
@@ -70,70 +80,51 @@ function shouldRenderAssistantFooter(msg, messages, state) {
 	return !(state.isStreaming && lastMsg?.id === msg.id);
 }
 
-function renderAssistantFooter(msg) {
-	return `
-		<div class="msg-assistant-footer" data-message-id="${escapeAttr(msg.id)}">
-			<div class="msg-complete-status">
-				<span class="msg-complete-check" aria-hidden="true"></span>
-				<span>消息已完成</span>
-			</div>
-			<div class="msg-actions" aria-label="消息操作">
-				<button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">赞</button>
-				<button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">踩</button>
-				<button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">复制</button>
-				<button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">重试</button>
-			</div>
-		</div>
-	`;
+function createAssistantFooter(msg) {
+	const frag = cloneTemplate('tmpl-assistant-footer');
+	frag.querySelector('.msg-assistant-footer').dataset.messageId = msg.id;
+	return frag;
 }
 
 /**
- * 渲染空状态
+ * 渲染单个 MessagePart 为 DOM 节点
  */
-function renderEmptyState(container) {
-	container.innerHTML = `
-		<div class="chat-empty-state">
-			<div class="chat-empty-state-icon"></div>
-			<div class="chat-empty-state-title">AI 对话</div>
-			<div>选择模式开始对话</div>
-			<div style="font-size: 11px; color: #999;">
-				Ask — 问答模式<br>
-				Plan — 规划模式<br>
-				Agent — 执行模式
-			</div>
-		</div>
-	`;
-}
-
-/**
- * 渲染单个 MessagePart
- */
-function renderPart(part) {
+function createPartNode(part) {
 	switch (part.type) {
 		case 'output':
-			return renderOutputPart(part);
+			return createOutputNode(part);
 		case 'thinking':
-			return renderThinkingPart(part);
+			return createThinkingNode(part);
 		case 'tool-call':
-			return renderToolCallPart(part);
+			return createToolCallNode(part);
 		case 'skill-call':
-			return renderSkillCallPart(part);
+			return createSkillCallNode(part);
 		case 'mcp-call':
-			return renderMcpCallPart(part);
+			return createMcpCallNode(part);
 		case 'code':
-			return renderCodePart(part);
-		default:
-			return `<div>${part.text || ''}</div>`;
+			return createCodeNode(part);
+		default: {
+			const div = document.createElement('div');
+			div.textContent = part.text || '';
+			return div;
+		}
 	}
 }
 
 /**
  * 渲染 output 文本部分
  */
-function renderOutputPart(part) {
-	// 简单的 markdown-lite 渲染
-	let text = part.text || '';
+function createOutputNode(part) {
+	const div = document.createElement('div');
+	div.className = 'msg-output';
+	div.innerHTML = renderMarkdownLite(part.text || '');
+	return div;
+}
 
+/**
+ * 简单的 markdown-lite 渲染（返回 HTML 字符串）
+ */
+function renderMarkdownLite(text) {
 	// 代码块 (```)
 	text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
 		return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${lang || 'text'}</span><button class="msg-code-copy" data-code="${escapeAttr(code)}">复制</button></div><div class="msg-code-content" data-lang="${lang || 'text'}" data-code="${escapeAttr(code)}"><pre>${escapeHtml(code)}</pre></div></div>`;
@@ -152,134 +143,113 @@ function renderOutputPart(part) {
 	// 段落换行
 	text = text.replace(/\n/g, '<br>');
 
-	return `<div class="msg-output">${text}</div>`;
+	return text;
 }
 
 /**
  * 渲染 thinking 部分（可折叠）
  */
-function renderThinkingPart(part) {
-	const text = part.text || '';
-	const isCollapsed = true; // 默认折叠
-	return `
-		<div class="msg-thinking ${isCollapsed ? 'collapsed' : 'expanded'}" data-collapsed="${isCollapsed}">
-			<div class="msg-thinking-label">
-				<span class="thinking-icon"></span>
-				<span>思考过程</span>
-				<span style="font-size:10px;color:#aaa;">(点击展开)</span>
-			</div>
-			<div class="msg-thinking-text">${escapeHtml(text)}</div>
-		</div>
-	`;
+function createThinkingNode(part) {
+	const frag = cloneTemplate('tmpl-thinking');
+	frag.querySelector('.msg-thinking-text').textContent = part.text || '';
+	return frag;
 }
 
 /**
  * 渲染 tool-call 部分
  */
-function renderToolCallPart(part) {
+function createToolCallNode(part) {
+	const frag = cloneTemplate('tmpl-tool-call');
 	const toolName = part.toolName || 'unknown';
 	const input = part.input || {};
-	const output = part.output;
 	const inputStr = typeof input === 'object' ? JSON.stringify(input) : String(input);
 
-	let outputHtml = '';
-	if (output) {
-		const outputStr = typeof output === 'object' ? JSON.stringify(output) : String(output);
-		const statusClass = output.error ? 'tool-status-error' : 'tool-status-success';
-		outputHtml = `<div class="msg-tool-call-output ${statusClass}">${escapeHtml(outputStr.substring(0, 300))}</div>`;
+	frag.querySelector('.tool-name').textContent = toolName;
+	frag.querySelector('.msg-tool-call-input').textContent = inputStr.substring(0, 200);
+
+	if (part.output) {
+		const outputStr = typeof part.output === 'object' ? JSON.stringify(part.output) : String(part.output);
+		const statusClass = part.output.error ? 'tool-status-error' : 'tool-status-success';
+		const outputDiv = document.createElement('div');
+		outputDiv.className = `msg-tool-call-output ${statusClass}`;
+		outputDiv.textContent = outputStr.substring(0, 300);
+		frag.querySelector('.msg-tool-call').appendChild(outputDiv);
 	}
 
-	return `
-		<div class="msg-tool-call">
-			<div class="msg-tool-call-header">
-				<span class="tool-icon"></span>
-				<span>${toolName}</span>
-			</div>
-			<div class="msg-tool-call-input">${escapeHtml(inputStr.substring(0, 200))}</div>
-			${outputHtml}
-		</div>
-	`;
+	return frag;
 }
 
 /**
- * 渲染 skill-call 部分 (紫色 SKILL badge)
+ * 渲染 skill-call 部分
  */
-function renderSkillCallPart(part) {
+function createSkillCallNode(part) {
+	const frag = cloneTemplate('tmpl-skill-call');
 	const skillName = part.skillName || 'unknown';
 	const callId = part.callId || '';
 	const input = part.input || {};
-	const output = part.output;
 	const inputStr = typeof input === 'object' ? JSON.stringify(input) : String(input);
 
-	let outputHtml = '';
-	if (output) {
-		const outputStr = typeof output === 'object' ? JSON.stringify(output) : String(output);
-		const statusClass = output.error ? 'tool-status-error' : 'skill-status-success';
-		outputHtml = `<div class="msg-skill-call-output ${statusClass}">${escapeHtml(outputStr.substring(0, 300))}</div>`;
+	frag.querySelector('.msg-skill-call').dataset.callId = callId;
+	frag.querySelector('.skill-name').textContent = skillName;
+	frag.querySelector('.msg-skill-call-input').textContent = inputStr.substring(0, 200);
+
+	if (part.output) {
+		const outputStr = typeof part.output === 'object' ? JSON.stringify(part.output) : String(part.output);
+		const statusClass = part.output.error ? 'tool-status-error' : 'skill-status-success';
+		const outputDiv = document.createElement('div');
+		outputDiv.className = `msg-skill-call-output ${statusClass}`;
+		outputDiv.textContent = outputStr.substring(0, 300);
+		frag.querySelector('.msg-skill-call').appendChild(outputDiv);
 	}
 
-	return `
-		<div class="msg-skill-call" data-call-id="${callId}">
-			<div class="msg-skill-call-header">
-				<span class="skill-icon"></span>
-				<span class="skill-badge">SKILL</span>
-				<span>${skillName}</span>
-			</div>
-			<div class="msg-skill-call-input">${escapeHtml(inputStr.substring(0, 200))}</div>
-			${outputHtml}
-		</div>
-	`;
+	return frag;
 }
 
 /**
- * 渲染 mcp-call 部分 (青色 MCP badge + server pill)
+ * 渲染 mcp-call 部分
  */
-function renderMcpCallPart(part) {
+function createMcpCallNode(part) {
+	const frag = cloneTemplate('tmpl-mcp-call');
 	const server = part.mcpServer || 'unknown';
 	const toolName = part.mcpToolName || 'unknown';
 	const callId = part.callId || '';
 	const input = part.input || {};
-	const output = part.output;
 	const inputStr = typeof input === 'object' ? JSON.stringify(input) : String(input);
 
-	let outputHtml = '';
-	if (output) {
-		const outputStr = typeof output === 'object' ? JSON.stringify(output) : String(output);
-		const statusClass = output.error ? 'tool-status-error' : 'mcp-status-success';
-		outputHtml = `<div class="msg-mcp-call-output ${statusClass}">${escapeHtml(outputStr.substring(0, 300))}</div>`;
+	frag.querySelector('.msg-mcp-call').dataset.callId = callId;
+	frag.querySelector('.mcp-server-pill').textContent = server;
+	frag.querySelector('.mcp-tool-name').textContent = toolName;
+	frag.querySelector('.msg-mcp-call-input').textContent = inputStr.substring(0, 200);
+
+	if (part.output) {
+		const outputStr = typeof part.output === 'object' ? JSON.stringify(part.output) : String(part.output);
+		const statusClass = part.output.error ? 'tool-status-error' : 'mcp-status-success';
+		const outputDiv = document.createElement('div');
+		outputDiv.className = `msg-mcp-call-output ${statusClass}`;
+		outputDiv.textContent = outputStr.substring(0, 300);
+		frag.querySelector('.msg-mcp-call').appendChild(outputDiv);
 	}
 
-	return `
-		<div class="msg-mcp-call" data-call-id="${callId}">
-			<div class="msg-mcp-call-header">
-				<span class="mcp-icon"></span>
-				<span class="mcp-badge">MCP</span>
-				<span class="mcp-server-pill">${server}</span>
-				<span>${toolName}</span>
-			</div>
-			<div class="msg-mcp-call-input">${escapeHtml(inputStr.substring(0, 200))}</div>
-			${outputHtml}
-		</div>
-	`;
+	return frag;
 }
 
 /**
  * 渲染 code 部分
  */
-function renderCodePart(part) {
+function createCodeNode(part) {
 	const language = part.language || 'plaintext';
 	const code = part.code || '';
-	return `
-		<div class="msg-code-block">
-			<div class="msg-code-header">
-				<span class="msg-code-lang">${language}</span>
-				<button class="msg-code-copy" data-code="${escapeAttr(code)}">复制</button>
-			</div>
-			<div class="msg-code-content" data-lang="${language}" data-code="${escapeAttr(code)}">
-				<pre>${escapeHtml(code)}</pre>
-			</div>
-		</div>
-	`;
+
+	const frag = cloneTemplate('tmpl-code-block');
+	frag.querySelector('.msg-code-lang').textContent = language;
+	const copyBtn = frag.querySelector('.msg-code-copy');
+	copyBtn.dataset.code = code;
+	const contentDiv = frag.querySelector('.msg-code-content');
+	contentDiv.dataset.lang = language;
+	contentDiv.dataset.code = code;
+	frag.querySelector('pre').textContent = code;
+
+	return frag;
 }
 
 /**
@@ -429,7 +399,6 @@ function partToPlainText(part) {
  * 更新流式 UI
  */
 function updateStreamingUI() {
-	// 流式状态下持续更新消息显示
 	const state = chatStore.getState();
 	if (state.isStreaming) {
 		const thinkingIndicator = document.getElementById('chat-thinking-indicator');
@@ -437,7 +406,6 @@ function updateStreamingUI() {
 		thinkingIndicator.classList.remove('hidden');
 		thinkingText.textContent = state.thinkingPhase || '思考中...';
 
-		// 如果有 thinkingPhase 且当前助手消息没有 thinking part，添加
 		if (state.thinkingPhase) {
 			const msgs = chatStore.getMessages();
 			const lastMsg = msgs[msgs.length - 1];
@@ -449,7 +417,6 @@ function updateStreamingUI() {
 						text: state.thinkingPhase,
 					});
 				} else {
-					// 更新现有的 thinking part
 					const thinkingPart = lastMsg.parts.find(p => p.type === 'thinking');
 					if (thinkingPart) thinkingPart.text = state.thinkingPhase;
 				}

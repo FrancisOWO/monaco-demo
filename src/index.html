@@ -24,7 +24,7 @@
 		<div id="layout-controls" aria-label="布局控制">
 			<button id="layout-primary-toggle" class="layout-toggle active" title="Toggle Primary Sidebar" aria-pressed="true">|--</button>
 			<button id="layout-panel-toggle" class="layout-toggle" title="Toggle Panel" aria-pressed="false">_|_</button>
-			<button id="layout-secondary-toggle" class="layout-toggle" title="Toggle Secondary Sidebar" aria-pressed="false">--|</button>
+			<button id="layout-secondary-toggle" class="layout-toggle" title="Toggle Secondary Sidebar" aria-pressed="true">--|</button>
 		</div>
 	</div>
 
@@ -155,17 +155,20 @@
 				<span id="thinking-text">思考中...</span>
 			</div>
 			<div id="chat-input-area">
-				<textarea id="chat-input" placeholder="输入消息... (@文件名 添加上下文, Shift+Enter 换行)" rows="2"></textarea>
-				<button id="chat-send-btn" title="发送">&#x27A4;</button>
-				<button id="chat-stop-btn" class="hidden" title="停止生成">&#x25A0;</button>
-			</div>
-			<div id="chat-mode-selector">
-				<label for="chat-mode-select">模式</label>
-				<select id="chat-mode-select">
-					<option value="ask">Ask</option>
-					<option value="plan">Plan</option>
-					<option value="agent">Agent</option>
-				</select>
+				<textarea id="chat-input" placeholder="@ 添加上下文，Shift+Enter 换行" rows="1"></textarea>
+				<div id="chat-input-bottom-row">
+					<div id="chat-mode-selector">
+						<select id="chat-mode-select">
+							<option value="ask">Ask</option>
+							<option value="plan">Plan</option>
+							<option value="agent">Agent</option>
+						</select>
+					</div>
+					<div id="chat-action-buttons">
+						<button id="chat-send-btn" title="发送">&#x27A4;</button>
+						<button id="chat-stop-btn" class="hidden" title="停止生成">&#x25A0;</button>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -206,6 +209,91 @@
 
 	<!-- Toast -->
 	<div id="toast-container"></div>
+
+	<!-- Chat message templates -->
+	<template id="tmpl-empty-state">
+		<div class="chat-empty-state">
+			<div class="chat-empty-state-icon"></div>
+			<div class="chat-empty-state-title">AI 对话</div>
+			<div>选择模式开始对话</div>
+			<div style="font-size: 11px; color: #999;">
+				Ask — 问答模式<br>
+				Plan — 规划模式<br>
+				Agent — 执行模式
+			</div>
+		</div>
+	</template>
+
+	<template id="tmpl-assistant-footer">
+		<div class="msg-assistant-footer">
+			<div class="msg-complete-status">
+				<span class="msg-complete-check" aria-hidden="true"></span>
+				<span>消息已完成</span>
+			</div>
+			<div class="msg-actions" aria-label="消息操作">
+				<button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">赞</button>
+				<button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">踩</button>
+				<button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">复制</button>
+				<button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">重试</button>
+			</div>
+		</div>
+	</template>
+
+	<template id="tmpl-thinking">
+		<div class="msg-thinking collapsed" data-collapsed="true">
+			<div class="msg-thinking-label">
+				<span class="thinking-icon"></span>
+				<span>思考过程</span>
+				<span style="font-size:10px;color:#aaa;">(点击展开)</span>
+			</div>
+			<div class="msg-thinking-text"></div>
+		</div>
+	</template>
+
+	<template id="tmpl-code-block">
+		<div class="msg-code-block">
+			<div class="msg-code-header">
+				<span class="msg-code-lang"></span>
+				<button class="msg-code-copy">复制</button>
+			</div>
+			<div class="msg-code-content">
+				<pre></pre>
+			</div>
+		</div>
+	</template>
+
+	<template id="tmpl-tool-call">
+		<div class="msg-tool-call">
+			<div class="msg-tool-call-header">
+				<span class="tool-icon"></span>
+				<span class="tool-name"></span>
+			</div>
+			<div class="msg-tool-call-input"></div>
+		</div>
+	</template>
+
+	<template id="tmpl-skill-call">
+		<div class="msg-skill-call">
+			<div class="msg-skill-call-header">
+				<span class="skill-icon"></span>
+				<span class="skill-badge">SKILL</span>
+				<span class="skill-name"></span>
+			</div>
+			<div class="msg-skill-call-input"></div>
+		</div>
+	</template>
+
+	<template id="tmpl-mcp-call">
+		<div class="msg-mcp-call">
+			<div class="msg-mcp-call-header">
+				<span class="mcp-icon"></span>
+				<span class="mcp-badge">MCP</span>
+				<span class="mcp-server-pill"></span>
+				<span class="mcp-tool-name"></span>
+			</div>
+			<div class="msg-mcp-call-input"></div>
+		</div>
+	</template>
 
 	<!-- Status bar -->
 	<div id="status-bar">
