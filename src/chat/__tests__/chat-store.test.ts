@@ -197,4 +197,111 @@ describe('chatStore', () => {
 			expect(cb).toHaveBeenCalled();
 		});
 	});
+
+	describe('折叠状态管理', () => {
+		it('初始折叠状态为空', () => {
+			const foldState = chatStore.getFoldState();
+			expect(foldState.foldedMessages).toEqual({});
+			expect(foldState.currentMessageIndex).toBe(0);
+			expect(foldState.foldHeight).toBe(40);
+		});
+
+		it('toggleFold 切换消息折叠状态', () => {
+			chatStore.addUserMessage('hello');
+			const msgId = chatStore.getMessages()[0].id;
+			expect(chatStore.isFolded(msgId)).toBe(false);
+			chatStore.toggleFold(msgId);
+			expect(chatStore.isFolded(msgId)).toBe(true);
+			chatStore.toggleFold(msgId);
+			expect(chatStore.isFolded(msgId)).toBe(false);
+		});
+
+		it('setFold 设置消息折叠状态', () => {
+			chatStore.addUserMessage('hello');
+			const msgId = chatStore.getMessages()[0].id;
+			chatStore.setFold(msgId, true);
+			expect(chatStore.isFolded(msgId)).toBe(true);
+			chatStore.setFold(msgId, false);
+			expect(chatStore.isFolded(msgId)).toBe(false);
+		});
+
+		it('foldAll 按角色折叠所有消息', () => {
+			chatStore.addUserMessage('u1');
+			chatStore.addAssistantMessage();
+			chatStore.addUserMessage('u2');
+			chatStore.addAssistantMessage();
+			chatStore.foldAll('user');
+			const msgs = chatStore.getMessages();
+			const userMsgs = msgs.filter(m => m.role === 'user');
+			const assistantMsgs = msgs.filter(m => m.role === 'assistant');
+			userMsgs.forEach(m => expect(chatStore.isFolded(m.id)).toBe(true));
+			assistantMsgs.forEach(m => expect(chatStore.isFolded(m.id)).toBe(false));
+		});
+
+		it('foldAll 跳过流式中的消息', () => {
+			chatStore.startStreaming(); // adds an assistant message
+			const streamingMsg = chatStore.getMessages()[chatStore.getMessages().length - 1];
+			chatStore.foldAll('assistant');
+			expect(chatStore.isFolded(streamingMsg.id)).toBe(false);
+			chatStore.finishStreaming();
+		});
+
+		it('expandAllMessages 展开所有消息', () => {
+			chatStore.addUserMessage('u1');
+			chatStore.addAssistantMessage();
+			const msgs = chatStore.getMessages();
+			msgs.forEach(m => chatStore.setFold(m.id, true));
+			chatStore.expandAllMessages();
+			msgs.forEach(m => expect(chatStore.isFolded(m.id)).toBe(false));
+		});
+
+		it('setFoldHeight 设置折叠高度', () => {
+			chatStore.setFoldHeight(80);
+			expect(chatStore.getFoldHeight()).toBe(80);
+		});
+
+		it('setCurrentMessageIndex 设置当前消息索引', () => {
+			chatStore.addUserMessage('m1');
+			chatStore.addUserMessage('m2');
+			chatStore.addUserMessage('m3');
+			chatStore.setCurrentMessageIndex(1);
+			expect(chatStore.getCurrentMessageIndex()).toBe(1);
+		});
+
+		it('setCurrentMessageIndex 边界值 clamp', () => {
+			chatStore.addUserMessage('m1');
+			chatStore.addUserMessage('m2');
+			chatStore.setCurrentMessageIndex(-1);
+			expect(chatStore.getCurrentMessageIndex()).toBe(0);
+			chatStore.setCurrentMessageIndex(100);
+			expect(chatStore.getCurrentMessageIndex()).toBe(1); // messages.length - 1
+		});
+
+		it('clearMessages 重置折叠状态', () => {
+			chatStore.addUserMessage('hello');
+			const msgId = chatStore.getMessages()[0].id;
+			chatStore.setFold(msgId, true);
+			chatStore.setCurrentMessageIndex(5);
+			chatStore.clearMessages();
+			expect(chatStore.getFoldState().foldedMessages).toEqual({});
+			expect(chatStore.getFoldState().currentMessageIndex).toBe(0);
+		});
+
+		it('折叠状态变更触发 onFoldStateChanged', () => {
+			const cb = jest.fn();
+			chatStore.on('onFoldStateChanged', cb);
+			chatStore.addUserMessage('hello');
+			const msgId = chatStore.getMessages()[0].id;
+			chatStore.toggleFold(msgId);
+			expect(cb).toHaveBeenCalled();
+		});
+
+		it('导航状态变更触发 onNavigationChanged', () => {
+			const cb = jest.fn();
+			chatStore.on('onNavigationChanged', cb);
+			chatStore.addUserMessage('m1');
+			chatStore.setCurrentMessageIndex(0);
+			expect(cb).toHaveBeenCalled();
+		});
+	});
 });
