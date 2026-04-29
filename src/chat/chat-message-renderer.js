@@ -23,6 +23,7 @@ function cloneTemplate(id) {
 export function setupMessageRenderer() {
 	chatStore.on('onMessagesChanged', renderAllMessages);
 	chatStore.on('onStreamingStateChanged', handleStreamingStateChanged);
+	chatStore.on('onFoldStateChanged', renderAllMessages);
 
 	renderAllMessages();
 }
@@ -56,22 +57,68 @@ function renderAllMessages() {
 	bindThinkingCollapse(container);
 	bindCopyButtons(container);
 	bindAssistantActionButtons(container);
+	bindFoldToggle(container);
 }
 
 function createMessageNode(msg, messages, state) {
 	const roleClass = msg.role === 'user' ? 'chat-msg-user' : 'chat-msg-assistant';
+	const isFolded = chatStore.isFolded(msg.id);
+	const isStreamingMessage = state.isStreaming && messages[messages.length - 1]?.id === msg.id;
+	const shouldFold = isFolded && !isStreamingMessage;
+
 	const div = document.createElement('div');
-	div.className = `chat-msg ${roleClass}`;
+	div.className = `chat-msg ${roleClass}${shouldFold ? ' folded' : ''}`;
+	div.dataset.messageId = msg.id;
+	div.dataset.messageIndex = String(messages.indexOf(msg));
 
-	for (const part of msg.parts) {
-		div.appendChild(createPartNode(part));
-	}
+	if (shouldFold) {
+		const previewFrag = cloneTemplate('tmpl-msg-fold-preview');
+		previewFrag.querySelector('.msg-fold-preview-text').textContent = getMessagePreview(msg);
+		div.appendChild(previewFrag);
+		div.style.maxHeight = chatStore.getFoldHeight() + 'px';
+	} else {
+		for (const part of msg.parts) {
+			div.appendChild(createPartNode(part));
+		}
 
-	if (shouldRenderAssistantFooter(msg, messages, state)) {
-		div.appendChild(createAssistantFooter(msg));
+		if (shouldRenderAssistantFooter(msg, messages, state)) {
+			div.appendChild(createAssistantFooter(msg));
+		}
+
+		const toggleBtn = document.createElement('button');
+		toggleBtn.className = 'msg-fold-toggle-btn';
+		toggleBtn.title = '折叠此消息';
+		toggleBtn.textContent = '∇';
+		div.appendChild(toggleBtn);
 	}
 
 	return div;
+}
+
+function getMessagePreview(msg) {
+	const rolePrefix = msg.role === 'user' ? '👤 ' : '🤖 ';
+	for (const part of msg.parts) {
+		if (part.type === 'output' && part.text) {
+			const plain = part.text.replace(/[*#`\[\]]/g, '').trim();
+			return rolePrefix + plain.substring(0, 60);
+		}
+		if (part.type === 'thinking' && part.text) {
+			return rolePrefix + '💡 ' + part.text.substring(0, 50);
+		}
+		if (part.type === 'tool-call') {
+			return rolePrefix + '🔧 ' + (part.toolName || 'tool');
+		}
+		if (part.type === 'skill-call') {
+			return rolePrefix + '⚡ ' + (part.skillName || 'skill');
+		}
+		if (part.type === 'mcp-call') {
+			return rolePrefix + '🔌 ' + (part.mcpToolName || 'mcp');
+		}
+		if (part.type === 'code') {
+			return rolePrefix + '💻 ' + (part.language || 'code') + ' code';
+		}
+	}
+	return rolePrefix + '(empty)';
 }
 
 function shouldRenderAssistantFooter(msg, messages, state) {
@@ -335,6 +382,22 @@ function bindAssistantActionButtons(container) {
 			if (action === 'retry') {
 				retryAssistantMessage(messageId);
 			}
+		});
+	});
+}
+
+function bindFoldToggle(container) {
+	container.querySelectorAll('.chat-msg.folded').forEach(el => {
+		el.addEventListener('click', () => {
+			chatStore.toggleFold(el.dataset.messageId);
+		});
+	});
+
+	container.querySelectorAll('.msg-fold-toggle-btn').forEach(btn => {
+		btn.addEventListener('click', (e) => {
+			e.stopPropagation();
+			const msgDiv = btn.closest('.chat-msg');
+			chatStore.toggleFold(msgDiv.dataset.messageId);
 		});
 	});
 }
