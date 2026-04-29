@@ -154,59 +154,59 @@ async function sendMessage() {
 }
 
 function handleSlashCommand(text) {
-	const parts = text.split(/\s+/);
-	const command = parts[0].toLowerCase();
-	const arg = parts[1];
+    const parts = text.split(/\s+/);
+    const command = parts[0].toLowerCase();
+    const arg = parts[1];
 
-	const messages = chatStore.getMessages();
-	const currentIndex = chatStore.getCurrentMessageIndex();
+    const rounds = chatStore.getMessages().filter(m => m.role === 'user');
+    const currentIndex = chatStore.getCurrentMessageIndex();
 
-	switch (command) {
-		case '/fold':
-			if (arg === 'all') {
-				chatStore.foldAll('assistant');
-				chatStore.foldAll('user');
-			} else if (arg === 'assistant' || arg === 'ai') {
-				chatStore.foldAll('assistant');
-			} else if (arg === 'user') {
-				chatStore.foldAll('user');
-			} else {
-				const currentMsg = messages[currentIndex];
-				if (currentMsg) {
-					chatStore.setFold(currentMsg.id, true);
-				}
-			}
-			break;
+    switch (command) {
+        case '/fold':
+            if (arg === 'all') {
+                chatStore.foldAll('assistant');
+                chatStore.foldAll('user');
+            } else if (arg === 'assistant' || arg === 'ai') {
+                chatStore.foldAll('assistant');
+            } else if (arg === 'user') {
+                chatStore.foldAll('user');
+            } else {
+                const currentMsg = rounds[currentIndex];
+                if (currentMsg) {
+                    chatStore.setFold(currentMsg.id, true);
+                }
+            }
+            break;
 
-		case '/expand':
-			if (arg === 'all') {
-				chatStore.expandAllMessages();
-			} else {
-				const currentMsg = messages[currentIndex];
-				if (currentMsg) {
-					chatStore.setFold(currentMsg.id, false);
-				}
-			}
-			break;
+        case '/expand':
+            if (arg === 'all') {
+                chatStore.expandAllMessages();
+            } else {
+                const currentMsg = rounds[currentIndex];
+                if (currentMsg) {
+                    chatStore.setFold(currentMsg.id, false);
+                }
+            }
+            break;
 
-		case '/prev':
-			if (currentIndex > 0) {
-				chatStore.setCurrentMessageIndex(currentIndex - 1);
-			}
-			break;
+        case '/prev':
+            if (currentIndex > 0) {
+                chatStore.setCurrentMessageIndex(currentIndex - 1);
+            }
+            break;
 
-		case '/next':
-			if (currentIndex < messages.length - 1) {
-				chatStore.setCurrentMessageIndex(currentIndex + 1);
-			}
-			break;
+        case '/next':
+            if (currentIndex < rounds.length - 1) {
+                chatStore.setCurrentMessageIndex(currentIndex + 1);
+            }
+            break;
 
-		case '/goto':
-			const num = parseInt(arg);
-			if (num >= 1 && num <= messages.length) {
-				chatStore.setCurrentMessageIndex(num - 1);
-			}
-			break;
+        case '/goto':
+            const num = parseInt(arg);
+            if (num >= 1 && num <= rounds.length) {
+                chatStore.setCurrentMessageIndex(num - 1);
+            }
+            break;
 	}
 }
 

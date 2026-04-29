@@ -2,340 +2,341 @@
 <html lang="zh-CN">
 
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Monaco Editor Demo</title>
-	<style>
-		/* Critical: prevent FOUC — hide everything until JS/CSS modules load */
-		body { visibility: hidden; }
-		.menu-dropdown, .modal, #dialog-overlay { display: none; }
-		.menu-entry[disabled] { opacity: 0.4; pointer-events: none; }
-	</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monaco Editor Demo</title>
+    <style>
+        /* Critical: prevent FOUC — hide everything until JS/CSS modules load */
+        body { visibility: hidden; }
+        .menu-dropdown, .modal, #dialog-overlay { display: none; }
+        .menu-entry[disabled] { opacity: 0.4; pointer-events: none; }
+    </style>
 </head>
 
 <body data-theme="light">
-	<!-- Menu Bar -->
-	<div id="menu-bar">
-		<div class="menu-item" data-menu="file">文件</div>
-		<div class="menu-item" data-menu="edit">编辑</div>
-		<div class="menu-item" data-menu="selection">选择</div>
-		<div class="menu-item" data-menu="view">视图</div>
-		<div class="menu-item" data-menu="help">帮助</div>
-		<div id="layout-controls" aria-label="布局控制">
-			<button id="layout-primary-toggle" class="layout-toggle active" title="Toggle Primary Sidebar" aria-pressed="true">|--</button>
-			<button id="layout-panel-toggle" class="layout-toggle" title="Toggle Panel" aria-pressed="false">_|_</button>
-			<button id="layout-secondary-toggle" class="layout-toggle" title="Toggle Secondary Sidebar" aria-pressed="true">--|</button>
-		</div>
-	</div>
+    <!-- Menu Bar -->
+    <div id="menu-bar">
+        <div class="menu-item" data-menu="file">文件</div>
+        <div class="menu-item" data-menu="edit">编辑</div>
+        <div class="menu-item" data-menu="selection">选择</div>
+        <div class="menu-item" data-menu="view">视图</div>
+        <div class="menu-item" data-menu="help">帮助</div>
+        <div id="layout-controls" aria-label="布局控制">
+            <button id="layout-primary-toggle" class="layout-toggle active" title="Toggle Primary Sidebar" aria-pressed="true">|--</button>
+            <button id="layout-panel-toggle" class="layout-toggle" title="Toggle Panel" aria-pressed="false">_|_</button>
+            <button id="layout-secondary-toggle" class="layout-toggle" title="Toggle Secondary Sidebar" aria-pressed="true">--|</button>
+        </div>
+    </div>
 
-	<!-- Dropdown menus -->
-	<div id="menu-dropdowns">
-		<!-- 文件菜单 -->
-			<div class="menu-dropdown" data-menu="file">
-			<div class="menu-entry" data-action="new-file">新建文件<span class="shortcut">Alt+N</span></div>
-			<div class="menu-entry menu-entry-submenu">
-				<span>从模板新建文件</span>
-				<span class="submenu-arrow">›</span>
-				<div class="submenu">
-					<div class="menu-entry" data-action="new-template-python">Python</div>
-					<div class="menu-entry" data-action="new-template-cpp">C++</div>
-					<div class="menu-entry" data-action="new-template-go">Go</div>
-				</div>
-			</div>
-			<div class="menu-entry" data-action="new-window">新建窗口<span class="shortcut">Shift+Alt+N</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="open-file">打开文件...<span class="shortcut">Ctrl+O</span></div>
-			<div class="menu-entry" data-action="open-folder">打开文件夹...</div>
-			<div class="menu-entry" data-action="open-recent">打开最近</div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="save">保存<span class="shortcut">Ctrl+S</span></div>
-			<div class="menu-entry" data-action="save-as">另存为...<span class="shortcut">Ctrl+Shift+S</span></div>
-			<div class="menu-entry" data-action="save-all">全部保存</div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="close-editor">关闭编辑器<span class="shortcut">Alt+W</span></div>
-			<div class="menu-entry" data-action="close-window">关闭窗口</div>
-		</div>
+    <!-- Dropdown menus -->
+    <div id="menu-dropdowns">
+        <!-- 文件菜单 -->
+            <div class="menu-dropdown" data-menu="file">
+            <div class="menu-entry" data-action="new-file">新建文件<span class="shortcut">Alt+N</span></div>
+            <div class="menu-entry menu-entry-submenu">
+                <span>从模板新建文件</span>
+                <span class="submenu-arrow">›</span>
+                <div class="submenu">
+                    <div class="menu-entry" data-action="new-template-python">Python</div>
+                    <div class="menu-entry" data-action="new-template-cpp">C++</div>
+                    <div class="menu-entry" data-action="new-template-go">Go</div>
+                </div>
+            </div>
+            <div class="menu-entry" data-action="new-window">新建窗口<span class="shortcut">Shift+Alt+N</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="open-file">打开文件...<span class="shortcut">Ctrl+O</span></div>
+            <div class="menu-entry" data-action="open-folder">打开文件夹...</div>
+            <div class="menu-entry" data-action="open-recent">打开最近</div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="save">保存<span class="shortcut">Ctrl+S</span></div>
+            <div class="menu-entry" data-action="save-as">另存为...<span class="shortcut">Ctrl+Shift+S</span></div>
+            <div class="menu-entry" data-action="save-all">全部保存</div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="close-editor">关闭编辑器<span class="shortcut">Alt+W</span></div>
+            <div class="menu-entry" data-action="close-window">关闭窗口</div>
+        </div>
 
-		<!-- 编辑菜单 -->
-		<div class="menu-dropdown" data-menu="edit">
-			<div class="menu-entry" data-action="undo">撤销<span class="shortcut">Ctrl+Z</span></div>
-			<div class="menu-entry" data-action="redo">恢复<span class="shortcut">Ctrl+Y</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="cut">剪切<span class="shortcut">Ctrl+X</span></div>
-			<div class="menu-entry" data-action="copy">复制<span class="shortcut">Ctrl+C</span></div>
-			<div class="menu-entry" data-action="paste">粘贴<span class="shortcut">Ctrl+V</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="find">查找<span class="shortcut">Ctrl+F</span></div>
-			<div class="menu-entry" data-action="replace">替换<span class="shortcut">Ctrl+H</span></div>
-		</div>
+        <!-- 编辑菜单 -->
+        <div class="menu-dropdown" data-menu="edit">
+            <div class="menu-entry" data-action="undo">撤销<span class="shortcut">Ctrl+Z</span></div>
+            <div class="menu-entry" data-action="redo">恢复<span class="shortcut">Ctrl+Y</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="cut">剪切<span class="shortcut">Ctrl+X</span></div>
+            <div class="menu-entry" data-action="copy">复制<span class="shortcut">Ctrl+C</span></div>
+            <div class="menu-entry" data-action="paste">粘贴<span class="shortcut">Ctrl+V</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="find">查找<span class="shortcut">Ctrl+F</span></div>
+            <div class="menu-entry" data-action="replace">替换<span class="shortcut">Ctrl+H</span></div>
+        </div>
 
-		<!-- 选择菜单 -->
-		<div class="menu-dropdown" data-menu="selection">
-			<div class="menu-entry" data-action="select-all">全选<span class="shortcut">Ctrl+A</span></div>
-			<div class="menu-entry" data-action="expand-selection">展开选择<span class="shortcut">Ctrl+Shift+→</span></div>
-			<div class="menu-entry" data-action="shrink-selection">收缩选择<span class="shortcut">Ctrl+Shift+←</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="copy-line-up">向上复制行<span class="shortcut">Alt+↑</span></div>
-			<div class="menu-entry" data-action="copy-line-down">向下复制行<span class="shortcut">Alt+↓</span></div>
-			<div class="menu-entry" data-action="move-line-up">向上移动行<span class="shortcut">Shift+Alt+↑</span></div>
-			<div class="menu-entry" data-action="move-line-down">向下移动行<span class="shortcut">Shift+Alt+↓</span></div>
-		</div>
+        <!-- 选择菜单 -->
+        <div class="menu-dropdown" data-menu="selection">
+            <div class="menu-entry" data-action="select-all">全选<span class="shortcut">Ctrl+A</span></div>
+            <div class="menu-entry" data-action="expand-selection">展开选择<span class="shortcut">Ctrl+Shift+→</span></div>
+            <div class="menu-entry" data-action="shrink-selection">收缩选择<span class="shortcut">Ctrl+Shift+←</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="copy-line-up">向上复制行<span class="shortcut">Alt+↑</span></div>
+            <div class="menu-entry" data-action="copy-line-down">向下复制行<span class="shortcut">Alt+↓</span></div>
+            <div class="menu-entry" data-action="move-line-up">向上移动行<span class="shortcut">Shift+Alt+↑</span></div>
+            <div class="menu-entry" data-action="move-line-down">向下移动行<span class="shortcut">Shift+Alt+↓</span></div>
+        </div>
 
-		<!-- 视图菜单 -->
-		<div class="menu-dropdown" data-menu="view">
-			<div class="menu-entry" data-action="command-palette" disabled>命令面板...<span class="shortcut">Ctrl+Shift+P</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="explorer">资源管理器<span class="shortcut">Ctrl+B</span></div>
-				<div class="menu-entry" data-action="ai-chat">AI 对话<span class="shortcut">Ctrl+Shift+E</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="zoom-in">放大<span class="shortcut">Ctrl+=</span></div>
-			<div class="menu-entry" data-action="zoom-out">缩小<span class="shortcut">Ctrl+-</span></div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="minimap-toggle">切换缩略图</div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="theme-light">浅色主题</div>
-			<div class="menu-entry" data-action="theme-dark">深色主题</div>
-			<div class="menu-separator"></div>
-			<div class="menu-entry" data-action="language-select">语言模式...<span class="shortcut">Ctrl+Shift+L</span></div>
-		</div>
+        <!-- 视图菜单 -->
+        <div class="menu-dropdown" data-menu="view">
+            <div class="menu-entry" data-action="command-palette" disabled>命令面板...<span class="shortcut">Ctrl+Shift+P</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="explorer">资源管理器<span class="shortcut">Ctrl+B</span></div>
+                <div class="menu-entry" data-action="ai-chat">AI 对话<span class="shortcut">Ctrl+Shift+E</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="zoom-in">放大<span class="shortcut">Ctrl+=</span></div>
+            <div class="menu-entry" data-action="zoom-out">缩小<span class="shortcut">Ctrl+-</span></div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="minimap-toggle">切换缩略图</div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="theme-light">浅色主题</div>
+            <div class="menu-entry" data-action="theme-dark">深色主题</div>
+            <div class="menu-separator"></div>
+            <div class="menu-entry" data-action="language-select">语言模式...<span class="shortcut">Ctrl+Shift+L</span></div>
+        </div>
 
-		<!-- 帮助菜单 -->
-		<div class="menu-dropdown" data-menu="help">
-			<div class="menu-entry" data-action="about">关于</div>
-		</div>
-	</div>
+        <!-- 帮助菜单 -->
+        <div class="menu-dropdown" data-menu="help">
+            <div class="menu-entry" data-action="about">关于</div>
+        </div>
+    </div>
 
-	<!-- Language Select Modal -->
-	<div id="language-modal" class="modal hidden">
-		<div class="modal-content">
-			<div class="modal-title">选择语言模式</div>
-			<select id="language-modal-select">
-				<option value="python">Python</option>
-				<option value="cpp">C++</option>
-				<option value="go">Go</option>
-				<option value="javascript">JavaScript</option>
-				<option value="typescript">TypeScript</option>
-				<option value="json">JSON</option>
-				<option value="html">HTML</option>
-				<option value="css">CSS</option>
-				<option value="markdown">Markdown</option>
-				<option value="plaintext">纯文本</option>
-			</select>
-			<div class="modal-buttons">
-				<button class="btn-primary" id="language-modal-ok">确定</button>
-				<button class="btn-secondary" id="language-modal-cancel">取消</button>
-			</div>
-		</div>
-	</div>
+    <!-- Language Select Modal -->
+    <div id="language-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-title">选择语言模式</div>
+            <select id="language-modal-select">
+                <option value="python">Python</option>
+                <option value="cpp">C++</option>
+                <option value="go">Go</option>
+                <option value="javascript">JavaScript</option>
+                <option value="typescript">TypeScript</option>
+                <option value="json">JSON</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="markdown">Markdown</option>
+                <option value="plaintext">纯文本</option>
+            </select>
+            <div class="modal-buttons">
+                <button class="btn-primary" id="language-modal-ok">确定</button>
+                <button class="btn-secondary" id="language-modal-cancel">取消</button>
+            </div>
+        </div>
+    </div>
 
-	<!-- Workspace: sidebar + editor area + chat panel -->
-	<div id="workspace">
-		<aside id="sidebar">
-			<div id="sidebar-header">EXPLORER</div>
-			<div id="file-tree">
-				<div class="tree-empty">打开文件夹以浏览文件</div>
-			</div>
-		</aside>
-		<div id="editor-area">
-			<div id="tab-bar"></div>
-			<div id="editor-container"></div>
-		</div>
+    <!-- Workspace: sidebar + editor area + chat panel -->
+    <div id="workspace">
+        <aside id="sidebar">
+            <div id="sidebar-header">EXPLORER</div>
+            <div id="file-tree">
+                <div class="tree-empty">打开文件夹以浏览文件</div>
+            </div>
+        </aside>
+        <div id="editor-area">
+            <div id="tab-bar"></div>
+            <div id="editor-container"></div>
+        </div>
 
-		<!-- AI Chat Panel -->
-		<div id="chat-panel" class="chat-hidden">
-			<div id="chat-resize-handle"></div>
-			<div id="chat-header">
-				<div id="chat-title">AI 对话</div>
-				<button id="chat-close-btn" title="关闭">&#x2715;</button>
-			</div>
-			<div id="chat-nav-toolbar">
-				<div id="chat-nav-left">
-					<button id="chat-fold-all-assistant" class="chat-nav-btn" title="折叠所有助手消息">&#x2261;</button>
-					<button id="chat-fold-all-user" class="chat-nav-btn" title="折叠所有用户消息">&#x2261;</button>
-					<button id="chat-expand-all" class="chat-nav-btn" title="展开所有消息">&#x2295;</button>
-				</div>
-				<div id="chat-nav-center">
-					<button id="chat-nav-prev" class="chat-nav-btn" title="上一条">&#x25C0;</button>
-					<span id="chat-nav-position">0/0</span>
-					<button id="chat-nav-next" class="chat-nav-btn" title="下一条">&#x25B6;</button>
-				</div>
-				<div id="chat-nav-right">
-					<select id="chat-fold-height-select" title="折叠高度">
-						<option value="32">32px</option>
-						<option value="40" selected>40px</option>
-						<option value="60">60px</option>
-						<option value="80">80px</option>
-						<option value="120">120px</option>
-					</select>
-					<button id="chat-nav-goto-btn" class="chat-nav-btn" title="跳转到指定消息">#</button>
-				</div>
-			</div>
-			<div id="chat-messages"></div>
-			<div id="chat-context-bar"></div>
-			<div id="chat-thinking-indicator" class="hidden">
-				<span class="thinking-dot"></span>
-				<span id="thinking-text">思考中...</span>
-			</div>
-			<div id="chat-input-area">
-				<textarea id="chat-input" placeholder="用 &quot;@&quot; 添加上下文，&quot;Shift+Enter&quot; 换行" rows="1"></textarea>
-				<div id="chat-input-bottom-row">
-					<div id="chat-mode-selector">
-						<select id="chat-mode-select">
-							<option value="ask">Ask</option>
-							<option value="plan">Plan</option>
-							<option value="agent">Agent</option>
-						</select>
-					</div>
-					<div id="chat-action-buttons">
-						<button id="chat-send-btn" title="发送">&#x27A4;</button>
-						<button id="chat-stop-btn" class="hidden" title="停止生成">&#x25A0;</button>
-					</div>
-				</div>
-			</div>
-		</div>
+        <!-- AI Chat Panel -->
+        <div id="chat-panel" class="chat-hidden">
+            <div id="chat-resize-handle"></div>
+            <div id="chat-header">
+                <div id="chat-title">AI 对话</div>
+                <button id="chat-close-btn" title="关闭">&#x2715;</button>
+            </div>
+            <div id="chat-nav-toolbar">
+                <div id="chat-nav-left">
+                    <button id="chat-fold-toggle-btn" class="chat-nav-btn" title="折叠全部">&#x2261;</button>
+                    <select id="chat-fold-target-select" title="折叠目标">
+                        <option value="all">全部</option>
+                        <option value="assistant">助手</option>
+                        <option value="user">用户</option>
+                    </select>
+                    <select id="chat-fold-height-select" title="折叠高度">
+                        <option value="32">32px</option>
+                        <option value="40" selected>40px</option>
+                        <option value="60">60px</option>
+                        <option value="80">80px</option>
+                        <option value="120">120px</option>
+                    </select>
+                </div>
+                <div id="chat-nav-center">
+                    <button id="chat-nav-prev" class="chat-nav-btn" title="上一轮">&#x25C0;</button>
+                    <input id="chat-nav-goto-input" class="chat-nav-goto-input" type="number" min="1" title="跳转到指定轮次">
+                    <span id="chat-nav-position">/0</span>
+                    <button id="chat-nav-next" class="chat-nav-btn" title="下一轮">&#x25B6;</button>
+                </div>
+            </div>
+            <div id="chat-messages"></div>
+            <div id="chat-context-bar"></div>
+            <div id="chat-thinking-indicator" class="hidden">
+                <span class="thinking-dot"></span>
+                <span id="thinking-text">思考中...</span>
+            </div>
+            <div id="chat-input-area">
+                <textarea id="chat-input" placeholder="用 &quot;@&quot; 添加上下文，&quot;Shift+Enter&quot; 换行" rows="1"></textarea>
+                <div id="chat-input-bottom-row">
+                    <div id="chat-mode-selector">
+                        <select id="chat-mode-select">
+                            <option value="ask">Ask</option>
+                            <option value="plan">Plan</option>
+                            <option value="agent">Agent</option>
+                        </select>
+                    </div>
+                    <div id="chat-action-buttons">
+                        <button id="chat-send-btn" title="发送">&#x27A4;</button>
+                        <button id="chat-stop-btn" class="hidden" title="停止生成">&#x25A0;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-		<!-- @mention popup -->
-		<div id="chat-mention-popup" class="hidden"></div>
+        <!-- @mention popup -->
+        <div id="chat-mention-popup" class="hidden"></div>
 
-		<!-- File context menu overlay -->
-		<div id="chat-context-menu" class="hidden"></div>
-	</div>
+        <!-- File context menu overlay -->
+        <div id="chat-context-menu" class="hidden"></div>
+    </div>
 
-	<!-- Bottom Panel -->
-	<div id="bottom-panel" class="layout-hidden">
-		<div id="bottom-panel-header">PANEL</div>
-		<div id="bottom-panel-content">
-			<div class="bottom-panel-empty">暂无面板内容</div>
-		</div>
-	</div>
+    <!-- Bottom Panel -->
+    <div id="bottom-panel" class="layout-hidden">
+        <div id="bottom-panel-header">PANEL</div>
+        <div id="bottom-panel-content">
+            <div class="bottom-panel-empty">暂无面板内容</div>
+        </div>
+    </div>
 
-	<!-- Dialog overlay -->
-	<div id="dialog-overlay" class="hidden">
-		<div id="dialog-box">
-			<div id="dialog-message"></div>
-			<div id="dialog-buttons"></div>
-		</div>
-	</div>
+    <!-- Dialog overlay -->
+    <div id="dialog-overlay" class="hidden">
+        <div id="dialog-box">
+            <div id="dialog-message"></div>
+            <div id="dialog-buttons"></div>
+        </div>
+    </div>
 
-	<!-- Diff Viewer overlay -->
-	<div id="diff-overlay" class="hidden">
-		<div id="diff-header">
-			<span id="diff-header-original">原始文件</span>
-			<span class="diff-header-arrow">&rarr;</span>
-			<span id="diff-header-modified">修改文件</span>
-			<button id="diff-mode-btn">并排 &#x2194; 内联</button>
-			<button id="diff-close-btn" title="关闭 (Esc)">&times;</button>
-		</div>
-		<div id="diff-editor-container"></div>
-	</div>
+    <!-- Diff Viewer overlay -->
+    <div id="diff-overlay" class="hidden">
+        <div id="diff-header">
+            <span id="diff-header-original">原始文件</span>
+            <span class="diff-header-arrow">&rarr;</span>
+            <span id="diff-header-modified">修改文件</span>
+            <button id="diff-mode-btn">并排 &#x2194; 内联</button>
+            <button id="diff-close-btn" title="关闭 (Esc)">&times;</button>
+        </div>
+        <div id="diff-editor-container"></div>
+    </div>
 
-	<!-- Toast -->
-	<div id="toast-container"></div>
+    <!-- Toast -->
+    <div id="toast-container"></div>
 
-	<!-- Chat message templates -->
-	<template id="tmpl-empty-state">
-		<div class="chat-empty-state">
-			<div class="chat-empty-state-icon"></div>
-			<div class="chat-empty-state-title">AI 对话</div>
-			<div>选择模式开始对话</div>
-			<div style="font-size: 11px; color: #999;">
-				Ask — 问答模式<br>
-				Plan — 规划模式<br>
-				Agent — 执行模式
-			</div>
-		</div>
-	</template>
+    <!-- Chat message templates -->
+    <template id="tmpl-empty-state">
+        <div class="chat-empty-state">
+            <div class="chat-empty-state-icon"></div>
+            <div class="chat-empty-state-title">AI 对话</div>
+            <div>选择模式开始对话</div>
+            <div style="font-size: 11px; color: #999;">
+                Ask — 问答模式<br>
+                Plan — 规划模式<br>
+                Agent — 执行模式
+            </div>
+        </div>
+    </template>
 
-	<template id="tmpl-assistant-footer">
-		<div class="msg-assistant-footer">
-			<div class="msg-complete-status">
-				<span class="msg-complete-check" aria-hidden="true"></span>
-				<span>任务完成</span>
-			</div>
-			<div class="msg-actions" aria-label="消息操作">
-				<button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">👍</button>
-				<button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">👎</button>
-				<button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">📋</button>
-				<button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">🔄</button>
-			</div>
-		</div>
-	</template>
+    <template id="tmpl-assistant-footer">
+        <div class="msg-assistant-footer">
+            <div class="msg-complete-status">
+                <span class="msg-complete-check" aria-hidden="true"></span>
+                <span>任务完成</span>
+            </div>
+            <div class="msg-actions" aria-label="消息操作">
+                <button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">👍</button>
+                <button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">👎</button>
+                <button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">📋</button>
+                <button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">🔄</button>
+            </div>
+        </div>
+    </template>
 
-	<template id="tmpl-thinking">
-		<div class="msg-thinking collapsed" data-collapsed="true">
-			<div class="msg-thinking-label">
-				<span class="thinking-icon"></span>
-				<span>思考过程</span>
-				<span class="thinking-toggle"></span>
-			</div>
-			<div class="msg-thinking-text"></div>
-		</div>
-	</template>
+    <template id="tmpl-thinking">
+        <div class="msg-thinking collapsed" data-collapsed="true">
+            <div class="msg-thinking-label">
+                <span class="thinking-icon"></span>
+                <span>思考过程</span>
+                <span class="thinking-toggle"></span>
+            </div>
+            <div class="msg-thinking-text"></div>
+        </div>
+    </template>
 
-	<template id="tmpl-code-block">
-		<div class="msg-code-block">
-			<div class="msg-code-header">
-				<span class="msg-code-lang"></span>
-				<button class="msg-code-copy">复制</button>
-			</div>
-			<div class="msg-code-content">
-				<pre></pre>
-			</div>
-		</div>
-	</template>
+    <template id="tmpl-code-block">
+        <div class="msg-code-block">
+            <div class="msg-code-header">
+                <span class="msg-code-lang"></span>
+                <button class="msg-code-copy">复制</button>
+            </div>
+            <div class="msg-code-content">
+                <pre></pre>
+            </div>
+        </div>
+    </template>
 
-	<template id="tmpl-tool-call">
-		<div class="msg-tool-call">
-			<div class="msg-tool-call-header">
-				<span class="tool-icon"></span>
-				<span class="tool-name"></span>
-			</div>
-			<div class="msg-tool-call-input"></div>
-		</div>
-	</template>
+    <template id="tmpl-tool-call">
+        <div class="msg-tool-call">
+            <div class="msg-tool-call-header">
+                <span class="tool-icon"></span>
+                <span class="tool-name"></span>
+            </div>
+            <div class="msg-tool-call-input"></div>
+        </div>
+    </template>
 
-	<template id="tmpl-skill-call">
-		<div class="msg-skill-call">
-			<div class="msg-skill-call-header">
-				<span class="skill-icon"></span>
-				<span class="skill-badge">SKILL</span>
-				<span class="skill-name"></span>
-			</div>
-			<div class="msg-skill-call-input"></div>
-		</div>
-	</template>
+    <template id="tmpl-skill-call">
+        <div class="msg-skill-call">
+            <div class="msg-skill-call-header">
+                <span class="skill-icon"></span>
+                <span class="skill-badge">SKILL</span>
+                <span class="skill-name"></span>
+            </div>
+            <div class="msg-skill-call-input"></div>
+        </div>
+    </template>
 
-	<template id="tmpl-mcp-call">
-		<div class="msg-mcp-call">
-			<div class="msg-mcp-call-header">
-				<span class="mcp-icon"></span>
-				<span class="mcp-badge">MCP</span>
-				<span class="mcp-server-pill"></span>
-				<span class="mcp-tool-name"></span>
-			</div>
-			<div class="msg-mcp-call-input"></div>
-		</div>
-	</template>
+    <template id="tmpl-mcp-call">
+        <div class="msg-mcp-call">
+            <div class="msg-mcp-call-header">
+                <span class="mcp-icon"></span>
+                <span class="mcp-badge">MCP</span>
+                <span class="mcp-server-pill"></span>
+                <span class="mcp-tool-name"></span>
+            </div>
+            <div class="msg-mcp-call-input"></div>
+        </div>
+    </template>
 
-	<template id="tmpl-msg-fold-preview">
-		<div class="msg-fold-preview">
-			<span class="msg-fold-preview-text"></span>
-			<span class="msg-fold-expand-icon">&#x25BC;</span>
-		</div>
-	</template>
+    <template id="tmpl-msg-fold-preview">
+        <div class="msg-fold-preview">
+            <span class="msg-fold-preview-text"></span>
+            <span class="msg-fold-expand-icon">&#x25BC;</span>
+        </div>
+    </template>
 
-	<!-- Status bar -->
-	<div id="status-bar">
-		<div id="status-left">
-			<span id="lsp-status" class="lsp-status disconnected">LSP: 未连接</span>
-		</div>
-		<div id="status-right">
-			<span id="status-language">语言</span>
-			<span id="status-line-col">行 1, 列 1</span>
-		</div>
-	</div>
+    <!-- Status bar -->
+    <div id="status-bar">
+        <div id="status-left">
+            <span id="lsp-status" class="lsp-status disconnected">LSP: 未连接</span>
+        </div>
+        <div id="status-right">
+            <span id="status-language">语言</span>
+            <span id="status-line-col">行 1, 列 1</span>
+        </div>
+    </div>
 
-	<script type="module" src="./main.js"></script>
+    <script type="module" src="./main.js"></script>
 </body>
 
 </html>
