@@ -89,6 +89,11 @@
 	background: transparent;
 }
 
+#chat-input::placeholder {
+	color: #aaa;
+	opacity: 1;
+}
+
 #chat-input-bottom-row {
 	display: flex;
 	align-items: center;
