@@ -17,6 +17,11 @@ const chatState = {
 	abortController: null,
 	skillRegistry: [],       // SkillDescriptor[]
 	mcpRegistry: [],         // McpToolDescriptor[]
+	foldState: {
+		foldedMessages: {},      // { messageId: true }
+		currentMessageIndex: 0,
+		foldHeight: 40,
+	},
 };
 
 /** 生成唯一 ID */
@@ -33,6 +38,8 @@ const callbacks = {
 	onPanelVisibilityChanged: [],
 	onSkillRegistryChanged: [],
 	onMcpRegistryChanged: [],
+	onFoldStateChanged: [],
+	onNavigationChanged: [],
 };
 
 /**
@@ -120,7 +127,10 @@ export function appendStreamingText(messageId, text) {
  */
 export function clearMessages() {
 	chatState.messages = [];
+	chatState.foldState.foldedMessages = {};
+	chatState.foldState.currentMessageIndex = 0;
 	emit('onMessagesChanged');
+	emit('onFoldStateChanged');
 }
 
 /**
@@ -369,6 +379,63 @@ export function closePanel() {
  */
 export function isPanelVisible() {
 	return chatState.panelVisible;
+}
+
+// ============ 折叠与导航状态 ============
+
+export function toggleFold(messageId) {
+	const current = chatState.foldState.foldedMessages[messageId];
+	chatState.foldState.foldedMessages[messageId] = !current;
+	emit('onFoldStateChanged');
+}
+
+export function setFold(messageId, folded) {
+	chatState.foldState.foldedMessages[messageId] = folded;
+	emit('onFoldStateChanged');
+}
+
+export function foldAll(role) {
+	const streamingId = chatState.isStreaming
+		? chatState.messages[chatState.messages.length - 1]?.id
+		: null;
+	chatState.messages.forEach(msg => {
+		if (msg.role === role && msg.id !== streamingId) {
+			chatState.foldState.foldedMessages[msg.id] = true;
+		}
+	});
+	emit('onFoldStateChanged');
+}
+
+export function expandAllMessages() {
+	chatState.foldState.foldedMessages = {};
+	emit('onFoldStateChanged');
+}
+
+export function isFolded(messageId) {
+	return chatState.foldState.foldedMessages[messageId] || false;
+}
+
+export function setFoldHeight(height) {
+	chatState.foldState.foldHeight = height;
+	emit('onFoldStateChanged');
+}
+
+export function getFoldHeight() {
+	return chatState.foldState.foldHeight;
+}
+
+export function setCurrentMessageIndex(index) {
+	const clamped = Math.max(0, Math.min(index, chatState.messages.length - 1));
+	chatState.foldState.currentMessageIndex = clamped;
+	emit('onNavigationChanged');
+}
+
+export function getCurrentMessageIndex() {
+	return chatState.foldState.currentMessageIndex;
+}
+
+export function getFoldState() {
+	return { ...chatState.foldState };
 }
 
 /**
