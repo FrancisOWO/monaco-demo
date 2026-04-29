@@ -33,7 +33,7 @@ import { initializeUI } from './chat/chat-icons.js';
 const logger = getLogger('Main');
 
 // 初始化 UI 符号和文本
-initializeUI();
+// initializeUI();
 
 // 初始化日志控制面板
 initLogPanel();

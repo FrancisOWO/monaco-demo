@@ -21,7 +21,7 @@ function createElement(id = '') {
         classList: createClassList(['hidden']),
         setAttribute: jest.fn(),
         appendChild: jest.fn(),
-        querySelectorAll: jest.fn(() => []),
+        querySelectorAll: jest.fn() as jest.MockedFunction<() => any[]>,
         querySelector: jest.fn(() => null),
         getBoundingClientRect: jest.fn(() => ({ left: 12 })),
         addEventListener: jest.fn((event: string, handler: Function) => {

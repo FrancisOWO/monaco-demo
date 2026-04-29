@@ -7,7 +7,7 @@
 import * as chatStore from './chat-store.js';
 import { streamChatMessage } from './chat-stream-client.js';
 import * as monaco from 'monaco-editor';
-import { ICON, LABEL, TITLE, ACTION_ICON } from './chat-icons.js';
+import { ICON, LABEL, TITLE } from './chat-icons.js';
 
 let monacoReady = false;
 
@@ -89,7 +89,7 @@ function createMessageNode(msg, messages, state) {
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'msg-fold-toggle-btn';
         toggleBtn.title = TITLE.FOLD_TOGGLE;
-        toggleBtn.textContent = ICON.FOLD_TOGGLE;
+        // 图标通过 CSS 伪元素显示，无需设置 textContent
         div.appendChild(toggleBtn);
     }
 
@@ -133,31 +133,10 @@ function createAssistantFooter(msg) {
     const footer = frag.querySelector('.msg-assistant-footer');
     footer.dataset.messageId = msg.id;
 
-    // 设置任务完成文本
+    // 设置任务完成文本（图标通过 CSS 伪元素显示）
     const taskCompleteText = frag.querySelector('#tmpl-task-complete-text');
     if (taskCompleteText) {
         taskCompleteText.textContent = LABEL.TASK_COMPLETE;
-    }
-
-    // 设置操作按钮图标
-    const likeBtn = frag.querySelector('#tmpl-like-btn');
-    if (likeBtn) {
-        likeBtn.textContent = ACTION_ICON.LIKE;
-    }
-
-    const dislikeBtn = frag.querySelector('#tmpl-dislike-btn');
-    if (dislikeBtn) {
-        dislikeBtn.textContent = ACTION_ICON.DISLIKE;
-    }
-
-    const copyBtn = frag.querySelector('#tmpl-copy-btn');
-    if (copyBtn) {
-        copyBtn.textContent = ACTION_ICON.COPY;
-    }
-
-    const retryBtn = frag.querySelector('#tmpl-retry-btn');
-    if (retryBtn) {
-        retryBtn.textContent = ACTION_ICON.RETRY;
     }
 
     return frag;
@@ -321,7 +300,6 @@ function createCodeNode(part) {
     frag.querySelector('.msg-code-lang').textContent = language;
     const copyBtn = frag.querySelector('.msg-code-copy');
     if (copyBtn) {
-        copyBtn.textContent = LABEL.COPY;
         copyBtn.dataset.code = code;
     }
     const contentDiv = frag.querySelector('.msg-code-content');
@@ -385,8 +363,9 @@ function bindCopyButtons(container) {
             const code = btn.dataset.code;
             if (code) {
                 navigator.clipboard.writeText(code).then(() => {
-                    btn.textContent = LABEL.COPIED;
-                    setTimeout(() => btn.textContent = LABEL.COPY, 2000);
+                    // 添加 copied 类来显示"已复制"文本
+                    btn.classList.add('copied');
+                    setTimeout(() => btn.classList.remove('copied'), 2000);
                 });
             }
         });
@@ -447,8 +426,9 @@ async function copyAssistantMessage(message, btn) {
 
     try {
         await navigator.clipboard.writeText(text);
-        btn.textContent = LABEL.COPIED;
-        setTimeout(() => btn.textContent = LABEL.COPY, 2000);
+        // 添加 copied 类来显示"已复制"状态
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 2000);
     } catch (e) {
         console.warn('[ChatRenderer] Failed to copy assistant message:', e);
     }

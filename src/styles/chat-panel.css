@@ -158,6 +158,11 @@
     color: #fff;
 }
 
+/* 发送按钮图标 */
+#chat-send-btn::before {
+    content: "➤";
+}
+
 #chat-send-btn:hover {
     background: #005a9c;
 }
@@ -171,6 +176,11 @@
 #chat-stop-btn {
     background: #f44336;
     color: #fff;
+}
+
+/* 停止按钮图标 */
+#chat-stop-btn::before {
+    content: "■";
 }
 
 #chat-stop-btn:hover {
@@ -193,6 +203,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+/* 关闭按钮图标 */
+#chat-close-btn::before {
+    content: "✕";
 }
 
 #chat-close-btn:hover {
@@ -254,6 +269,16 @@
     color: #333;
 }
 
+/* 上一轮导航按钮图标 */
+#chat-nav-prev::before {
+    content: "◀";
+}
+
+/* 下一轮导航按钮图标 */
+#chat-nav-next::before {
+    content: "▶";
+}
+
 #chat-fold-toggle-btn {
     font-size: 14px;
     font-weight: 600;
@@ -271,11 +296,13 @@
 }
 
 #chat-fold-target-select {
-    width: 48px;
+    width: 50px;
+    height: 18px;
 }
 
 #chat-fold-height-select {
-    width: 58px;
+    width: 56x;
+    height: 18px;
 }
 
 #chat-fold-target-select:hover,
@@ -284,7 +311,8 @@
 }
 
 #chat-nav-goto-input {
-    width: 28px;
+    width: 40px;
+    height: 18px;
     font-size: 11px;
     text-align: center;
     border: 1px solid #d0d0d0;
@@ -401,6 +429,11 @@
     color: #aaa;
 }
 
+/* 折叠展开图标 */
+.msg-fold-expand-icon::before {
+    content: "▶";
+}
+
 .chat-msg-user.folded .msg-fold-preview {
     background: #e0f0ff;
     color: #007acc;
@@ -427,6 +460,11 @@
     transition: opacity 0.2s;
 }
 
+/* 消息折叠切换按钮图标 */
+.msg-fold-toggle-btn::before {
+    content: "∇";
+}
+
 .chat-msg:hover .msg-fold-toggle-btn {
     opacity: 1;
 }
@@ -434,6 +472,15 @@
 .msg-fold-toggle-btn:hover {
     background: #e0e0e0;
     color: #333;
+}
+
+/* Toolbar fold toggle button - 使用 data-state 切换图标 */
+#chat-fold-toggle-btn::before {
+    content: "－";
+}
+
+#chat-fold-toggle-btn[data-state="expanded"]::before {
+    content: "＋";
 }
 
 .msg-nav-highlight {
@@ -488,6 +535,8 @@
     flex-wrap: wrap;
 }
 
+/* === Message Action Buttons (使用 CSS 伪元素显示图标) === */
+
 .msg-action-btn {
     border: 1px solid transparent;
     background: transparent;
@@ -508,6 +557,30 @@
     background: #eef6ff;
     border-color: #bfdbfe;
     color: #007acc;
+}
+
+/* 点赞按钮图标 */
+.msg-action-btn[data-action="like"]::before {
+    content: "👍";
+}
+
+/* 点踩按钮图标 */
+.msg-action-btn[data-action="dislike"]::before {
+    content: "👎";
+}
+
+/* 复制按钮图标 */
+.msg-action-btn[data-action="copy"]::before {
+    content: "📋";
+}
+
+.msg-action-btn[data-action="copy"].copied::before {
+    content: "✓";
+}
+
+/* 重试按钮图标 */
+.msg-action-btn[data-action="retry"]::before {
+    content: "🔄";
 }
 
 /* === Thinking Part === */
@@ -798,14 +871,24 @@
     color: #aaa;
 }
 
+/* === Code Block Copy Button === */
+
 .msg-code-copy {
     border: none;
     background: none;
     color: #aaa;
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 2px 8px;
     border-radius: 3px;
     font-size: 11px;
+}
+
+.msg-code-copy::before {
+    content: "复制";
+}
+
+.msg-code-copy.copied::before {
+    content: "已复制";
 }
 
 .msg-code-copy:hover {
@@ -986,6 +1069,19 @@
 
 .mention-item-icon {
     font-size: 14px;
+}
+
+/* Mention popup 图标 - 使用 CSS 伪元素 */
+.mention-item-icon.context-chip-icon::before {
+    content: "📄";
+}
+
+.mention-item-icon.skill-chip-icon::before {
+    content: "⚡";
+}
+
+.mention-item-icon.mcp-chip-icon::before {
+    content: "🔌";
 }
 
 .mention-item-path {

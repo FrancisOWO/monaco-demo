@@ -4,7 +4,7 @@
  * 其他文件导入常量使用，不要硬编码
  */
 
-// 图标 emoji
+// 图标 emoji（主要用于 CSS content 和动态内容）
 export const ICON = {
     THINKING: '💡',
     TOOL: '🔧',
@@ -20,8 +20,8 @@ export const ICON = {
     SPARKLE: '✨',
     FOLD_TOGGLE: '∇',
     FOLD_EXPAND: '▼',
-    FOLD_COLLAPSED: '≡',
-    FOLD_EXPANDED: '⊕',
+    FOLD_COLLAPSED: '－',
+    FOLD_EXPANDED: '＋',
 };
 
 // 按钮 unicode 字符
@@ -65,7 +65,7 @@ export const TITLE = {
     FOLD_HEIGHT: '折叠高度',
 };
 
-// 操作按钮图标
+// 操作按钮图标（主要用于 CSS content）
 export const ACTION_ICON = {
     LIKE: '👍',
     DISLIKE: '👎',
@@ -105,48 +105,10 @@ export const DIFF_TEXT = {
 /**
  * 初始化所有 UI 元素的符号和文本
  * 在页面加载后调用此函数
+ * 注意：图标现在主要通过 CSS 伪元素显示，此函数仅处理动态文本
  */
 export function initializeUI() {
-    // Submenu arrow
-    const submenuArrow = document.getElementById('submenu-arrow-char');
-    if (submenuArrow) {
-        submenuArrow.textContent = SYMBOL.SUBMENU;
-    }
-
-    // Chat buttons
-    const sendBtn = document.getElementById('chat-send-btn');
-    if (sendBtn) {
-        sendBtn.textContent = SYMBOL.SEND;
-    }
-
-    const stopBtn = document.getElementById('chat-stop-btn');
-    if (stopBtn) {
-        stopBtn.textContent = SYMBOL.STOP;
-    }
-
-    // Close button
-    const closeBtn = document.getElementById('chat-close-btn');
-    if (closeBtn) {
-        closeBtn.textContent = SYMBOL.CLOSE;
-    }
-
-    // Fold toggle button
-    const foldToggleBtn = document.getElementById('chat-fold-toggle-btn');
-    if (foldToggleBtn) {
-        foldToggleBtn.textContent = ICON.FOLD_COLLAPSED;
-    }
-
-    // Navigation buttons
-    const prevBtn = document.getElementById('chat-nav-prev');
-    if (prevBtn) {
-        prevBtn.textContent = SYMBOL.PREV;
-    }
-
-    const nextBtn = document.getElementById('chat-nav-next');
-    if (nextBtn) {
-        nextBtn.textContent = SYMBOL.NEXT;
-    }
-
+    // Chat buttons - 图标通过 CSS 伪元素显示，无需 JS 设置
     // Thinking indicator text
     const thinkingText = document.getElementById('thinking-text');
     if (thinkingText) {
@@ -170,44 +132,9 @@ export function initializeUI() {
         diffModeBtn.textContent = DIFF_TEXT.MODE_TOGGLE;
     }
 
-    const diffCloseBtn = document.getElementById('diff-close-btn');
-    if (diffCloseBtn) {
-        diffCloseBtn.textContent = SYMBOL.CLOSE;
-    }
-
-    // Template elements
+    // Template elements - 仅设置文本，图标通过 CSS 伪元素显示
     const taskCompleteText = document.getElementById('tmpl-task-complete-text');
     if (taskCompleteText) {
         taskCompleteText.textContent = LABEL.TASK_COMPLETE;
-    }
-
-    const likeBtn = document.getElementById('tmpl-like-btn');
-    if (likeBtn) {
-        likeBtn.textContent = ACTION_ICON.LIKE;
-    }
-
-    const dislikeBtn = document.getElementById('tmpl-dislike-btn');
-    if (dislikeBtn) {
-        dislikeBtn.textContent = ACTION_ICON.DISLIKE;
-    }
-
-    const copyBtn = document.getElementById('tmpl-copy-btn');
-    if (copyBtn) {
-        copyBtn.textContent = ACTION_ICON.COPY;
-    }
-
-    const retryBtn = document.getElementById('tmpl-retry-btn');
-    if (retryBtn) {
-        retryBtn.textContent = ACTION_ICON.RETRY;
-    }
-
-    const codeCopyBtn = document.getElementById('tmpl-code-copy-btn');
-    if (codeCopyBtn) {
-        codeCopyBtn.textContent = LABEL.COPY;
-    }
-
-    const foldExpandIcon = document.getElementById('tmpl-fold-expand-icon');
-    if (foldExpandIcon) {
-        foldExpandIcon.textContent = SYMBOL.NEXT;
     }
 }

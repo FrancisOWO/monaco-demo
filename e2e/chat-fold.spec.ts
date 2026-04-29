@@ -1,3 +1,4 @@
+/// <reference types="@playwright/test" />
 import { test, expect } from '@playwright/test';
 
 test.describe('Chat fold/navigation', () => {
@@ -28,8 +29,8 @@ test.describe('Chat fold/navigation', () => {
         const folded = page.locator('.chat-msg.folded');
         await expect(folded).toHaveCount(2);
 
-        // 断言：按钮变为 ⊕（展开状态）
-        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('⊕');
+        // 断言：按钮变为 ＋（展开状态）
+        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('＋');
     });
 
     test('expand toggle restores all messages', async ({ page }) => {
@@ -44,7 +45,7 @@ test.describe('Chat fold/navigation', () => {
         // 再展开
         await page.locator('#chat-fold-toggle-btn').click();
         await expect(page.locator('.chat-msg.folded')).toHaveCount(0);
-        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('≡');
+        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('－');
     });
 
     test('fold target select controls which role folds', async ({ page }) => {
@@ -183,8 +184,8 @@ test.describe('Chat fold/navigation', () => {
     });
 
     test('fold toggle button state changes correctly', async ({ page }) => {
-        // 初始状态：≡ 按钮，目标选择可用
-        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('≡');
+        // 初始状态：－ 按钮，目标选择可用
+        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('－');
         await expect(page.locator('#chat-fold-target-select')).toBeEnabled();
 
         // 发送消息后折叠
@@ -194,8 +195,8 @@ test.describe('Chat fold/navigation', () => {
 
         await page.locator('#chat-fold-toggle-btn').click();
 
-        // 折叠后：⊕ 按钮，目标选择禁用
-        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('⊕');
+        // 折叠后：＋ 按钮，目标选择禁用
+        await expect(page.locator('#chat-fold-toggle-btn')).toHaveText('＋');
         await expect(page.locator('#chat-fold-target-select')).toBeDisabled();
     });
 });

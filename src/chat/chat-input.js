@@ -7,7 +7,7 @@ import * as chatStore from './chat-store.js';
 import { streamChatMessage, fetchFileContext } from './chat-stream-client.js';
 import { openFiles } from '../file-system/file-store.js';
 import { getFileTreeRoot } from '../ui/sidebar.js';
-import { ICON, FILE_ICON_MAP, DEFAULT_FILE_ICON } from './chat-icons.js';
+import { FILE_ICON_MAP, DEFAULT_FILE_ICON } from './chat-icons.js';
 
 const AI_CHAT_URL = 'http://localhost:3000/ai/chat';
 
@@ -269,17 +269,17 @@ function showMentionPopup(query, cursorPos) {
 
     if (mentionType === 'all' || mentionType === 'file') {
         const fileList = buildFileList();
-        fileList.forEach(f => allItems.push({ ...f, category: 'file', icon: getFileIcon(f.name) }));
+        fileList.forEach(f => allItems.push({ ...f, category: 'file', iconClass: getFileIconClass(f.name) }));
     }
 
     if (mentionType === 'all' || mentionType === 'skill') {
         const skills = chatStore.getSkillRegistry();
-        skills.forEach(s => allItems.push({ name: s.name, path: s.id, category: 'skill', icon: ICON.SKILL }));
+        skills.forEach(s => allItems.push({ name: s.name, path: s.id, category: 'skill', iconClass: 'skill-chip-icon' }));
     }
 
     if (mentionType === 'all' || mentionType === 'mcp') {
         const mcpTools = chatStore.getMcpRegistry();
-        mcpTools.forEach(t => allItems.push({ name: t.name, path: `${t.server}/${t.toolId}`, category: 'mcp', icon: ICON.MCP }));
+        mcpTools.forEach(t => allItems.push({ name: t.name, path: `${t.server}/${t.toolId}`, category: 'mcp', iconClass: 'mcp-chip-icon' }));
     }
 
     // 按关键词过滤
@@ -299,11 +299,11 @@ function showMentionPopup(query, cursorPos) {
     // 渲染弹窗内容（带分类标签）
     popup.innerHTML = filteredItems.map((f, i) =>
         `<div class="mention-item ${i === 0 ? 'active' : ''}" data-index="${i}">
-			<span class="mention-item-icon">${f.icon}</span>
-			<span class="mention-category-badge mention-category-${f.category}">${f.category.toUpperCase()}</span>
-			<span class="mention-item-name">${f.name}</span>
-			<span class="mention-item-path">${f.path}</span>
-		</div>`
+            <span class="mention-item-icon ${f.iconClass}"></span>
+            <span class="mention-category-badge mention-category-${f.category}">${f.category.toUpperCase()}</span>
+            <span class="mention-item-name">${f.name}</span>
+            <span class="mention-item-path">${f.path}</span>
+        </div>`
     ).join('');
 
     // 定位弹窗
@@ -408,7 +408,28 @@ function flattenTreeNodes(node, result) {
 }
 
 /**
- * 根据文件名返回图标
+ * 根据文件名返回图标 CSS class
+ */
+function getFileIconClass(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    // 映射到对应的 context-chip-icon class
+    const iconMap = {
+        py: 'context-chip-icon',
+        js: 'context-chip-icon',
+        ts: 'context-chip-icon',
+        css: 'context-chip-icon',
+        html: 'context-chip-icon',
+        json: 'context-chip-icon',
+        md: 'context-chip-icon',
+        cpp: 'context-chip-icon',
+        go: 'context-chip-icon',
+        txt: 'context-chip-icon',
+    };
+    return iconMap[ext] || 'context-chip-icon';
+}
+
+/**
+ * 根据文件名返回图标 emoji（保留用于其他用途）
  */
 function getFileIcon(name) {
     const ext = name.split('.').pop();

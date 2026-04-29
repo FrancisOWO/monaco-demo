@@ -56,6 +56,60 @@
     flex-shrink: 0;
 }
 
+/* 文件夹图标 */
+.tree-icon.folder-closed::before {
+    content: "📁";
+}
+
+.tree-icon.folder-open::before {
+    content: "📂";
+}
+
+/* 文件类型图标 */
+.tree-icon.file-py::before {
+    content: "🐍";
+}
+
+.tree-icon.file-js::before {
+    content: "📜";
+}
+
+.tree-icon.file-ts::before {
+    content: "📘";
+}
+
+.tree-icon.file-css::before {
+    content: "🎨";
+}
+
+.tree-icon.file-html::before {
+    content: "🌐";
+}
+
+.tree-icon.file-json::before {
+    content: "📋";
+}
+
+.tree-icon.file-md::before {
+    content: "📝";
+}
+
+.tree-icon.file-cpp::before {
+    content: "⚙️";
+}
+
+.tree-icon.file-go::before {
+    content: "🦫";
+}
+
+.tree-icon.file-txt::before {
+    content: "📄";
+}
+
+.tree-icon.file-default::before {
+    content: "📄";
+}
+
 .tree-expand {
     width: 16px;
     text-align: center;

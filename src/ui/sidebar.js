@@ -8,7 +8,6 @@ import { openFileFromHandle, setActiveFile, activeFilePath, openFiles } from '..
 import { readFileContent } from '../file-system/fs-access.js';
 import { addFileContext, openPanel } from '../chat/chat-store.js';
 import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelection } from '../ui/diff-viewer.js';
-import { FILE_ICON_MAP, DEFAULT_FILE_ICON } from '../chat/chat-icons.js';
 
 const logger = getLogger('Sidebar');
 
@@ -62,10 +61,9 @@ function renderNode(node, depth, editor) {
         expand.className = 'tree-expand';
         expand.textContent = node.expanded ? '▾' : '▸';
 
-        // 图标
+        // 图标 - 使用 CSS class 切换
         const icon = document.createElement('span');
-        icon.className = 'tree-icon';
-        icon.textContent = node.expanded ? '📂' : '📁';
+        icon.className = 'tree-icon ' + (node.expanded ? 'folder-open' : 'folder-closed');
 
         // 名称
         const label = document.createElement('span');
@@ -105,8 +103,7 @@ function renderNode(node, depth, editor) {
     } else {
         // 文件节点
         const icon = document.createElement('span');
-        icon.className = 'tree-icon';
-        icon.textContent = getFileIcon(node.name);
+        icon.className = 'tree-icon ' + getFileIconClass(node.name);
 
         const label = document.createElement('span');
         label.className = 'tree-label';
@@ -161,6 +158,27 @@ function updateActiveHighlight() {
 function getFileIcon(name) {
     const ext = name.split('.').pop().toLowerCase();
     return FILE_ICON_MAP[ext] || DEFAULT_FILE_ICON;
+}
+
+/**
+ * 根据文件名返回图标 CSS class
+ */
+function getFileIconClass(name) {
+    const ext = name.split('.').pop().toLowerCase();
+    // 映射到对应的 tree-icon class
+    const iconMap = {
+        py: 'file-py',
+        js: 'file-js',
+        ts: 'file-ts',
+        css: 'file-css',
+        html: 'file-html',
+        json: 'file-json',
+        md: 'file-md',
+        cpp: 'file-cpp',
+        go: 'file-go',
+        txt: 'file-txt',
+    };
+    return iconMap[ext] || 'file-default';
 }
 
 /**

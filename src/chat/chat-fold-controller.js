@@ -4,7 +4,7 @@
  */
 
 import * as chatStore from './chat-store.js';
-import { ICON, LABEL, TITLE } from './chat-icons.js';
+import { LABEL, TITLE } from './chat-icons.js';
 
 export function setupFoldController() {
     bindToolbarButtons();
@@ -63,11 +63,12 @@ function updateFoldToggleButton() {
     const targetSelect = document.getElementById('chat-fold-target-select');
 
     if (hasAnyFolded) {
-        btn.textContent = ICON.FOLD_EXPANDED;
+        // 使用 data-state 属性切换 CSS 伪元素
+        btn.dataset.state = 'expanded';
         btn.title = TITLE.EXPAND_ALL;
         targetSelect.disabled = true;
     } else {
-        btn.textContent = ICON.FOLD_COLLAPSED;
+        btn.dataset.state = 'collapsed';
         btn.title = TITLE.FOLD_ALL;
         targetSelect.disabled = false;
     }
