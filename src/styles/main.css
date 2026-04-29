@@ -3,387 +3,388 @@
  */
 
 * {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
 body {
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	min-height: 100vh;
-	overflow: hidden;
-	transition: background-color 0.3s, color 0.3s;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    overflow: hidden;
+    transition: background-color 0.3s, color 0.3s;
 }
 
 #workspace {
-	display: flex;
-	width: 100%;
-	height: calc(100vh - 30px - 24px); /* menu bar 30px + status bar 24px */
+    display: flex;
+    width: 100%;
+    height: calc(100vh - 30px - 24px);
+    /* menu bar 30px + status bar 24px */
 }
 
 body.panel-visible #workspace {
-	height: calc(100vh - 30px - 24px - 180px);
+    height: calc(100vh - 30px - 24px - 180px);
 }
 
 .layout-hidden {
-	display: none !important;
+    display: none !important;
 }
 
 #bottom-panel {
-	height: 180px;
-	border-top: 1px solid;
-	overflow: hidden;
+    height: 180px;
+    border-top: 1px solid;
+    overflow: hidden;
 }
 
 #bottom-panel-header {
-	height: 30px;
-	display: flex;
-	align-items: center;
-	padding: 0 12px;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 1px;
-	opacity: 0.7;
-	border-bottom: 1px solid;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    opacity: 0.7;
+    border-bottom: 1px solid;
 }
 
 #bottom-panel-content {
-	height: calc(100% - 30px);
-	overflow: auto;
-	padding: 12px;
+    height: calc(100% - 30px);
+    overflow: auto;
+    padding: 12px;
 }
 
 .bottom-panel-empty {
-	font-size: 13px;
-	opacity: 0.55;
+    font-size: 13px;
+    opacity: 0.55;
 }
 
 /* LSP 状态样式 */
 .lsp-status {
-	font-size: 12px;
-	padding: 4px 8px;
-	border-radius: 4px;
-	transition: all 0.3s;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    transition: all 0.3s;
 }
 
 .lsp-status.connected {
-	background-color: #28a745;
-	color: #fff;
+    background-color: #28a745;
+    color: #fff;
 }
 
 .lsp-status.connecting {
-	background-color: #ffc107;
-	color: #333;
+    background-color: #ffc107;
+    color: #333;
 }
 
 .lsp-status.disconnected {
-	background-color: #6c757d;
-	color: #fff;
+    background-color: #6c757d;
+    color: #fff;
 }
 
 .lsp-status.error {
-	background-color: #dc3545;
-	color: #fff;
+    background-color: #dc3545;
+    color: #fff;
 }
 
 .lsp-status.disabled {
-	background-color: #6c757d;
-	color: #fff;
+    background-color: #6c757d;
+    color: #fff;
 }
 
 /* Dialog overlay */
 #dialog-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	background: rgba(0, 0, 0, 0.4);
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	z-index: 10000;
-	transition: opacity 0.2s;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    transition: opacity 0.2s;
 }
 
 #dialog-overlay.hidden {
-	opacity: 0;
-	pointer-events: none;
+    opacity: 0;
+    pointer-events: none;
 }
 
 #dialog-box {
-	background: #fff;
-	border-radius: 8px;
-	padding: 20px 24px;
-	min-width: 320px;
-	max-width: 480px;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    background: #fff;
+    border-radius: 8px;
+    padding: 20px 24px;
+    min-width: 320px;
+    max-width: 480px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 #dialog-message {
-	font-size: 14px;
-	line-height: 1.5;
-	margin-bottom: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px;
 }
 
 #dialog-buttons {
-	display: flex;
-	justify-content: flex-end;
-	gap: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
 }
 
 #dialog-buttons button {
-	padding: 6px 16px;
-	font-size: 13px;
-	border: 1px solid;
-	border-radius: 4px;
-	cursor: pointer;
-	transition: background-color 0.2s;
+    padding: 6px 16px;
+    font-size: 13px;
+    border: 1px solid;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
 }
 
 #dialog-buttons .btn-primary {
-	background: #007acc;
-	color: #fff;
-	border-color: #007acc;
+    background: #007acc;
+    color: #fff;
+    border-color: #007acc;
 }
 
 #dialog-buttons .btn-secondary {
-	background: transparent;
-	border-color: #ccc;
+    background: transparent;
+    border-color: #ccc;
 }
 
 /* Toast */
 #toast-container {
-	position: fixed;
-	bottom: 50px;
-	right: 20px;
-	z-index: 10001;
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
+    position: fixed;
+    bottom: 50px;
+    right: 20px;
+    z-index: 10001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .toast {
-	padding: 8px 16px;
-	font-size: 13px;
-	border-radius: 4px;
-	background: #333;
-	color: #fff;
-	opacity: 0;
-	transform: translateY(10px);
-	transition: opacity 0.3s, transform 0.3s;
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 4px;
+    background: #333;
+    color: #fff;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s, transform 0.3s;
 }
 
 .toast.show {
-	opacity: 1;
-	transform: translateY(0);
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .toast.info {
-	background: #007acc;
+    background: #007acc;
 }
 
 .toast.warning {
-	background: #ffc107;
-	color: #333;
+    background: #ffc107;
+    color: #333;
 }
 
 .toast.error {
-	background: #dc3545;
+    background: #dc3545;
 }
 
 /* Log Panel (floating draggable) */
 .status-log-btn {
-	cursor: pointer;
-	padding: 2px 8px;
-	border-radius: 2px;
-	transition: background-color 0.2s;
-	font-size: 12px;
+    cursor: pointer;
+    padding: 2px 8px;
+    border-radius: 2px;
+    transition: background-color 0.2s;
+    font-size: 12px;
 }
 
 .status-log-btn:hover {
-	background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.15);
 }
 
 .status-log-btn.active {
-	background: rgba(255, 255, 255, 0.25);
+    background: rgba(255, 255, 255, 0.25);
 }
 
 #log-panel {
-	position: fixed;
-	width: 220px;
-	background: #1e1e1e;
-	border: 1px solid #3c3c3c;
-	border-radius: 6px;
-	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	font-size: 12px;
-	color: #ccc;
-	z-index: 10000;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-	overflow: hidden;
+    position: fixed;
+    width: 220px;
+    background: #1e1e1e;
+    border: 1px solid #3c3c3c;
+    border-radius: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 12px;
+    color: #ccc;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
 }
 
 #log-panel.hidden {
-	display: none;
+    display: none;
 }
 
 .log-panel-drag-bar {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 6px 10px;
-	background: #2d2d2d;
-	cursor: grab;
-	user-select: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    background: #2d2d2d;
+    cursor: grab;
+    user-select: none;
 }
 
 .log-panel-drag-bar:active {
-	cursor: grabbing;
+    cursor: grabbing;
 }
 
 .log-panel-title {
-	font-weight: 600;
-	font-size: 12px;
-	color: #fff;
+    font-weight: 600;
+    font-size: 12px;
+    color: #fff;
 }
 
 .log-panel-close {
-	background: none;
-	border: none;
-	color: #888;
-	font-size: 16px;
-	cursor: pointer;
-	padding: 0 4px;
-	line-height: 1;
-	transition: color 0.2s;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.2s;
 }
 
 .log-panel-close:hover {
-	color: #fff;
+    color: #fff;
 }
 
 .log-panel-content {
-	max-height: 300px;
-	overflow-y: auto;
+    max-height: 300px;
+    overflow-y: auto;
 }
 
 .log-module-item {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 6px 10px;
-	border-bottom: 1px solid #3c3c3c;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 10px;
+    border-bottom: 1px solid #3c3c3c;
 }
 
 .log-module-item:last-child {
-	border-bottom: none;
+    border-bottom: none;
 }
 
 .log-module-item:hover {
-	background: rgba(255, 255, 255, 0.06);
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .log-module-name {
-	font-weight: 500;
-	max-width: 120px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+    font-weight: 500;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .log-module-controls {
-	display: flex;
-	align-items: center;
+    display: flex;
+    align-items: center;
 }
 
 .log-module-level {
-	font-size: 10px;
-	color: #888;
-	margin-right: 6px;
+    font-size: 10px;
+    color: #888;
+    margin-right: 6px;
 }
 
 .log-module-toggle {
-	position: relative;
-	width: 32px;
-	height: 16px;
-	background: #555;
-	border-radius: 8px;
-	cursor: pointer;
-	transition: background 0.2s;
+    position: relative;
+    width: 32px;
+    height: 16px;
+    background: #555;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
 }
 
 .log-module-toggle.enabled {
-	background: #0c7a58;
+    background: #0c7a58;
 }
 
 .log-module-toggle::after {
-	content: '';
-	position: absolute;
-	top: 2px;
-	left: 2px;
-	width: 12px;
-	height: 12px;
-	background: #fff;
-	border-radius: 50%;
-	transition: transform 0.2s;
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
 }
 
 .log-module-toggle.enabled::after {
-	transform: translateX(16px);
+    transform: translateX(16px);
 }
 
 #log-panel::-webkit-scrollbar {
-	width: 6px;
+    width: 6px;
 }
 
 #log-panel::-webkit-scrollbar-track {
-	background: #1e1e1e;
+    background: #1e1e1e;
 }
 
 #log-panel::-webkit-scrollbar-thumb {
-	background: #555;
-	border-radius: 3px;
+    background: #555;
+    border-radius: 3px;
 }
 
 /* Light theme overrides for log panel */
 body[data-theme="light"] #log-panel {
-	background: #fff;
-	border-color: #d0d0d0;
-	color: #333;
+    background: #fff;
+    border-color: #d0d0d0;
+    color: #333;
 }
 
 body[data-theme="light"] .log-panel-drag-bar {
-	background: #f0f0f0;
+    background: #f0f0f0;
 }
 
 body[data-theme="light"] .log-panel-title {
-	color: #333;
+    color: #333;
 }
 
 body[data-theme="light"] .log-panel-close {
-	color: #666;
+    color: #666;
 }
 
 body[data-theme="light"] .log-panel-close:hover {
-	color: #333;
+    color: #333;
 }
 
 body[data-theme="light"] .log-module-item {
-	border-bottom-color: #e0e0e0;
+    border-bottom-color: #e0e0e0;
 }
 
 body[data-theme="light"] .log-module-item:hover {
-	background: rgba(0, 0, 0, 0.04);
+    background: rgba(0, 0, 0, 0.04);
 }
 
 body[data-theme="light"] .log-module-level {
-	color: #888;
+    color: #888;
 }
 
 body[data-theme="light"] #log-panel::-webkit-scrollbar-track {
-	background: #fff;
+    background: #fff;
 }
 
 body[data-theme="light"] #log-panel::-webkit-scrollbar-thumb {
-	background: #ccc;
+    background: #ccc;
 }

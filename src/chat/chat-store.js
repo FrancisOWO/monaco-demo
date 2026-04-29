@@ -7,39 +7,39 @@ const logger = { info: (...args) => console.log('[ChatStore]', ...args) };
 
 /** 对话状态 */
 const chatState = {
-	mode: 'ask',            // 'ask' | 'plan' | 'agent'
-	messages: [],            // ChatMessage[]
-	contextItems: [],        // ContextItem[]
-	isStreaming: false,
-	streamingText: '',
-	thinkingPhase: '',
-	panelVisible: true,
-	abortController: null,
-	skillRegistry: [],       // SkillDescriptor[]
-	mcpRegistry: [],         // McpToolDescriptor[]
-	foldState: {
-		foldedMessages: {},      // { messageId: true }
-		currentMessageIndex: 0,
-		foldHeight: 40,
-	},
+    mode: 'ask',            // 'ask' | 'plan' | 'agent'
+    messages: [],            // ChatMessage[]
+    contextItems: [],        // ContextItem[]
+    isStreaming: false,
+    streamingText: '',
+    thinkingPhase: '',
+    panelVisible: true,
+    abortController: null,
+    skillRegistry: [],       // SkillDescriptor[]
+    mcpRegistry: [],         // McpToolDescriptor[]
+    foldState: {
+        foldedMessages: {},      // { messageId: true }
+        currentMessageIndex: 0,
+        foldHeight: 40,
+    },
 };
 
 /** 生成唯一 ID */
 function generateId() {
-	return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+    return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
 /** 事件回调注册 */
 const callbacks = {
-	onMessagesChanged: [],
-	onModeChanged: [],
-	onContextChanged: [],
-	onStreamingStateChanged: [],
-	onPanelVisibilityChanged: [],
-	onSkillRegistryChanged: [],
-	onMcpRegistryChanged: [],
-	onFoldStateChanged: [],
-	onNavigationChanged: [],
+    onMessagesChanged: [],
+    onModeChanged: [],
+    onContextChanged: [],
+    onStreamingStateChanged: [],
+    onPanelVisibilityChanged: [],
+    onSkillRegistryChanged: [],
+    onMcpRegistryChanged: [],
+    onFoldStateChanged: [],
+    onNavigationChanged: [],
 };
 
 /**
@@ -48,13 +48,13 @@ const callbacks = {
  * @param {Function} callback 回调函数
  */
 export function on(event, callback) {
-	if (callbacks[event]) {
-		callbacks[event].push(callback);
-	}
+    if (callbacks[event]) {
+        callbacks[event].push(callback);
+    }
 }
 
 function emit(event) {
-	callbacks[event]?.forEach(cb => cb());
+    callbacks[event]?.forEach(cb => cb());
 }
 
 // ============ 消息管理 ============
@@ -64,13 +64,13 @@ function emit(event) {
  * @param {string} text 用户输入文本
  */
 export function addUserMessage(text) {
-	chatState.messages.push({
-		id: generateId(),
-		role: 'user',
-		parts: [{ type: 'output', text }],
-		timestamp: Date.now(),
-	});
-	emit('onMessagesChanged');
+    chatState.messages.push({
+        id: generateId(),
+        role: 'user',
+        parts: [{ type: 'output', text }],
+        timestamp: Date.now(),
+    });
+    emit('onMessagesChanged');
 }
 
 /**
@@ -78,15 +78,15 @@ export function addUserMessage(text) {
  * @returns {string} 消息 ID
  */
 export function addAssistantMessage() {
-	const id = generateId();
-	chatState.messages.push({
-		id,
-		role: 'assistant',
-		parts: [],
-		timestamp: Date.now(),
-	});
-	emit('onMessagesChanged');
-	return id;
+    const id = generateId();
+    chatState.messages.push({
+        id,
+        role: 'assistant',
+        parts: [],
+        timestamp: Date.now(),
+    });
+    emit('onMessagesChanged');
+    return id;
 }
 
 /**
@@ -95,11 +95,11 @@ export function addAssistantMessage() {
  * @param {MessagePart} part 消息部分
  */
 export function appendMessagePart(messageId, part) {
-	const msg = chatState.messages.find(m => m.id === messageId);
-	if (msg) {
-		msg.parts.push(part);
-		emit('onMessagesChanged');
-	}
+    const msg = chatState.messages.find(m => m.id === messageId);
+    if (msg) {
+        msg.parts.push(part);
+        emit('onMessagesChanged');
+    }
 }
 
 /**
@@ -108,36 +108,36 @@ export function appendMessagePart(messageId, part) {
  * @param {string} text 流式文本片段
  */
 export function appendStreamingText(messageId, text) {
-	const msg = chatState.messages.find(m => m.id === messageId);
-	if (!msg) return;
+    const msg = chatState.messages.find(m => m.id === messageId);
+    if (!msg) return;
 
-	// 找到最后一个 output part，追加文本
-	const lastOutput = msg.parts.findLastIndex(p => p.type === 'output');
-	if (lastOutput >= 0) {
-		msg.parts[lastOutput].text += text;
-	} else {
-		// 没有 output part，创建一个新的
-		msg.parts.push({ type: 'output', text });
-	}
-	emit('onMessagesChanged');
+    // 找到最后一个 output part，追加文本
+    const lastOutput = msg.parts.findLastIndex(p => p.type === 'output');
+    if (lastOutput >= 0) {
+        msg.parts[lastOutput].text += text;
+    } else {
+        // 没有 output part，创建一个新的
+        msg.parts.push({ type: 'output', text });
+    }
+    emit('onMessagesChanged');
 }
 
 /**
  * 清空所有消息
  */
 export function clearMessages() {
-	chatState.messages = [];
-	chatState.foldState.foldedMessages = {};
-	chatState.foldState.currentMessageIndex = 0;
-	emit('onMessagesChanged');
-	emit('onFoldStateChanged');
+    chatState.messages = [];
+    chatState.foldState.foldedMessages = {};
+    chatState.foldState.currentMessageIndex = 0;
+    emit('onMessagesChanged');
+    emit('onFoldStateChanged');
 }
 
 /**
  * 获取所有消息
  */
 export function getMessages() {
-	return chatState.messages;
+    return chatState.messages;
 }
 
 // ============ 模式管理 ============
@@ -147,17 +147,17 @@ export function getMessages() {
  * @param {'ask'|'plan'|'agent'} mode 模式
  */
 export function setMode(mode) {
-	if (['ask', 'plan', 'agent'].includes(mode)) {
-		chatState.mode = mode;
-		emit('onModeChanged');
-	}
+    if (['ask', 'plan', 'agent'].includes(mode)) {
+        chatState.mode = mode;
+        emit('onModeChanged');
+    }
 }
 
 /**
  * 获取当前模式
  */
 export function getMode() {
-	return chatState.mode;
+    return chatState.mode;
 }
 
 // ============ 上下文管理 ============
@@ -169,12 +169,12 @@ export function getMode() {
  * @param {string} content 文件内容
  */
 export function addFileContext(path, name, content) {
-	// 避免重复添加
-	if (chatState.contextItems.some(item => item.path === path && item.type === 'file')) {
-		return;
-	}
-	chatState.contextItems.push({ type: 'file', path, name, content });
-	emit('onContextChanged');
+    // 避免重复添加
+    if (chatState.contextItems.some(item => item.path === path && item.type === 'file')) {
+        return;
+    }
+    chatState.contextItems.push({ type: 'file', path, name, content });
+    emit('onContextChanged');
 }
 
 /**
@@ -185,10 +185,10 @@ export function addFileContext(path, name, content) {
  * @param {{ startLine: number, endLine: number }} range 行范围
  */
 export function addSelectionContext(path, name, content, range) {
-	chatState.contextItems.push({
-		type: 'selection', path, name, content, range,
-	});
-	emit('onContextChanged');
+    chatState.contextItems.push({
+        type: 'selection', path, name, content, range,
+    });
+    emit('onContextChanged');
 }
 
 /**
@@ -196,23 +196,23 @@ export function addSelectionContext(path, name, content, range) {
  * @param {number} index 索引
  */
 export function removeContextItem(index) {
-	chatState.contextItems.splice(index, 1);
-	emit('onContextChanged');
+    chatState.contextItems.splice(index, 1);
+    emit('onContextChanged');
 }
 
 /**
  * 清空所有上下文
  */
 export function clearContext() {
-	chatState.contextItems = [];
-	emit('onContextChanged');
+    chatState.contextItems = [];
+    emit('onContextChanged');
 }
 
 /**
  * 获取所有上下文项
  */
 export function getContextItems() {
-	return chatState.contextItems;
+    return chatState.contextItems;
 }
 
 // ============ 流式状态管理 ============
@@ -222,12 +222,12 @@ export function getContextItems() {
  * @returns {string} 消息 ID
  */
 export function startStreaming() {
-	chatState.isStreaming = true;
-	chatState.streamingText = '';
-	chatState.thinkingPhase = '';
-	const messageId = addAssistantMessage();
-	emit('onStreamingStateChanged');
-	return messageId;
+    chatState.isStreaming = true;
+    chatState.streamingText = '';
+    chatState.thinkingPhase = '';
+    const messageId = addAssistantMessage();
+    emit('onStreamingStateChanged');
+    return messageId;
 }
 
 /**
@@ -235,8 +235,8 @@ export function startStreaming() {
  * @param {string} phase 提示文本
  */
 export function setThinkingPhase(phase) {
-	chatState.thinkingPhase = phase;
-	emit('onStreamingStateChanged');
+    chatState.thinkingPhase = phase;
+    emit('onStreamingStateChanged');
 }
 
 /**
@@ -244,27 +244,27 @@ export function setThinkingPhase(phase) {
  * @param {AbortController} controller
  */
 export function setAbortController(controller) {
-	chatState.abortController = controller;
+    chatState.abortController = controller;
 }
 
 /**
  * 结束流式响应
  */
 export function finishStreaming() {
-	chatState.isStreaming = false;
-	chatState.thinkingPhase = '';
-	chatState.abortController = null;
-	emit('onStreamingStateChanged');
+    chatState.isStreaming = false;
+    chatState.thinkingPhase = '';
+    chatState.abortController = null;
+    emit('onStreamingStateChanged');
 }
 
 /**
  * 中止流式响应
  */
 export function abortStreaming() {
-	if (chatState.abortController) {
-		chatState.abortController.abort();
-	}
-	finishStreaming();
+    if (chatState.abortController) {
+        chatState.abortController.abort();
+    }
+    finishStreaming();
 }
 
 // ============ Skill & MCP Registry ============
@@ -274,8 +274,8 @@ export function abortStreaming() {
  * @param {Array} registry Skill 列表
  */
 export function setSkillRegistry(registry) {
-	chatState.skillRegistry = registry;
-	emit('onSkillRegistryChanged');
+    chatState.skillRegistry = registry;
+    emit('onSkillRegistryChanged');
 }
 
 /**
@@ -283,22 +283,22 @@ export function setSkillRegistry(registry) {
  * @param {Array} registry MCP 工具列表
  */
 export function setMcpRegistry(registry) {
-	chatState.mcpRegistry = registry;
-	emit('onMcpRegistryChanged');
+    chatState.mcpRegistry = registry;
+    emit('onMcpRegistryChanged');
 }
 
 /**
  * 获取 Skill 注册列表
  */
 export function getSkillRegistry() {
-	return chatState.skillRegistry;
+    return chatState.skillRegistry;
 }
 
 /**
  * 获取 MCP 工具注册列表
  */
 export function getMcpRegistry() {
-	return chatState.mcpRegistry;
+    return chatState.mcpRegistry;
 }
 
 /**
@@ -307,11 +307,11 @@ export function getMcpRegistry() {
  * @param {string} skillName Skill 名称
  */
 export function addSkillContext(skillId, skillName) {
-	if (chatState.contextItems.some(item => item.type === 'skill' && item.skillId === skillId)) {
-		return;
-	}
-	chatState.contextItems.push({ type: 'skill', skillId, skillName });
-	emit('onContextChanged');
+    if (chatState.contextItems.some(item => item.type === 'skill' && item.skillId === skillId)) {
+        return;
+    }
+    chatState.contextItems.push({ type: 'skill', skillId, skillName });
+    emit('onContextChanged');
 }
 
 /**
@@ -321,11 +321,11 @@ export function addSkillContext(skillId, skillName) {
  * @param {string} mcpToolName MCP 工具名称
  */
 export function addMcpContext(mcpServer, mcpToolId, mcpToolName) {
-	if (chatState.contextItems.some(item => item.type === 'mcp' && item.mcpServer === mcpServer && item.mcpToolId === mcpToolId)) {
-		return;
-	}
-	chatState.contextItems.push({ type: 'mcp', mcpServer, mcpToolId, mcpToolName });
-	emit('onContextChanged');
+    if (chatState.contextItems.some(item => item.type === 'mcp' && item.mcpServer === mcpServer && item.mcpToolId === mcpToolId)) {
+        return;
+    }
+    chatState.contextItems.push({ type: 'mcp', mcpServer, mcpToolId, mcpToolName });
+    emit('onContextChanged');
 }
 
 /**
@@ -335,13 +335,13 @@ export function addMcpContext(mcpServer, mcpToolId, mcpToolName) {
  * @param {object} output 输出结果
  */
 export function updateCallOutput(messageId, callId, output) {
-	const msg = chatState.messages.find(m => m.id === messageId);
-	if (!msg) return;
-	const part = msg.parts.find(p => (p.type === 'skill-call' || p.type === 'mcp-call') && p.callId === callId);
-	if (part) {
-		part.output = output;
-		emit('onMessagesChanged');
-	}
+    const msg = chatState.messages.find(m => m.id === messageId);
+    if (!msg) return;
+    const part = msg.parts.find(p => (p.type === 'skill-call' || p.type === 'mcp-call') && p.callId === callId);
+    if (part) {
+        part.output = output;
+        emit('onMessagesChanged');
+    }
 }
 
 // ============ 面板可见性 ============
@@ -350,97 +350,97 @@ export function updateCallOutput(messageId, callId, output) {
  * 切换面板可见性
  */
 export function togglePanel() {
-	chatState.panelVisible = !chatState.panelVisible;
-	emit('onPanelVisibilityChanged');
+    chatState.panelVisible = !chatState.panelVisible;
+    emit('onPanelVisibilityChanged');
 }
 
 /**
  * 打开面板
  */
 export function openPanel() {
-	if (!chatState.panelVisible) {
-		chatState.panelVisible = true;
-		emit('onPanelVisibilityChanged');
-	}
+    if (!chatState.panelVisible) {
+        chatState.panelVisible = true;
+        emit('onPanelVisibilityChanged');
+    }
 }
 
 /**
  * 关闭面板
  */
 export function closePanel() {
-	if (chatState.panelVisible) {
-		chatState.panelVisible = false;
-		emit('onPanelVisibilityChanged');
-	}
+    if (chatState.panelVisible) {
+        chatState.panelVisible = false;
+        emit('onPanelVisibilityChanged');
+    }
 }
 
 /**
  * 获取面板是否可见
  */
 export function isPanelVisible() {
-	return chatState.panelVisible;
+    return chatState.panelVisible;
 }
 
 // ============ 折叠与导航状态 ============
 
 export function toggleFold(messageId) {
-	const current = chatState.foldState.foldedMessages[messageId];
-	chatState.foldState.foldedMessages[messageId] = !current;
-	emit('onFoldStateChanged');
+    const current = chatState.foldState.foldedMessages[messageId];
+    chatState.foldState.foldedMessages[messageId] = !current;
+    emit('onFoldStateChanged');
 }
 
 export function setFold(messageId, folded) {
-	chatState.foldState.foldedMessages[messageId] = folded;
-	emit('onFoldStateChanged');
+    chatState.foldState.foldedMessages[messageId] = folded;
+    emit('onFoldStateChanged');
 }
 
 export function foldAll(role) {
-	const streamingId = chatState.isStreaming
-		? chatState.messages[chatState.messages.length - 1]?.id
-		: null;
-	chatState.messages.forEach(msg => {
-		if (msg.role === role && msg.id !== streamingId) {
-			chatState.foldState.foldedMessages[msg.id] = true;
-		}
-	});
-	emit('onFoldStateChanged');
+    const streamingId = chatState.isStreaming
+        ? chatState.messages[chatState.messages.length - 1]?.id
+        : null;
+    chatState.messages.forEach(msg => {
+        if (msg.role === role && msg.id !== streamingId) {
+            chatState.foldState.foldedMessages[msg.id] = true;
+        }
+    });
+    emit('onFoldStateChanged');
 }
 
 export function expandAllMessages() {
-	chatState.foldState.foldedMessages = {};
-	emit('onFoldStateChanged');
+    chatState.foldState.foldedMessages = {};
+    emit('onFoldStateChanged');
 }
 
 export function isFolded(messageId) {
-	return chatState.foldState.foldedMessages[messageId] || false;
+    return chatState.foldState.foldedMessages[messageId] || false;
 }
 
 export function setFoldHeight(height) {
-	chatState.foldState.foldHeight = height;
-	emit('onFoldStateChanged');
+    chatState.foldState.foldHeight = height;
+    emit('onFoldStateChanged');
 }
 
 export function getFoldHeight() {
-	return chatState.foldState.foldHeight;
+    return chatState.foldState.foldHeight;
 }
 
 export function setCurrentMessageIndex(index) {
-	const clamped = Math.max(0, Math.min(index, chatState.messages.length - 1));
-	chatState.foldState.currentMessageIndex = clamped;
-	emit('onNavigationChanged');
+    const clamped = Math.max(0, Math.min(index, chatState.messages.length - 1));
+    chatState.foldState.currentMessageIndex = clamped;
+    emit('onNavigationChanged');
 }
 
 export function getCurrentMessageIndex() {
-	return chatState.foldState.currentMessageIndex;
+    return chatState.foldState.currentMessageIndex;
 }
 
 export function getFoldState() {
-	return { ...chatState.foldState };
+    return { ...chatState.foldState };
 }
 
 /**
  * 获取当前状态快照
  */
 export function getState() {
-	return { ...chatState };
+    return { ...chatState };
 }

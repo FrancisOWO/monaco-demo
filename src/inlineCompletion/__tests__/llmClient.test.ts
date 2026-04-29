@@ -165,7 +165,7 @@ describe('SimpleLLMClient', () => {
         // Start a request to initialize the abortController
         const mockResponse = {
             ok: true,
-            json: jest.fn().mockImplementation(() => new Promise(() => {})), // Never resolves
+            json: jest.fn().mockImplementation(() => new Promise(() => { })), // Never resolves
         };
         (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
 

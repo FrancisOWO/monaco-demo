@@ -245,16 +245,16 @@ export class FullGhostTextController implements IGhostTextController {
      */
     handleLifecycle(completionId: string, kind: CompletionLifecycleKind): void {
         switch (kind) {
-        case CompletionLifecycleKind.Shown:
-            // 触发投机请求
-            this.triggerSpeculativeRequest(completionId);
-            break;
-        case CompletionLifecycleKind.Accepted:
-            this.speculativeCache.request(completionId);
-            break;
-        case CompletionLifecycleKind.Rejected:
-            this.currentGhostText.clear();
-            break;
+            case CompletionLifecycleKind.Shown:
+                // 触发投机请求
+                this.triggerSpeculativeRequest(completionId);
+                break;
+            case CompletionLifecycleKind.Accepted:
+                this.speculativeCache.request(completionId);
+                break;
+            case CompletionLifecycleKind.Rejected:
+                this.currentGhostText.clear();
+                break;
         }
 
         // 遥测

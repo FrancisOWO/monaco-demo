@@ -26,7 +26,7 @@ export interface LLMClientConfig {
 export class SimpleLLMClient implements ILLMClient {
     private abortController: AbortController | null = null;
 
-    constructor(private config: LLMClientConfig) {}
+    constructor(private config: LLMClientConfig) { }
 
     async requestCompletion(
         prompt: PromptInfo,

@@ -3,51 +3,51 @@
  */
 
 body[data-theme="dark"] {
-	background-color: #1e1e1e;
-	color: #fff;
+    background-color: #1e1e1e;
+    color: #fff;
 }
 
 /* Sidebar */
 body[data-theme="dark"] #sidebar {
-	background-color: #252526;
-	border-color: #3c3c3c;
+    background-color: #252526;
+    border-color: #3c3c3c;
 }
 
 body[data-theme="dark"] .tree-label {
-	color: #ccc;
+    color: #ccc;
 }
 
 /* Tab Bar */
 body[data-theme="dark"] #tab-bar {
-	background-color: #252526;
-	border-color: #3c3c3c;
+    background-color: #252526;
+    border-color: #3c3c3c;
 }
 
 body[data-theme="dark"] .tab {
-	color: #ccc;
-	border-color: #3c3c3c;
+    color: #ccc;
+    border-color: #3c3c3c;
 }
 
 body[data-theme="dark"] .tab.active {
-	color: #fff;
+    color: #fff;
 }
 
 body[data-theme="dark"] .tab.active::after {
-	background: #4fc3f7;
+    background: #4fc3f7;
 }
 
 body[data-theme="dark"] .tab.dirty .tab-name::after {
-	background: #4fc3f7;
+    background: #4fc3f7;
 }
 
 /* Dialog */
 body[data-theme="dark"] #dialog-box {
-	background: #2d2d2d;
-	color: #fff;
+    background: #2d2d2d;
+    color: #fff;
 }
 
 body[data-theme="dark"] #dialog-buttons .btn-secondary {
-	color: #ccc;
-	border-color: #555;
-	background: #3c3c3c;
+    color: #ccc;
+    border-color: #555;
+    background: #3c3c3c;
 }

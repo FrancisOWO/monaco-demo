@@ -3,27 +3,27 @@
  */
 
 body[data-theme="light"] {
-	background-color: #f3f3f3;
-	color: #333;
+    background-color: #f3f3f3;
+    color: #333;
 }
 
 /* Sidebar */
 body[data-theme="light"] #sidebar {
-	background-color: #f3f3f3;
-	border-color: #e0e0e0;
+    background-color: #f3f3f3;
+    border-color: #e0e0e0;
 }
 
 /* Tab Bar */
 body[data-theme="light"] #tab-bar {
-	background-color: #f3f3f3;
-	border-color: #e0e0e0;
+    background-color: #f3f3f3;
+    border-color: #e0e0e0;
 }
 
 body[data-theme="light"] .tab {
-	color: #333;
-	border-color: #e0e0e0;
+    color: #333;
+    border-color: #e0e0e0;
 }
 
 body[data-theme="light"] .tab.active {
-	color: #333;
+    color: #333;
 }

@@ -41,7 +41,7 @@ export class Logger {
     constructor(
         private moduleName: string,
         private config: ModuleLogConfig,
-    ) {}
+    ) { }
 
     /** 获取当前模块名 */
     getModuleName(): string {

@@ -8,7 +8,7 @@ import type { IPromptBuilder, PromptInfo, CompletionRequestContext } from './typ
 
 /** 简易 Prompt 构建器 */
 export class SimplePromptBuilder implements IPromptBuilder {
-    constructor(private editor: monaco.editor.ICodeEditor) {}
+    constructor(private editor: monaco.editor.ICodeEditor) { }
 
     buildPrompt(context: CompletionRequestContext): PromptInfo {
         const model = this.editor.getModel();

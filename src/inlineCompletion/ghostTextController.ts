@@ -25,7 +25,7 @@ export class SimpleGhostTextController implements IGhostTextController {
         private postProcessor: IPostProcessor,
         private telemetryEmitter: ITelemetryEmitter,
         private editor: monaco.editor.ICodeEditor,
-    ) {}
+    ) { }
 
     async getCompletions(
         context: CompletionRequestContext,

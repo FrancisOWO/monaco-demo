@@ -95,30 +95,30 @@ export class ContextProviderRegistry {
     ): void {
         for (const item of items) {
             switch (providerId) {
-            case 'traits':
-                results.traits?.push({ key: item.source, value: item.text });
-                break;
-            case 'codeSnippets':
-                results.codeSnippets?.push(item.text);
-                break;
-            case 'diagnostics':
-                results.diagnostics?.push(item.text);
-                break;
-            case 'similarFiles':
-                results.similarFiles?.push(item.text);
-                break;
-            case 'recentEdits':
-                results.recentEdits?.push(item.text);
-                break;
-            default:
-                // 未知提供者，根据 source 推断
-                if (item.source === 'diagnostic') {
+                case 'traits':
+                    results.traits?.push({ key: item.source, value: item.text });
+                    break;
+                case 'codeSnippets':
+                    results.codeSnippets?.push(item.text);
+                    break;
+                case 'diagnostics':
                     results.diagnostics?.push(item.text);
-                } else if (item.source === 'similarFile') {
+                    break;
+                case 'similarFiles':
                     results.similarFiles?.push(item.text);
-                } else if (item.source === 'recentEdit') {
+                    break;
+                case 'recentEdits':
                     results.recentEdits?.push(item.text);
-                }
+                    break;
+                default:
+                    // 未知提供者，根据 source 推断
+                    if (item.source === 'diagnostic') {
+                        results.diagnostics?.push(item.text);
+                    } else if (item.source === 'similarFile') {
+                        results.similarFiles?.push(item.text);
+                    } else if (item.source === 'recentEdit') {
+                        results.recentEdits?.push(item.text);
+                    }
             }
         }
     }

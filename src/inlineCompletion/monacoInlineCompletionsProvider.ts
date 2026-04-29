@@ -21,7 +21,7 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
     constructor(
         private controller: IGhostTextController,
         private editor: monaco.editor.ICodeEditor,
-    ) {}
+    ) { }
 
     async provideInlineCompletions(
         model: monaco.editor.ITextModel,
