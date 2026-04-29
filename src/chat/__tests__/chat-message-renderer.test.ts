@@ -364,6 +364,8 @@ describe('chat-message-renderer', () => {
 			}),
 			getMessages: jest.fn(() => messages),
 			getState: jest.fn(() => ({ isStreaming, thinkingPhase: '' })),
+			isFolded: jest.fn(() => false),
+			getFoldHeight: jest.fn(() => 40),
 		}));
 
 		chatMessages = createMockElement('div');

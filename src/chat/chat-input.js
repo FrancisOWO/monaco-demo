@@ -105,6 +105,13 @@ async function sendMessage() {
 
 	if (!text || chatStore.getState().isStreaming) return;
 
+	if (text.startsWith('/')) {
+		handleSlashCommand(text);
+		input.value = '';
+		hideMentionPopup();
+		return;
+	}
+
 	// 解析 @mention 并添加上下文
 	const mentions = parseMentions(text);
 	for (const mention of mentions) {
@@ -144,6 +151,63 @@ async function sendMessage() {
 
 	// 开始流式请求
 	streamChatMessage();
+}
+
+function handleSlashCommand(text) {
+	const parts = text.split(/\s+/);
+	const command = parts[0].toLowerCase();
+	const arg = parts[1];
+
+	const messages = chatStore.getMessages();
+	const currentIndex = chatStore.getCurrentMessageIndex();
+
+	switch (command) {
+		case '/fold':
+			if (arg === 'all') {
+				chatStore.foldAll('assistant');
+				chatStore.foldAll('user');
+			} else if (arg === 'assistant' || arg === 'ai') {
+				chatStore.foldAll('assistant');
+			} else if (arg === 'user') {
+				chatStore.foldAll('user');
+			} else {
+				const currentMsg = messages[currentIndex];
+				if (currentMsg) {
+					chatStore.setFold(currentMsg.id, true);
+				}
+			}
+			break;
+
+		case '/expand':
+			if (arg === 'all') {
+				chatStore.expandAllMessages();
+			} else {
+				const currentMsg = messages[currentIndex];
+				if (currentMsg) {
+					chatStore.setFold(currentMsg.id, false);
+				}
+			}
+			break;
+
+		case '/prev':
+			if (currentIndex > 0) {
+				chatStore.setCurrentMessageIndex(currentIndex - 1);
+			}
+			break;
+
+		case '/next':
+			if (currentIndex < messages.length - 1) {
+				chatStore.setCurrentMessageIndex(currentIndex + 1);
+			}
+			break;
+
+		case '/goto':
+			const num = parseInt(arg);
+			if (num >= 1 && num <= messages.length) {
+				chatStore.setCurrentMessageIndex(num - 1);
+			}
+			break;
+	}
 }
 
 /**
