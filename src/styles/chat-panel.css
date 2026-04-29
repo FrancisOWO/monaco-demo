@@ -200,6 +200,88 @@
 	color: #333;
 }
 
+/* === Navigation Toolbar === */
+
+#chat-nav-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 4px 8px;
+	border-bottom: 1px solid #e0e0e0;
+	background: #f8f8f8;
+	font-size: 11px;
+	gap: 4px;
+	min-height: 28px;
+}
+
+#chat-nav-toolbar.hidden-toolbar {
+	display: none;
+}
+
+#chat-nav-left,
+#chat-nav-center,
+#chat-nav-right {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+#chat-nav-left {
+	flex: 0 0 auto;
+}
+
+#chat-nav-center {
+	flex: 0 0 auto;
+	gap: 6px;
+}
+
+#chat-nav-right {
+	flex: 0 0 auto;
+	gap: 6px;
+}
+
+.chat-nav-btn {
+	border: none;
+	background: transparent;
+	color: #555;
+	cursor: pointer;
+	padding: 2px 6px;
+	border-radius: 3px;
+	font-size: 12px;
+	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.chat-nav-btn:hover {
+	background: #e0e0e0;
+	color: #333;
+}
+
+#chat-nav-position {
+	font-size: 11px;
+	color: #555;
+	min-width: 36px;
+	text-align: center;
+	font-family: 'Consolas', 'Monaco', monospace;
+}
+
+#chat-fold-height-select {
+	border: 1px solid #d0d0d0;
+	border-radius: 3px;
+	background: #fff;
+	color: #333;
+	font-size: 10px;
+	padding: 1px 4px;
+	outline: none;
+	width: 58px;
+}
+
+#chat-fold-height-select:hover {
+	border-color: #007acc;
+}
+
 /* === Messages === */
 
 #chat-messages {
@@ -216,6 +298,7 @@
 	max-width: 100%;
 	word-wrap: break-word;
 	width: 100%;
+	position: relative;
 }
 
 .chat-msg-user {
@@ -244,6 +327,95 @@
 	font-size: 13px;
 	line-height: 1.6;
 	padding: 4px 0;
+}
+
+/* === Folded Message === */
+
+.chat-msg.folded {
+	overflow: hidden;
+	position: relative;
+	cursor: pointer;
+}
+
+.chat-msg.folded .msg-output,
+.chat-msg.folded .msg-thinking,
+.chat-msg.folded .msg-tool-call,
+.chat-msg.folded .msg-skill-call,
+.chat-msg.folded .msg-mcp-call,
+.chat-msg.folded .msg-code-block,
+.chat-msg.folded .msg-assistant-footer {
+	display: none;
+}
+
+.msg-fold-preview {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 10px;
+	font-size: 12px;
+	color: #888;
+	background: #f5f5f5;
+	border-radius: 4px;
+	cursor: pointer;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	gap: 8px;
+}
+
+.msg-fold-preview-text {
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.msg-fold-expand-icon {
+	flex: 0 0 auto;
+	font-size: 10px;
+	color: #aaa;
+}
+
+.chat-msg-user.folded .msg-fold-preview {
+	background: #e0f0ff;
+	color: #007acc;
+	border-radius: 10px 10px 2px 10px;
+}
+
+.chat-msg-assistant.folded .msg-fold-preview {
+	background: #f5f5f5;
+	color: #666;
+}
+
+.msg-fold-toggle-btn {
+	position: absolute;
+	top: 2px;
+	right: 2px;
+	border: none;
+	background: transparent;
+	color: #aaa;
+	cursor: pointer;
+	font-size: 10px;
+	padding: 2px 4px;
+	border-radius: 3px;
+	opacity: 0;
+	transition: opacity 0.2s;
+}
+
+.chat-msg:hover .msg-fold-toggle-btn {
+	opacity: 1;
+}
+
+.msg-fold-toggle-btn:hover {
+	background: #e0e0e0;
+	color: #333;
+}
+
+.msg-nav-highlight {
+	outline: 2px solid #007acc;
+	outline-offset: 2px;
+	transition: outline-color 1.5s ease;
 }
 
 .msg-assistant-footer {
@@ -1072,4 +1244,54 @@ body[data-theme="dark"] .mention-category-skill {
 body[data-theme="dark"] .mention-category-mcp {
 	background: #134e4a;
 	color: #0d9488;
+}
+
+/* Dark theme: Navigation toolbar */
+body[data-theme="dark"] #chat-nav-toolbar {
+	background: #252526;
+	border-bottom-color: #333;
+}
+
+body[data-theme="dark"] .chat-nav-btn {
+	color: #aaa;
+}
+
+body[data-theme="dark"] .chat-nav-btn:hover {
+	background: #3c3c3c;
+	color: #d4d4d4;
+}
+
+body[data-theme="dark"] #chat-nav-position {
+	color: #aaa;
+}
+
+body[data-theme="dark"] #chat-fold-height-select {
+	background: #2d2d2d;
+	border-color: #444;
+	color: #d4d4d4;
+}
+
+/* Dark theme: Folded messages */
+body[data-theme="dark"] .msg-fold-preview {
+	background: #2a2a2a;
+	color: #888;
+}
+
+body[data-theme="dark"] .chat-msg-user.folded .msg-fold-preview {
+	background: #1a3a4a;
+	color: #007acc;
+}
+
+body[data-theme="dark"] .chat-msg-assistant.folded .msg-fold-preview {
+	background: #2a2a2a;
+	color: #888;
+}
+
+body[data-theme="dark"] .msg-fold-toggle-btn:hover {
+	background: #3c3c3c;
+	color: #d4d4d4;
+}
+
+body[data-theme="dark"] .msg-nav-highlight {
+	outline-color: #66bfff;
 }

@@ -148,6 +148,28 @@
 				<div id="chat-title">AI 对话</div>
 				<button id="chat-close-btn" title="关闭">&#x2715;</button>
 			</div>
+			<div id="chat-nav-toolbar">
+				<div id="chat-nav-left">
+					<button id="chat-fold-all-assistant" class="chat-nav-btn" title="折叠所有助手消息">&#x2261;</button>
+					<button id="chat-fold-all-user" class="chat-nav-btn" title="折叠所有用户消息">&#x2261;</button>
+					<button id="chat-expand-all" class="chat-nav-btn" title="展开所有消息">&#x2295;</button>
+				</div>
+				<div id="chat-nav-center">
+					<button id="chat-nav-prev" class="chat-nav-btn" title="上一条">&#x25C0;</button>
+					<span id="chat-nav-position">0/0</span>
+					<button id="chat-nav-next" class="chat-nav-btn" title="下一条">&#x25B6;</button>
+				</div>
+				<div id="chat-nav-right">
+					<select id="chat-fold-height-select" title="折叠高度">
+						<option value="32">32px</option>
+						<option value="40" selected>40px</option>
+						<option value="60">60px</option>
+						<option value="80">80px</option>
+						<option value="120">120px</option>
+					</select>
+					<button id="chat-nav-goto-btn" class="chat-nav-btn" title="跳转到指定消息">#</button>
+				</div>
+			</div>
 			<div id="chat-messages"></div>
 			<div id="chat-context-bar"></div>
 			<div id="chat-thinking-indicator" class="hidden">
@@ -292,6 +314,13 @@
 				<span class="mcp-tool-name"></span>
 			</div>
 			<div class="msg-mcp-call-input"></div>
+		</div>
+	</template>
+
+	<template id="tmpl-msg-fold-preview">
+		<div class="msg-fold-preview">
+			<span class="msg-fold-preview-text"></span>
+			<span class="msg-fold-expand-icon">&#x25BC;</span>
 		</div>
 	</template>
 
