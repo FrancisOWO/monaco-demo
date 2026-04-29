@@ -13,7 +13,7 @@ const chatState = {
 	isStreaming: false,
 	streamingText: '',
 	thinkingPhase: '',
-	panelVisible: false,
+	panelVisible: true,
 	abortController: null,
 	skillRegistry: [],       // SkillDescriptor[]
 	mcpRegistry: [],         // McpToolDescriptor[]

@@ -155,7 +155,7 @@
 				<span id="thinking-text">思考中...</span>
 			</div>
 			<div id="chat-input-area">
-				<textarea id="chat-input" placeholder="@ 添加上下文，Shift+Enter 换行" rows="1"></textarea>
+				<textarea id="chat-input" placeholder="用 &quot;@&quot; 添加上下文，&quot;Shift+Enter&quot; 换行" rows="1"></textarea>
 				<div id="chat-input-bottom-row">
 					<div id="chat-mode-selector">
 						<select id="chat-mode-select">
@@ -228,13 +228,13 @@
 		<div class="msg-assistant-footer">
 			<div class="msg-complete-status">
 				<span class="msg-complete-check" aria-hidden="true"></span>
-				<span>消息已完成</span>
+				<span>任务完成</span>
 			</div>
 			<div class="msg-actions" aria-label="消息操作">
-				<button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">赞</button>
-				<button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">踩</button>
-				<button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">复制</button>
-				<button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">重试</button>
+				<button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">👍</button>
+				<button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩">👎</button>
+				<button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">📋</button>
+				<button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">🔄</button>
 			</div>
 		</div>
 	</template>
@@ -244,7 +244,7 @@
 			<div class="msg-thinking-label">
 				<span class="thinking-icon"></span>
 				<span>思考过程</span>
-				<span style="font-size:10px;color:#aaa;">(点击展开)</span>
+				<span class="thinking-toggle"></span>
 			</div>
 			<div class="msg-thinking-text"></div>
 		</div>

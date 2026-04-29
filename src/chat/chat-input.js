@@ -23,6 +23,35 @@ export function setupChatInput(editor) {
 	const input = document.getElementById('chat-input');
 	const sendBtn = document.getElementById('chat-send-btn');
 
+	// 自动调整文本框高度
+	function autoResize() {
+		input.style.height = 'auto';
+		input.style.height = Math.min(input.scrollHeight, 300) + 'px';
+	}
+
+	// 监听输入事件以调整高度
+	input.addEventListener('input', () => {
+		autoResize();
+		
+		const text = input.value;
+		const cursorPos = input.selectionStart;
+
+		// 查找当前光标前的 @ 符号
+		const textBeforeCursor = text.substring(0, cursorPos);
+		const atIndex = textBeforeCursor.lastIndexOf('@');
+
+		if (atIndex >= 0) {
+			const query = textBeforeCursor.substring(atIndex + 1);
+			if (!query.includes(' ') && query.length <= 50) {
+				mentionStartIndex = atIndex;
+				showMentionPopup(query, cursorPos);
+				return;
+			}
+		}
+
+		hideMentionPopup();
+	});
+
 	// Enter 发送, Shift+Enter 换行
 	input.addEventListener('keydown', (e) => {
 		if (e.key === 'Enter' && !e.shiftKey && !mentionPopupActive) {
@@ -60,29 +89,11 @@ export function setupChatInput(editor) {
 		}
 	});
 
-	// 检测 @ 字符触发弹窗
-	input.addEventListener('input', () => {
-		const text = input.value;
-		const cursorPos = input.selectionStart;
-
-		// 查找当前光标前的 @ 符号
-		const textBeforeCursor = text.substring(0, cursorPos);
-		const atIndex = textBeforeCursor.lastIndexOf('@');
-
-		if (atIndex >= 0) {
-			const query = textBeforeCursor.substring(atIndex + 1);
-			if (!query.includes(' ') && query.length <= 50) {
-				mentionStartIndex = atIndex;
-				showMentionPopup(query, cursorPos);
-				return;
-			}
-		}
-
-		hideMentionPopup();
-	});
-
 	// 发送按钮
 	sendBtn.addEventListener('click', sendMessage);
+
+	// 初始调整高度
+	autoResize();
 }
 
 /**

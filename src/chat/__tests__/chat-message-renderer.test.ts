@@ -158,7 +158,7 @@ function buildAssistantFooterTemplate() {
 	const checkSpan = createMockElement('span');
 	checkSpan.className = 'msg-complete-check';
 	const statusText = createMockElement('span');
-	statusText.textContent = '消息已完成';
+	statusText.textContent = '任务完成';
 	statusDiv.appendChild(checkSpan);
 	statusDiv.appendChild(statusText);
 
