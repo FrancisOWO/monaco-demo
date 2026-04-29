@@ -8,6 +8,7 @@ import { openFileFromHandle, setActiveFile, activeFilePath, openFiles } from '..
 import { readFileContent } from '../file-system/fs-access.js';
 import { addFileContext, openPanel } from '../chat/chat-store.js';
 import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelection } from '../ui/diff-viewer.js';
+import { FILE_ICON_MAP, DEFAULT_FILE_ICON } from '../chat/chat-icons.js';
 
 const logger = getLogger('Sidebar');
 
@@ -159,18 +160,7 @@ function updateActiveHighlight() {
  */
 function getFileIcon(name) {
     const ext = name.split('.').pop().toLowerCase();
-    const iconMap = {
-        py: '🐍',
-        cpp: '⚡', c: '⚡', h: '⚡', hpp: '⚡',
-        go: '🔵',
-        js: '📜', ts: '📜',
-        json: '📋',
-        md: '📝',
-        html: '🌐',
-        css: '🎨',
-        txt: '📄',
-    };
-    return iconMap[ext] || '📄';
+    return FILE_ICON_MAP[ext] || DEFAULT_FILE_ICON;
 }
 
 /**
@@ -283,7 +273,7 @@ function detectLangFromName(name) {
         py: 'python', js: 'javascript', ts: 'typescript',
         cpp: 'cpp', c: 'c', h: 'c', hpp: 'cpp',
         go: 'go', css: 'css', html: 'html',
-        json: 'json', md: 'markdown', txt: 'plaintext',
+        json: 'json', md: 'plaintext', txt: 'plaintext',
     };
     return map[ext] || 'plaintext';
 }

@@ -7,6 +7,7 @@ import * as chatStore from './chat-store.js';
 import { streamChatMessage, fetchFileContext } from './chat-stream-client.js';
 import { openFiles } from '../file-system/file-store.js';
 import { getFileTreeRoot } from '../ui/sidebar.js';
+import { ICON, FILE_ICON_MAP, DEFAULT_FILE_ICON } from './chat-icons.js';
 
 const AI_CHAT_URL = 'http://localhost:3000/ai/chat';
 
@@ -273,12 +274,12 @@ function showMentionPopup(query, cursorPos) {
 
     if (mentionType === 'all' || mentionType === 'skill') {
         const skills = chatStore.getSkillRegistry();
-        skills.forEach(s => allItems.push({ name: s.name, path: s.id, category: 'skill', icon: '⚡' }));
+        skills.forEach(s => allItems.push({ name: s.name, path: s.id, category: 'skill', icon: ICON.SKILL }));
     }
 
     if (mentionType === 'all' || mentionType === 'mcp') {
         const mcpTools = chatStore.getMcpRegistry();
-        mcpTools.forEach(t => allItems.push({ name: t.name, path: `${t.server}/${t.toolId}`, category: 'mcp', icon: '🔌' }));
+        mcpTools.forEach(t => allItems.push({ name: t.name, path: `${t.server}/${t.toolId}`, category: 'mcp', icon: ICON.MCP }));
     }
 
     // 按关键词过滤
@@ -411,9 +412,5 @@ function flattenTreeNodes(node, result) {
  */
 function getFileIcon(name) {
     const ext = name.split('.').pop();
-    const icons = {
-        py: '🐍', js: '📜', ts: '📘', css: '🎨', html: '🌐',
-        json: '📋', md: '📝', cpp: '⚙️', go: '🦫', txt: '📄',
-    };
-    return icons[ext] || '📄';
+    return FILE_ICON_MAP[ext] || DEFAULT_FILE_ICON;
 }

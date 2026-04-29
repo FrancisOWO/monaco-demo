@@ -7,6 +7,7 @@
 import * as chatStore from './chat-store.js';
 import { streamChatMessage } from './chat-stream-client.js';
 import * as monaco from 'monaco-editor';
+import { ICON, LABEL, TITLE, ACTION_ICON } from './chat-icons.js';
 
 let monacoReady = false;
 
@@ -87,8 +88,8 @@ function createMessageNode(msg, messages, state) {
 
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'msg-fold-toggle-btn';
-        toggleBtn.title = '折叠此消息';
-        toggleBtn.textContent = '∇';
+        toggleBtn.title = TITLE.FOLD_TOGGLE;
+        toggleBtn.textContent = ICON.FOLD_TOGGLE;
         div.appendChild(toggleBtn);
     }
 
@@ -96,26 +97,26 @@ function createMessageNode(msg, messages, state) {
 }
 
 function getMessagePreview(msg) {
-    const rolePrefix = msg.role === 'user' ? '👤 ' : '🤖 ';
+    const rolePrefix = msg.role === 'user' ? ICON.USER + ' ' : ICON.ASSISTANT + ' ';
     for (const part of msg.parts) {
         if (part.type === 'output' && part.text) {
             const plain = part.text.replace(/[*#`\[\]]/g, '').trim();
             return rolePrefix + plain.substring(0, 60);
         }
         if (part.type === 'thinking' && part.text) {
-            return rolePrefix + '💡 ' + part.text.substring(0, 50);
+            return rolePrefix + ICON.THINKING + ' ' + part.text.substring(0, 50);
         }
         if (part.type === 'tool-call') {
-            return rolePrefix + '🔧 ' + (part.toolName || 'tool');
+            return rolePrefix + ICON.TOOL + ' ' + (part.toolName || 'tool');
         }
         if (part.type === 'skill-call') {
-            return rolePrefix + '⚡ ' + (part.skillName || 'skill');
+            return rolePrefix + ICON.SKILL + ' ' + (part.skillName || 'skill');
         }
         if (part.type === 'mcp-call') {
-            return rolePrefix + '🔌 ' + (part.mcpToolName || 'mcp');
+            return rolePrefix + ICON.MCP + ' ' + (part.mcpToolName || 'mcp');
         }
         if (part.type === 'code') {
-            return rolePrefix + '💻 ' + (part.language || 'code') + ' code';
+            return rolePrefix + ICON.CODE + ' ' + (part.language || 'code') + ' code';
         }
     }
     return rolePrefix + '(empty)';
@@ -129,7 +130,36 @@ function shouldRenderAssistantFooter(msg, messages, state) {
 
 function createAssistantFooter(msg) {
     const frag = cloneTemplate('tmpl-assistant-footer');
-    frag.querySelector('.msg-assistant-footer').dataset.messageId = msg.id;
+    const footer = frag.querySelector('.msg-assistant-footer');
+    footer.dataset.messageId = msg.id;
+
+    // 设置任务完成文本
+    const taskCompleteText = frag.querySelector('#tmpl-task-complete-text');
+    if (taskCompleteText) {
+        taskCompleteText.textContent = LABEL.TASK_COMPLETE;
+    }
+
+    // 设置操作按钮图标
+    const likeBtn = frag.querySelector('#tmpl-like-btn');
+    if (likeBtn) {
+        likeBtn.textContent = ACTION_ICON.LIKE;
+    }
+
+    const dislikeBtn = frag.querySelector('#tmpl-dislike-btn');
+    if (dislikeBtn) {
+        dislikeBtn.textContent = ACTION_ICON.DISLIKE;
+    }
+
+    const copyBtn = frag.querySelector('#tmpl-copy-btn');
+    if (copyBtn) {
+        copyBtn.textContent = ACTION_ICON.COPY;
+    }
+
+    const retryBtn = frag.querySelector('#tmpl-retry-btn');
+    if (retryBtn) {
+        retryBtn.textContent = ACTION_ICON.RETRY;
+    }
+
     return frag;
 }
 
@@ -174,7 +204,7 @@ function createOutputNode(part) {
 function renderMarkdownLite(text) {
     // 代码块 (```)
     text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
-        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${lang || 'text'}</span><button class="msg-code-copy" data-code="${escapeAttr(code)}">复制</button></div><div class="msg-code-content" data-lang="${lang || 'text'}" data-code="${escapeAttr(code)}"><pre>${escapeHtml(code)}</pre></div></div>`;
+        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${lang || 'text'}</span><button class="msg-code-copy" data-code="${escapeAttr(code)}">${LABEL.COPY}</button></div><div class="msg-code-content" data-lang="${lang || 'text'}" data-code="${escapeAttr(code)}"><pre>${escapeHtml(code)}</pre></div></div>`;
     });
 
     // 行内代码
@@ -290,7 +320,10 @@ function createCodeNode(part) {
     const frag = cloneTemplate('tmpl-code-block');
     frag.querySelector('.msg-code-lang').textContent = language;
     const copyBtn = frag.querySelector('.msg-code-copy');
-    copyBtn.dataset.code = code;
+    if (copyBtn) {
+        copyBtn.textContent = LABEL.COPY;
+        copyBtn.dataset.code = code;
+    }
     const contentDiv = frag.querySelector('.msg-code-content');
     contentDiv.dataset.lang = language;
     contentDiv.dataset.code = code;
@@ -352,8 +385,8 @@ function bindCopyButtons(container) {
             const code = btn.dataset.code;
             if (code) {
                 navigator.clipboard.writeText(code).then(() => {
-                    btn.textContent = '已复制';
-                    setTimeout(() => btn.textContent = '复制', 2000);
+                    btn.textContent = LABEL.COPIED;
+                    setTimeout(() => btn.textContent = LABEL.COPY, 2000);
                 });
             }
         });
@@ -414,8 +447,8 @@ async function copyAssistantMessage(message, btn) {
 
     try {
         await navigator.clipboard.writeText(text);
-        btn.textContent = '已复制';
-        setTimeout(() => btn.textContent = '复制', 2000);
+        btn.textContent = LABEL.COPIED;
+        setTimeout(() => btn.textContent = LABEL.COPY, 2000);
     } catch (e) {
         console.warn('[ChatRenderer] Failed to copy assistant message:', e);
     }
@@ -467,7 +500,7 @@ function updateStreamingUI() {
         const thinkingIndicator = document.getElementById('chat-thinking-indicator');
         const thinkingText = document.getElementById('thinking-text');
         thinkingIndicator.classList.remove('hidden');
-        thinkingText.textContent = state.thinkingPhase || '思考中...';
+        thinkingText.textContent = state.thinkingPhase || LABEL.THINKING;
 
         if (state.thinkingPhase) {
             const msgs = chatStore.getMessages();

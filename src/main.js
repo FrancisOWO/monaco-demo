@@ -28,8 +28,12 @@ import { showToast } from './ui/dialogs.js';
 import { addSelectionContext, openPanel } from './chat/chat-store.js';
 import { setupDiffViewer } from './ui/diff-viewer.js';
 import { setupEditorMcpClient } from './mcp/editor-mcp-client.js';
+import { initializeUI } from './chat/chat-icons.js';
 
 const logger = getLogger('Main');
+
+// 初始化 UI 符号和文本
+initializeUI();
 
 // 初始化日志控制面板
 initLogPanel();

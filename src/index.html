@@ -49,7 +49,7 @@
             <div class="menu-entry" data-action="new-file">新建文件<span class="shortcut">Alt+N</span></div>
             <div class="menu-entry menu-entry-submenu">
                 <span>从模板新建文件</span>
-                <span class="submenu-arrow">›</span>
+                <span class="submenu-arrow" id="submenu-arrow-char">›</span>
                 <div class="submenu">
                     <div class="menu-entry" data-action="new-template-python">Python</div>
                     <div class="menu-entry" data-action="new-template-cpp">C++</div>
@@ -162,11 +162,11 @@
             <div id="chat-resize-handle"></div>
             <div id="chat-header">
                 <div id="chat-title">AI 对话</div>
-                <button id="chat-close-btn" title="关闭">&#x2715;</button>
+                <button id="chat-close-btn" title="关闭"></button>
             </div>
             <div id="chat-nav-toolbar">
                 <div id="chat-nav-left">
-                    <button id="chat-fold-toggle-btn" class="chat-nav-btn" title="折叠全部">&#x2261;</button>
+                    <button id="chat-fold-toggle-btn" class="chat-nav-btn" title="折叠全部"></button>
                     <select id="chat-fold-target-select" title="折叠目标">
                         <option value="all">全部</option>
                         <option value="assistant">助手</option>
@@ -181,20 +181,20 @@
                     </select>
                 </div>
                 <div id="chat-nav-center">
-                    <button id="chat-nav-prev" class="chat-nav-btn" title="上一轮">&#x25C0;</button>
+                    <button id="chat-nav-prev" class="chat-nav-btn" title="上一轮"></button>
                     <input id="chat-nav-goto-input" class="chat-nav-goto-input" type="number" min="1" title="跳转到指定轮次">
                     <span id="chat-nav-position">/0</span>
-                    <button id="chat-nav-next" class="chat-nav-btn" title="下一轮">&#x25B6;</button>
+                    <button id="chat-nav-next" class="chat-nav-btn" title="下一轮"></button>
                 </div>
             </div>
             <div id="chat-messages"></div>
             <div id="chat-context-bar"></div>
             <div id="chat-thinking-indicator" class="hidden">
                 <span class="thinking-dot"></span>
-                <span id="thinking-text">思考中...</span>
+                <span id="thinking-text"></span>
             </div>
             <div id="chat-input-area">
-                <textarea id="chat-input" placeholder="用 &quot;@&quot; 添加上下文，&quot;Shift+Enter&quot; 换行"
+                <textarea id="chat-input" placeholder=""
                     rows="1"></textarea>
                 <div id="chat-input-bottom-row">
                     <div id="chat-mode-selector">
@@ -205,8 +205,8 @@
                         </select>
                     </div>
                     <div id="chat-action-buttons">
-                        <button id="chat-send-btn" title="发送">&#x27A4;</button>
-                        <button id="chat-stop-btn" class="hidden" title="停止生成">&#x25A0;</button>
+                        <button id="chat-send-btn" title="发送"></button>
+                        <button id="chat-stop-btn" class="hidden" title="停止生成"></button>
                     </div>
                 </div>
             </div>
@@ -239,10 +239,10 @@
     <div id="diff-overlay" class="hidden">
         <div id="diff-header">
             <span id="diff-header-original">原始文件</span>
-            <span class="diff-header-arrow">&rarr;</span>
+            <span class="diff-header-arrow" id="diff-arrow-char"></span>
             <span id="diff-header-modified">修改文件</span>
-            <button id="diff-mode-btn">并排 &#x2194; 内联</button>
-            <button id="diff-close-btn" title="关闭 (Esc)">&times;</button>
+            <button id="diff-mode-btn"></button>
+            <button id="diff-close-btn" title="关闭 (Esc)"></button>
         </div>
         <div id="diff-editor-container"></div>
     </div>
@@ -268,14 +268,13 @@
         <div class="msg-assistant-footer">
             <div class="msg-complete-status">
                 <span class="msg-complete-check" aria-hidden="true"></span>
-                <span>任务完成</span>
+                <span id="tmpl-task-complete-text"></span>
             </div>
             <div class="msg-actions" aria-label="消息操作">
-                <button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞">👍</button>
-                <button class="msg-action-btn" type="button" data-action="dislike" title="点踩"
-                    aria-label="点踩">👎</button>
-                <button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制">📋</button>
-                <button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试">🔄</button>
+                <button class="msg-action-btn" type="button" data-action="like" title="点赞" aria-label="点赞" id="tmpl-like-btn"></button>
+                <button class="msg-action-btn" type="button" data-action="dislike" title="点踩" aria-label="点踩" id="tmpl-dislike-btn"></button>
+                <button class="msg-action-btn" type="button" data-action="copy" title="复制" aria-label="复制" id="tmpl-copy-btn"></button>
+                <button class="msg-action-btn" type="button" data-action="retry" title="重试" aria-label="重试" id="tmpl-retry-btn"></button>
             </div>
         </div>
     </template>
@@ -295,7 +294,7 @@
         <div class="msg-code-block">
             <div class="msg-code-header">
                 <span class="msg-code-lang"></span>
-                <button class="msg-code-copy">复制</button>
+                <button class="msg-code-copy"></button>
             </div>
             <div class="msg-code-content">
                 <pre></pre>
@@ -339,7 +338,7 @@
     <template id="tmpl-msg-fold-preview">
         <div class="msg-fold-preview">
             <span class="msg-fold-preview-text"></span>
-            <span class="msg-fold-expand-icon">&#x25BC;</span>
+            <span class="msg-fold-expand-icon" id="tmpl-fold-expand-icon"></span>
         </div>
     </template>
 

@@ -10,6 +10,7 @@ import { setupMessageRenderer } from './chat-message-renderer.js';
 import { setupContextManager } from './chat-context-manager.js';
 import { setupFoldController } from './chat-fold-controller.js';
 import { fetchSkillMcpRegistry } from './chat-stream-client.js';
+import { LABEL } from './chat-icons.js';
 
 let editorInstance = null;
 
@@ -82,7 +83,7 @@ function updateStreamingUI() {
         sendBtn.disabled = true;
         stopBtn.classList.remove('hidden');
         thinkingIndicator.classList.remove('hidden');
-        thinkingText.textContent = state.thinkingPhase || '思考中...';
+        thinkingText.textContent = state.thinkingPhase || LABEL.THINKING;
     } else {
         sendBtn.disabled = false;
         stopBtn.classList.add('hidden');

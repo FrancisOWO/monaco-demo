@@ -4,6 +4,7 @@
  */
 
 import * as chatStore from './chat-store.js';
+import { ICON, LABEL, TITLE } from './chat-icons.js';
 
 export function setupFoldController() {
     bindToolbarButtons();
@@ -62,12 +63,12 @@ function updateFoldToggleButton() {
     const targetSelect = document.getElementById('chat-fold-target-select');
 
     if (hasAnyFolded) {
-        btn.textContent = '⊕';
-        btn.title = '展开全部';
+        btn.textContent = ICON.FOLD_EXPANDED;
+        btn.title = TITLE.EXPAND_ALL;
         targetSelect.disabled = true;
     } else {
-        btn.textContent = '≡';
-        btn.title = '折叠';
+        btn.textContent = ICON.FOLD_COLLAPSED;
+        btn.title = TITLE.FOLD_ALL;
         targetSelect.disabled = false;
     }
 }
