@@ -366,6 +366,9 @@ export function setupGlobalShortcuts(editor) {
 
         if (!action) return;
 
+        // 剪贴板操作由浏览器/Monaco 原生处理，不要拦截
+        if (action === 'paste' || action === 'copy' || action === 'cut') return;
+
         e.preventDefault();
         e.stopPropagation();
         handleAction(action, editor);
