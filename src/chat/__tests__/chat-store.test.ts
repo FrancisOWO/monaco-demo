@@ -7,6 +7,28 @@ jest.mock('../../utils/logger.js', () => ({
     getLogger: () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }),
 }));
 
+// Mock config-service
+jest.mock('../config-service.js', () => ({
+    configService: {
+        apiConfigs: {
+            get: jest.fn(() => Promise.resolve({
+                configs: [{ id: 'dummy', name: 'Dummy (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                currentConfigId: 'dummy',
+            })),
+            save: jest.fn(() => Promise.resolve()),
+        },
+        conversationHistory: {
+            get: jest.fn(() => Promise.resolve({ history: [] })),
+            save: jest.fn(() => Promise.resolve()),
+            clear: jest.fn(() => Promise.resolve()),
+        },
+        settings: {
+            get: jest.fn(() => Promise.resolve({})),
+            save: jest.fn(() => Promise.resolve()),
+        },
+    },
+}));
+
 describe('chatStore', () => {
     let chatStore;
 

@@ -8,27 +8,27 @@ jest.mock('../../utils/logger.js', () => ({
     getLogger: () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }),
 }));
 
-// Mock localStorage
-const mockLocalStorage = {
-    storage: {},
-    getItem: jest.fn((key) => mockLocalStorage.storage[key] || null),
-    setItem: jest.fn((key, value) => {
-        mockLocalStorage.storage[key] = value;
-    }),
-    removeItem: jest.fn((key) => {
-        delete mockLocalStorage.storage[key];
-    }),
-    clear: jest.fn(() => {
-        mockLocalStorage.storage = {};
-    }),
-};
-
-// Mock window object
-Object.defineProperty(global, 'window', {
-    value: { localStorage: mockLocalStorage },
-    writable: true,
-    configurable: true,
-});
+// Mock config-service
+jest.mock('../config-service.js', () => ({
+    configService: {
+        apiConfigs: {
+            get: jest.fn(() => Promise.resolve({
+                configs: [{ id: 'dummy', name: 'Dummy (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                currentConfigId: 'dummy',
+            })),
+            save: jest.fn(() => Promise.resolve()),
+        },
+        conversationHistory: {
+            get: jest.fn(() => Promise.resolve({ history: [] })),
+            save: jest.fn(() => Promise.resolve()),
+            clear: jest.fn(() => Promise.resolve()),
+        },
+        settings: {
+            get: jest.fn(() => Promise.resolve({})),
+            save: jest.fn(() => Promise.resolve()),
+        },
+    },
+}));
 
 describe('chatSettings', () => {
     let chatStore;
@@ -36,7 +36,6 @@ describe('chatSettings', () => {
     beforeEach(() => {
         jest.resetModules();
         jest.clearAllMocks();
-        mockLocalStorage.clear();
         jest.doMock('../../utils/logger.js', () => ({
             getLogger: () => ({ info: jest.fn(), error: jest.fn(), warn: jest.fn() }),
         }));
@@ -233,84 +232,83 @@ describe('chatSettings', () => {
         });
     });
 
-    describe('localStorage 持久化', () => {
-        it('saveSettingsToStorage 保存配置到 localStorage', () => {
+    describe('配置持久化', () => {
+        it('saveSettingsToStorage 保存配置到服务端', async () => {
+            const { configService } = require('../config-service.js');
             chatStore.addApiConfig({
                 name: 'OpenAI',
                 baseUrl: 'https://api.openai.com/v1',
                 apiKey: 'sk-test',
             });
             chatStore.setCurrentConfigId(chatStore.getApiConfigs()[1].id);
-            chatStore.saveSettingsToStorage();
+            await chatStore.saveSettingsToStorage();
 
-            expect(mockLocalStorage.setItem).toHaveBeenCalled();
-            const savedKey = mockLocalStorage.setItem.mock.calls.find(
-                call => call[0] === 'ai_chat_settings'
-            );
-            expect(savedKey).toBeDefined();
-            const saved = JSON.parse(savedKey[1]);
-            expect(saved.configs.length).toBe(1); // 只保存自定义配置，不包含 dummy
-            expect(saved.currentConfigId).toBeDefined();
+            expect(configService.apiConfigs.save).toHaveBeenCalled();
         });
 
-        it('loadSettingsFromStorage 从 localStorage 加载配置', () => {
-            mockLocalStorage.storage['ai_chat_settings'] = JSON.stringify({
-                configs: [
-                    // localStorage 中只保存自定义配置，不包含 dummy
-                    { id: 'custom-1', name: 'Custom', baseUrl: 'https://custom.com', apiKey: 'sk-custom' },
-                ],
+        it('loadSettingsFromStorage 从服务端加载配置', async () => {
+            const { configService } = require('../config-service.js');
+            configService.apiConfigs.get.mockResolvedValueOnce({
+                configs: [{ id: 'custom-1', name: 'Custom', baseUrl: 'https://custom.com', apiKey: 'sk-custom' }],
                 currentConfigId: 'custom-1',
             });
-            chatStore.loadSettingsFromStorage();
+            await chatStore.loadSettingsFromStorage();
 
             expect(chatStore.getApiConfigs().length).toBe(2); // dummy + custom-1
             expect(chatStore.getCurrentConfigId()).toBe('custom-1');
         });
 
-        it('loadSettingsFromStorage 确保 Dummy 配置存在', () => {
-            mockLocalStorage.storage['ai_chat_settings'] = JSON.stringify({
+        it('loadSettingsFromStorage 确保 Dummy 配置存在', async () => {
+            const { configService } = require('../config-service.js');
+            configService.apiConfigs.get.mockResolvedValueOnce({
                 configs: [{ id: 'custom-1', name: 'Custom', baseUrl: 'https://custom.com', apiKey: 'sk-custom' }],
                 currentConfigId: 'custom-1',
             });
-            chatStore.loadSettingsFromStorage();
+            await chatStore.loadSettingsFromStorage();
 
             expect(chatStore.getApiConfigById('dummy')).toBeDefined();
             expect(chatStore.getApiConfigs().length).toBe(2);
         });
 
-        it('loadSettingsFromStorage 处理空 localStorage', () => {
-            mockLocalStorage.getItem.mockReturnValue(null);
-            chatStore.loadSettingsFromStorage();
+        it('loadSettingsFromStorage 处理空配置', async () => {
+            const { configService } = require('../config-service.js');
+            configService.apiConfigs.get.mockResolvedValueOnce({
+                configs: [],
+                currentConfigId: 'dummy',
+            });
+            await chatStore.loadSettingsFromStorage();
             expect(chatStore.getApiConfigs().length).toBe(1);
             expect(chatStore.getApiConfigById('dummy')).toBeDefined();
         });
 
-        it('loadSettingsFromStorage 处理无效的 JSON', () => {
-            mockLocalStorage.storage['ai_chat_settings'] = 'invalid json';
-            chatStore.loadSettingsFromStorage();
+        it('loadSettingsFromStorage 处理 API 错误', async () => {
+            const { configService } = require('../config-service.js');
+            configService.apiConfigs.get.mockRejectedValueOnce(new Error('API Error'));
+            await chatStore.loadSettingsFromStorage();
             expect(chatStore.getApiConfigs().length).toBe(1);
             expect(chatStore.getApiConfigById('dummy')).toBeDefined();
         });
 
-        it('loadSettingsFromStorage 触发 onSettingsChanged', () => {
-            mockLocalStorage.storage['ai_chat_settings'] = JSON.stringify({
+        it('loadSettingsFromStorage 触发 onSettingsChanged', async () => {
+            const { configService } = require('../config-service.js');
+            configService.apiConfigs.get.mockResolvedValueOnce({
                 configs: [{ id: 'custom-1', name: 'Custom', baseUrl: 'https://custom.com', apiKey: 'sk-custom' }],
                 currentConfigId: 'custom-1',
             });
             const cb = jest.fn();
             chatStore.on('onSettingsChanged', cb);
-            chatStore.loadSettingsFromStorage();
+            await chatStore.loadSettingsFromStorage();
             expect(cb).toHaveBeenCalled();
         });
 
-        it('clearSettings 清空自定义配置并切换到 Dummy', () => {
+        it('clearSettings 清空自定义配置并切换到 Dummy', async () => {
             chatStore.addApiConfig({
                 name: 'OpenAI',
                 baseUrl: 'https://api.openai.com/v1',
                 apiKey: 'sk-test',
             });
             chatStore.setCurrentConfigId(chatStore.getApiConfigs()[1].id);
-            chatStore.clearSettings();
+            await chatStore.clearSettings();
 
             expect(chatStore.getApiConfigs().length).toBe(1);
             expect(chatStore.getApiConfigById('dummy')).toBeDefined();

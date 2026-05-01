@@ -100,6 +100,26 @@ describe('toolbar', () => {
         jest.doMock('../sidebar.js', () => sidebar);
         jest.doMock('../tab-bar.js', () => tabBar);
         jest.doMock('../dialogs.js', () => dialogs);
+        jest.doMock('../../chat/config-service.js', () => ({
+            configService: {
+                apiConfigs: {
+                    get: jest.fn(() => Promise.resolve({
+                        configs: [{ id: 'dummy', name: 'Dummy', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                        currentConfigId: 'dummy',
+                    })),
+                    save: jest.fn(() => Promise.resolve()),
+                },
+                conversationHistory: {
+                    get: jest.fn(() => Promise.resolve({ history: [] })),
+                    save: jest.fn(() => Promise.resolve()),
+                    clear: jest.fn(() => Promise.resolve()),
+                },
+                settings: {
+                    get: jest.fn(() => Promise.resolve({})),
+                    save: jest.fn(() => Promise.resolve()),
+                },
+            },
+        }));
 
         (global as any).document = {
             body: {
