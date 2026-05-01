@@ -162,7 +162,12 @@
             <div id="chat-resize-handle"></div>
             <div id="chat-header">
                 <div id="chat-title">AI 对话</div>
-                <button id="chat-close-btn" title="关闭"></button>
+                <div id="chat-header-buttons">
+                    <button id="chat-history-btn" title="历史对话"></button>
+                    <button id="chat-settings-btn" title="设置"></button>
+                    <button id="chat-new-btn" title="新建对话"></button>
+                    <button id="chat-close-btn" title="关闭"></button>
+                </div>
             </div>
             <div id="chat-nav-toolbar">
                 <div id="chat-nav-left">
@@ -232,6 +237,51 @@
         <div id="dialog-box">
             <div id="dialog-message"></div>
             <div id="dialog-buttons"></div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="chat-settings-modal" class="hidden">
+        <div class="chat-modal-overlay"></div>
+        <div class="chat-modal-content">
+            <div class="chat-modal-header">
+                <span class="chat-modal-title">账户设置</span>
+                <button class="chat-modal-close" id="chat-settings-close" title="关闭">✕</button>
+            </div>
+            <div class="chat-modal-body">
+                <div class="chat-settings-form">
+                    <div class="chat-settings-field">
+                        <label for="chat-settings-baseurl">Base URL</label>
+                        <input type="url" id="chat-settings-baseurl" placeholder="https://api.example.com/v1" />
+                    </div>
+                    <div class="chat-settings-field">
+                        <label for="chat-settings-apikey">API Key</label>
+                        <input type="password" id="chat-settings-apikey" placeholder="sk-..." />
+                    </div>
+                </div>
+            </div>
+            <div class="chat-modal-footer">
+                <button class="chat-modal-btn chat-modal-btn-secondary" id="chat-settings-cancel">取消</button>
+                <button class="chat-modal-btn chat-modal-btn-primary" id="chat-settings-save">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Panel -->
+    <div id="chat-history-panel" class="hidden">
+        <div class="chat-history-overlay"></div>
+        <div class="chat-history-content">
+            <div class="chat-history-header">
+                <span class="chat-history-title">历史对话</span>
+                <button class="chat-history-close" id="chat-history-close" title="关闭">✕</button>
+            </div>
+            <div class="chat-history-body">
+                <div id="chat-history-list" class="chat-history-list"></div>
+                <div id="chat-history-empty" class="chat-history-empty">
+                    <span class="chat-history-empty-icon">📜</span>
+                    <span>暂无历史对话</span>
+                </div>
+            </div>
         </div>
     </div>
 

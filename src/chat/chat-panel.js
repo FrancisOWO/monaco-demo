@@ -29,6 +29,13 @@ export function setupChatPanel(editor) {
     const stopBtn = document.getElementById('chat-stop-btn');
     stopBtn.addEventListener('click', () => chatStore.abortStreaming());
 
+    // 设置按钮
+    const settingsBtn = document.getElementById('chat-settings-btn');
+    settingsBtn.addEventListener('click', () => chatStore.openSettingsPanel());
+
+    // 初始化设置面板
+    setupSettingsPanel();
+
     // 初始化子组件
     setupModeSelector();
     setupChatInput(editor);
@@ -38,6 +45,9 @@ export function setupChatPanel(editor) {
 
     // 获取 Skill & MCP 注册列表（异步，不影响基本功能）
     fetchSkillMcpRegistry();
+
+    // 从 localStorage 加载设置
+    chatStore.loadSettingsFromStorage();
 
     // 拖拽调整宽度
     setupResize();
@@ -133,4 +143,75 @@ function setupResize() {
  */
 export function getEditor() {
     return editorInstance;
+}
+
+/**
+ * 初始化设置面板
+ */
+function setupSettingsPanel() {
+    const modal = document.getElementById('chat-settings-modal');
+    const overlay = modal.querySelector('.chat-modal-overlay');
+    const closeBtn = document.getElementById('chat-settings-close');
+    const cancelBtn = document.getElementById('chat-settings-cancel');
+    const saveBtn = document.getElementById('chat-settings-save');
+    const baseUrlInput = document.getElementById('chat-settings-baseurl');
+    const apiKeyInput = document.getElementById('chat-settings-apikey');
+
+    // 监听设置面板可见性变化
+    chatStore.on('onSettingsPanelVisibilityChanged', () => {
+        const isVisible = chatStore.isSettingsPanelVisible();
+        if (isVisible) {
+            // 打开面板时，加载当前设置
+            const settings = chatStore.getSettings();
+            baseUrlInput.value = settings.baseUrl || '';
+            apiKeyInput.value = settings.apiKey || '';
+            modal.classList.remove('hidden');
+        } else {
+            modal.classList.add('hidden');
+        }
+    });
+
+    // 关闭面板
+    function closePanel() {
+        chatStore.closeSettingsPanel();
+    }
+
+    overlay.addEventListener('click', closePanel);
+    closeBtn.addEventListener('click', closePanel);
+    cancelBtn.addEventListener('click', closePanel);
+
+    // 保存设置
+    saveBtn.addEventListener('click', () => {
+        const baseUrl = baseUrlInput.value.trim();
+        const apiKey = apiKeyInput.value.trim();
+
+        // 验证设置
+        const settingsToValidate = {};
+        if (baseUrl) settingsToValidate.baseUrl = baseUrl;
+
+        const validation = chatStore.validateSettings(settingsToValidate);
+        if (!validation.valid) {
+            alert('请输入有效的 Base URL');
+            return;
+        }
+
+        // 更新设置
+        chatStore.updateSettings({
+            baseUrl: baseUrl || undefined,
+            apiKey: apiKey || undefined,
+        });
+
+        // 保存到 localStorage
+        chatStore.saveSettingsToStorage();
+
+        // 关闭面板
+        closePanel();
+    });
+
+    // 按 Esc 关闭面板
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && chatStore.isSettingsPanelVisible()) {
+            closePanel();
+        }
+    });
 }
