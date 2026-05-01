@@ -21,14 +21,16 @@ export class SimplePostProcessor implements IPostProcessor {
 
         // 2. 下一行匹配检测（避免补全与下一行重复）
         const lines = documentContent.split('\n');
-        // position.lineNumber 是 1-based，所以下一行索引是 lineNumber（0-based）
         const nextLine = lines[position.lineNumber]?.trim();
         if (nextLine && trimmed.trim() === nextLine) {
             return undefined;
         }
 
-        // 3. 单行强制（简易版不需要，因为 stop=['\n'] 已保证单行）
-        // 但为了安全，还是检查一下
+        // 3. 多行补全保留完整内容，单行补全截取第一行
+        if (result.isMultiline) {
+            return { ...result, insertText: trimmed };
+        }
+
         const singleLine = trimmed.split('\n')[0] || '';
         if (!singleLine) {
             return undefined;

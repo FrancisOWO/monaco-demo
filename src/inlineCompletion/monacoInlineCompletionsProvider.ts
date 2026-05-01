@@ -45,10 +45,10 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
             },
             triggerKind: this.mapTriggerKind(context.triggerKind),
             strategy: {
-                requestMultiline: false,
+                requestMultiline: true,
                 blockMode: BlockMode.Server,
-                stopTokens: ['\n'],
-                maxTokens: 20,
+                stopTokens: [],
+                maxTokens: 50,
             },
             prompt: {} as PromptInfo, // 会被 promptBuilder 填充
             versionId: model.getVersionId(),
