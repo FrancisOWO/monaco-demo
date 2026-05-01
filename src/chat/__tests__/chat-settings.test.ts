@@ -249,21 +249,21 @@ describe('chatSettings', () => {
             );
             expect(savedKey).toBeDefined();
             const saved = JSON.parse(savedKey[1]);
-            expect(saved.configs.length).toBe(2);
+            expect(saved.configs.length).toBe(1); // 只保存自定义配置，不包含 dummy
             expect(saved.currentConfigId).toBeDefined();
         });
 
         it('loadSettingsFromStorage 从 localStorage 加载配置', () => {
             mockLocalStorage.storage['ai_chat_settings'] = JSON.stringify({
                 configs: [
-                    { id: 'dummy', name: 'Dummy', baseUrl: '', apiKey: '', isBuiltIn: true },
+                    // localStorage 中只保存自定义配置，不包含 dummy
                     { id: 'custom-1', name: 'Custom', baseUrl: 'https://custom.com', apiKey: 'sk-custom' },
                 ],
                 currentConfigId: 'custom-1',
             });
             chatStore.loadSettingsFromStorage();
 
-            expect(chatStore.getApiConfigs().length).toBe(2);
+            expect(chatStore.getApiConfigs().length).toBe(2); // dummy + custom-1
             expect(chatStore.getCurrentConfigId()).toBe('custom-1');
         });
 

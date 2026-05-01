@@ -22,10 +22,19 @@ const chatState = {
         currentMessageIndex: 0,
         foldHeight: 40,
     },
-    settings: {},            // 账户设置
     settingsPanelVisible: false, // 设置面板可见性
     conversationHistory: [], // 对话历史
     historyPanelVisible: false, // 历史面板可见性
+    apiConfigs: [
+        {
+            id: 'dummy',
+            name: 'Dummy (本地测试)',
+            baseUrl: '',
+            apiKey: '',
+            isBuiltIn: true,
+        },
+    ], // API 配置列表
+    currentConfigId: 'dummy', // 当前选中的配置 ID
 };
 
 /** 生成唯一 ID */
@@ -46,6 +55,7 @@ const callbacks = {
     onNavigationChanged: [],
     onSettingsChanged: [],              // 设置变更
     onSettingsPanelVisibilityChanged: [], // 设置面板可见性变更
+    onCurrentConfigChanged: [],         // 当前配置变更
     onHistoryChanged: [],               // 历史变更
     onHistoryPanelVisibilityChanged: [], // 历史面板可见性变更
 };
@@ -453,80 +463,132 @@ export function getState() {
     return { ...chatState };
 }
 
-// ============ 设置管理 ============
+// ============ API 配置管理 ============
 
 /**
- * 获取设置
- * @returns {Object} 当前设置
+ * 获取所有 API 配置
+ * @returns {Array} API 配置列表
  */
-export function getSettings() {
-    return { ...chatState.settings };
+export function getApiConfigs() {
+    return [...chatState.apiConfigs];
 }
 
 /**
- * 更新设置
- * @param {Object} newSettings 新设置值
+ * 根据 ID 获取 API 配置
+ * @param {string} id 配置 ID
+ * @returns {Object|undefined} 配置对象
  */
-export function updateSettings(newSettings) {
-    chatState.settings = { ...chatState.settings, ...newSettings };
+export function getApiConfigById(id) {
+    return chatState.apiConfigs.find(c => c.id === id);
+}
+
+/**
+ * 获取当前选中的配置
+ * @returns {Object|undefined} 当前配置
+ */
+export function getCurrentApiConfig() {
+    return getApiConfigById(chatState.currentConfigId);
+}
+
+/**
+ * 获取当前配置 ID
+ * @returns {string} 当前配置 ID
+ */
+export function getCurrentConfigId() {
+    return chatState.currentConfigId;
+}
+
+/** 生成唯一 ID */
+function generateConfigId() {
+    return 'config_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * 添加新的 API 配置
+ * @param {Object} config 配置对象 { name, baseUrl, apiKey }
+ * @returns {string} 新配置的 ID
+ */
+export function addApiConfig(config) {
+    const newConfig = {
+        id: generateConfigId(),
+        name: config.name,
+        baseUrl: config.baseUrl || '',
+        apiKey: config.apiKey || '',
+        isBuiltIn: false,
+    };
+    chatState.apiConfigs.push(newConfig);
+    emit('onSettingsChanged');
+    return newConfig.id;
+}
+
+/**
+ * 更新 API 配置
+ * @param {string} id 配置 ID
+ * @param {Object} updates 更新的字段
+ */
+export function updateApiConfig(id, updates) {
+    const config = chatState.apiConfigs.find(c => c.id === id);
+    if (!config || config.isBuiltIn) {
+        return;
+    }
+    Object.assign(config, updates);
     emit('onSettingsChanged');
 }
 
 /**
- * 清空设置
+ * 删除 API 配置
+ * @param {string} id 配置 ID
  */
-export function clearSettings() {
-    chatState.settings = {};
-    if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem('ai_chat_settings');
+export function deleteApiConfig(id) {
+    const config = chatState.apiConfigs.find(c => c.id === id);
+    if (!config || config.isBuiltIn) {
+        return;
     }
-    emit('onSettingsChanged');
-}
 
-/**
- * 保存设置到 localStorage
- */
-export function saveSettingsToStorage() {
-    if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('ai_chat_settings', JSON.stringify(chatState.settings));
-    }
-}
-
-/**
- * 从 localStorage 加载设置
- */
-export function loadSettingsFromStorage() {
-    if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-            const stored = window.localStorage.getItem('ai_chat_settings');
-            if (stored) {
-                chatState.settings = JSON.parse(stored);
-            } else {
-                chatState.settings = {};
-            }
-            emit('onSettingsChanged');
-        } catch (e) {
-            // 解析失败，保持默认空设置
-            chatState.settings = {};
-            emit('onSettingsChanged');
+    const index = chatState.apiConfigs.findIndex(c => c.id === id);
+    if (index >= 0) {
+        chatState.apiConfigs.splice(index, 1);
+        // 如果删除的是当前配置，切换到 dummy
+        if (chatState.currentConfigId === id) {
+            chatState.currentConfigId = 'dummy';
+            emit('onCurrentConfigChanged');
         }
+        emit('onSettingsChanged');
     }
 }
 
 /**
- * 验证设置
- * @param {Object} settings 待验证的设置
+ * 设置当前选中的配置
+ * @param {string} id 配置 ID
+ */
+export function setCurrentConfigId(id) {
+    const config = chatState.apiConfigs.find(c => c.id === id);
+    if (config && chatState.currentConfigId !== id) {
+        chatState.currentConfigId = id;
+        emit('onCurrentConfigChanged');
+    }
+}
+
+/**
+ * 验证 API 配置
+ * @param {Object} config 待验证的配置
  * @returns {{valid: boolean, errors: string[]}} 验证结果
  */
-export function validateSettings(settings) {
+export function validateApiConfig(config) {
     const errors = [];
 
-    if (settings.baseUrl) {
-        try {
-            new URL(settings.baseUrl);
-        } catch {
-            errors.push('baseUrl');
+    if (config.baseUrl !== undefined) {
+        if (config.baseUrl) {
+            try {
+                new URL(config.baseUrl);
+            } catch {
+                errors.push('baseUrl');
+            }
         }
+    }
+
+    if (config.name !== undefined && !config.name.trim()) {
+        errors.push('name');
     }
 
     return { valid: errors.length === 0, errors };
@@ -569,6 +631,67 @@ export function closeSettingsPanel() {
         emit('onSettingsPanelVisibilityChanged');
     }
 }
+
+/**
+ * 保存设置到 localStorage
+ */
+export function saveSettingsToStorage() {
+    if (typeof window !== 'undefined' && window.localStorage) {
+        const data = {
+            configs: chatState.apiConfigs.filter(c => !c.isBuiltIn),
+            currentConfigId: chatState.currentConfigId,
+        };
+        window.localStorage.setItem('ai_chat_settings', JSON.stringify(data));
+    }
+}
+
+/**
+ * 从 localStorage 加载设置
+ */
+export function loadSettingsFromStorage() {
+    if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+            const stored = window.localStorage.getItem('ai_chat_settings');
+            if (stored) {
+                const data = JSON.parse(stored);
+                // 合并自定义配置（保留 dummy 内置配置）
+                if (data.configs && Array.isArray(data.configs)) {
+                    chatState.apiConfigs = [
+                        chatState.apiConfigs.find(c => c.isBuiltIn),
+                        ...data.configs,
+                    ];
+                }
+                // 恢复当前配置（如果存在）
+                if (data.currentConfigId) {
+                    const config = chatState.apiConfigs.find(c => c.id === data.currentConfigId);
+                    if (config) {
+                        chatState.currentConfigId = data.currentConfigId;
+                    }
+                }
+            }
+            emit('onSettingsChanged');
+        } catch (e) {
+            // 解析失败，保持默认配置
+            emit('onSettingsChanged');
+        }
+    }
+}
+
+/**
+ * 清空所有自定义配置
+ */
+export function clearSettings() {
+    // 只保留内置配置
+    chatState.apiConfigs = chatState.apiConfigs.filter(c => c.isBuiltIn);
+    chatState.currentConfigId = 'dummy';
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('ai_chat_settings');
+    }
+    emit('onSettingsChanged');
+    emit('onCurrentConfigChanged');
+}
+
+// ============ 新建对话 ============
 
 // ============ 新建对话 ============
 
