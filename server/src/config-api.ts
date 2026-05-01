@@ -11,7 +11,7 @@ import {
     SettingsData,
 } from './config-manager';
 
-const router = express.Router();
+const router: express.Router = express.Router();
 
 // ==================== API 配置 ====================
 

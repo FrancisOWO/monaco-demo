@@ -8,9 +8,22 @@ const API_BASE = '/config';
 /**
  * 获取配置目录信息
  */
-export async function getConfigInfo(): Promise<{ configDir: string; envVar: string | null }> {
-    const response = await fetch(`${API_BASE}/info`);
-    const result = await response.json();
+async function fetchJson(endpoint, options) {
+    const response = await fetch(endpoint, options);
+    const text = await response.text();
+    if (!response.ok) {
+        throw new Error(`Request failed: ${response.status} ${response.statusText} - ${text}`);
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch (error) {
+        throw new Error(`Invalid JSON response from ${endpoint}: ${text.slice(0, 200)}`);
+    }
+}
+
+export async function getConfigInfo() {
+    const result = await fetchJson(`${API_BASE}/info`);
     if (!result.success) {
         throw new Error(result.error || 'Failed to get config info');
     }
@@ -22,9 +35,8 @@ export async function getConfigInfo(): Promise<{ configDir: string; envVar: stri
 /**
  * 获取 API 配置
  */
-export async function getApiConfigs(): Promise<{ configs: any[]; currentConfigId: string }> {
-    const response = await fetch(`${API_BASE}/api-configs`);
-    const result = await response.json();
+export async function getApiConfigs() {
+    const result = await fetchJson(`${API_BASE}/api-configs`);
     if (!result.success) {
         throw new Error(result.error || 'Failed to get API configs');
     }
@@ -34,13 +46,12 @@ export async function getApiConfigs(): Promise<{ configs: any[]; currentConfigId
 /**
  * 保存 API 配置
  */
-export async function saveApiConfigs(data: { configs: any[]; currentConfigId: string }): Promise<void> {
-    const response = await fetch(`${API_BASE}/api-configs`, {
+export async function saveApiConfigs(data) {
+    const result = await fetchJson(`${API_BASE}/api-configs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
-    const result = await response.json();
     if (!result.success) {
         throw new Error(result.error || 'Failed to save API configs');
     }
@@ -51,9 +62,8 @@ export async function saveApiConfigs(data: { configs: any[]; currentConfigId: st
 /**
  * 获取对话历史
  */
-export async function getConversationHistory(): Promise<{ history: any[] }> {
-    const response = await fetch(`${API_BASE}/conversation-history`);
-    const result = await response.json();
+export async function getConversationHistory() {
+    const result = await fetchJson(`${API_BASE}/conversation-history`);
     if (!result.success) {
         throw new Error(result.error || 'Failed to get conversation history');
     }
@@ -63,13 +73,12 @@ export async function getConversationHistory(): Promise<{ history: any[] }> {
 /**
  * 保存对话历史
  */
-export async function saveConversationHistory(data: { history: any[] }): Promise<void> {
-    const response = await fetch(`${API_BASE}/conversation-history`, {
+export async function saveConversationHistory(data) {
+    const result = await fetchJson(`${API_BASE}/conversation-history`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
-    const result = await response.json();
     if (!result.success) {
         throw new Error(result.error || 'Failed to save conversation history');
     }
@@ -78,11 +87,10 @@ export async function saveConversationHistory(data: { history: any[] }): Promise
 /**
  * 清空对话历史
  */
-export async function clearConversationHistory(): Promise<void> {
-    const response = await fetch(`${API_BASE}/conversation-history`, {
+export async function clearConversationHistory() {
+    const result = await fetchJson(`${API_BASE}/conversation-history`, {
         method: 'DELETE',
     });
-    const result = await response.json();
     if (!result.success) {
         throw new Error(result.error || 'Failed to clear conversation history');
     }
@@ -93,9 +101,8 @@ export async function clearConversationHistory(): Promise<void> {
 /**
  * 获取通用设置
  */
-export async function getSettings(): Promise<Record<string, any>> {
-    const response = await fetch(`${API_BASE}/settings`);
-    const result = await response.json();
+export async function getSettings() {
+    const result = await fetchJson(`${API_BASE}/settings`);
     if (!result.success) {
         throw new Error(result.error || 'Failed to get settings');
     }
@@ -105,13 +112,12 @@ export async function getSettings(): Promise<Record<string, any>> {
 /**
  * 保存通用设置
  */
-export async function saveSettings(data: Record<string, any>): Promise<void> {
-    const response = await fetch(`${API_BASE}/settings`, {
+export async function saveSettings(data) {
+    const result = await fetchJson(`${API_BASE}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
-    const result = await response.json();
     if (!result.success) {
         throw new Error(result.error || 'Failed to save settings');
     }

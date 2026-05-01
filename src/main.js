@@ -32,6 +32,21 @@ import { initializeUI } from './chat/chat-icons.js';
 
 const logger = getLogger('Main');
 
+function showApp() {
+    document.body.style.visibility = 'visible';
+    window.dispatchEvent(new Event('app-ready'));
+}
+
+window.addEventListener('error', (event) => {
+    logger.error('Unhandled page error:', event.error || event.message);
+    showApp();
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+    logger.error('Unhandled promise rejection:', event.reason);
+    showApp();
+});
+
 // 初始化 UI 符号和文本
 // initializeUI();
 
@@ -174,4 +189,4 @@ editor.addAction({
 });
 
 // 所有初始化完成后，显示页面（防止 FOUC）
-document.body.style.visibility = 'visible';
+showApp();

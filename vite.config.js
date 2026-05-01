@@ -9,6 +9,24 @@ export default defineConfig({
         })
     ],
     server: {
-        port: 8080
+        port: 8080,
+        proxy: {
+            '/config': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
+            },
+            '/ai': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
+            },
+            '/editor-control': {
+                target: 'http://127.0.0.1:3000',
+                changeOrigin: true,
+            },
+            '/pyright': {
+                target: 'ws://127.0.0.1:3000',
+                ws: true,
+            },
+        },
     }
 });
