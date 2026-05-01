@@ -33,6 +33,10 @@ export function setupChatPanel(editor) {
     const settingsBtn = document.getElementById('chat-settings-btn');
     settingsBtn.addEventListener('click', () => chatStore.openSettingsPanel());
 
+    // 历史对话按钮
+    const historyBtn = document.getElementById('chat-history-btn');
+    historyBtn.addEventListener('click', () => chatStore.openHistoryPanel());
+
     // 新建对话按钮
     const newBtn = document.getElementById('chat-new-btn');
     newBtn.addEventListener('click', () => {
@@ -44,7 +48,9 @@ export function setupChatPanel(editor) {
             chatStore.startNewChat();
         }
     });
+
     setupSettingsPanel();
+    setupHistoryPanel();
 
     // 初始化子组件
     setupModeSelector();
@@ -221,6 +227,125 @@ function setupSettingsPanel() {
     // 按 Esc 关闭面板
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && chatStore.isSettingsPanelVisible()) {
+            closePanel();
+        }
+    });
+}
+
+/**
+ * 初始化历史面板
+ */
+function setupHistoryPanel() {
+    const panel = document.getElementById('chat-history-panel');
+    const overlay = panel.querySelector('.chat-history-overlay');
+    const closeBtn = document.getElementById('chat-history-close');
+    const listContainer = document.getElementById('chat-history-list');
+    const emptyState = document.getElementById('chat-history-empty');
+
+    // 渲染历史列表
+    function renderHistoryList() {
+        const history = chatStore.getConversationHistory();
+
+        // 显示/隐藏空状态
+        if (history.length === 0) {
+            emptyState.style.display = 'flex';
+            listContainer.style.display = 'none';
+            return;
+        }
+
+        emptyState.style.display = 'none';
+        listContainer.style.display = 'flex';
+
+        // 渲染列表
+        listContainer.innerHTML = '';
+        history.forEach(item => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'chat-history-item';
+            historyItem.dataset.id = item.id;
+
+            // 格式化时间
+            const date = new Date(item.timestamp);
+            const timeStr = date.toLocaleString('zh-CN', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+
+            // 获取第一条消息作为预览
+            const firstMessage = item.messages[0];
+            const preview = firstMessage ? firstMessage.parts.map(p => p.text || '').join('').slice(0, 50) : '';
+
+            historyItem.innerHTML = `
+                <div class="chat-history-item-info">
+                    <div class="chat-history-item-time">${timeStr}</div>
+                    <div class="chat-history-item-preview">${preview || '无内容'}</div>
+                </div>
+                <div class="chat-history-item-actions">
+                    <button class="chat-history-item-btn" data-action="load" title="加载">📂</button>
+                    <button class="chat-history-item-btn" data-action="delete" title="删除">🗑</button>
+                </div>
+            `;
+
+            listContainer.appendChild(historyItem);
+        });
+    }
+
+    // 监听历史面板可见性变化
+    chatStore.on('onHistoryPanelVisibilityChanged', () => {
+        const isVisible = chatStore.isHistoryPanelVisible();
+        if (isVisible) {
+            renderHistoryList();
+            panel.classList.remove('hidden');
+        } else {
+            panel.classList.add('hidden');
+        }
+    });
+
+    // 监听历史变更
+    chatStore.on('onHistoryChanged', () => {
+        if (chatStore.isHistoryPanelVisible()) {
+            renderHistoryList();
+        }
+    });
+
+    // 关闭面板
+    function closePanel() {
+        chatStore.closeHistoryPanel();
+    }
+
+    overlay.addEventListener('click', closePanel);
+    closeBtn.addEventListener('click', closePanel);
+
+    // 点击历史项
+    listContainer.addEventListener('click', (e) => {
+        const btn = e.target.closest('.chat-history-item-btn');
+        if (!btn) return;
+
+        const historyItem = e.target.closest('.chat-history-item');
+        if (!historyItem) return;
+
+        const historyId = historyItem.dataset.id;
+        const action = btn.dataset.action;
+
+        if (action === 'load') {
+            // 如果有活跃对话，先保存
+            if (chatStore.hasActiveConversation()) {
+                chatStore.addConversationToHistory();
+            }
+            // 加载历史对话
+            chatStore.loadConversationFromHistory(historyId);
+            closePanel();
+        } else if (action === 'delete') {
+            if (confirm('确定要删除这条历史记录吗？')) {
+                chatStore.deleteConversationFromHistory(historyId);
+            }
+        }
+    });
+
+    // 按 Esc 关闭面板
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && chatStore.isHistoryPanelVisible()) {
             closePanel();
         }
     });
