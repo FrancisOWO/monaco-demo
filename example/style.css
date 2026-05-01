@@ -37,3 +37,9 @@ body {
   overflow: hidden;
   z-index: 0;
 }
+
+/* Ghost Text 补全预览 */
+.ghost-text-decoration {
+  color: rgba(128, 128, 128, 0.5) !important;
+  font-style: italic;
+}

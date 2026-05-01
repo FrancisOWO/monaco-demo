@@ -87,25 +87,44 @@ async function requestSingleLineCompletion(editor) {
 }
 
 /**
- * 显示单行补全（通过 Quick Pick）
+ * 显示单行补全（作为 Ghost Text，按 Tab 接受、Esc 拒绝）
  */
 async function showSingleLineCompletion(editor) {
     const suggestion = await requestSingleLineCompletion(editor);
 
     if (suggestion && suggestion.text) {
         const position = editor.getPosition();
-        const range = new monaco.Range(
-            position.lineNumber,
-            position.column,
-            position.lineNumber,
-            position.column
-        );
+        const lineContent = editor.getModel().getLineContent(position.lineNumber);
 
-        editor.executeEdits('ai-completion', [{
-            range: range,
-            text: suggestion.text,
-            forceMoveMarkers: true,
+        // 清除已有的 ghost text 装饰
+        if (aiCompletionState.inlineDecoration) {
+            editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+            aiCompletionState.inlineDecoration = null;
+        }
+
+        // 用 inline decoration 显示 ghost text
+        const newDecorations = editor.deltaDecorations([], [{
+            range: new monaco.Range(
+                position.lineNumber,
+                position.column,
+                position.lineNumber,
+                position.column
+            ),
+            options: {
+                after: {
+                    content: suggestion.text,
+                    inlineClassName: 'ghost-text-decoration',
+                },
+                inlineClassName: 'ghost-text-decoration',
+            },
         }]);
+
+        // 保存装饰 ID 和完整文本，供 Tab/Esc 处理
+        aiCompletionState.inlineDecoration = newDecorations;
+        aiCompletionState.currentSuggestion = {
+            ...suggestion,
+            insertPosition: position,
+        };
     }
 }
 
@@ -215,23 +234,25 @@ export function registerAICompletionProvider(monaco, editor) {
 
     // 注册 Tab 键接受当前内联补全
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Tab, () => {
-        if (aiCompletionState.inlineDecoration) {
+        if (aiCompletionState.inlineDecoration && aiCompletionState.currentSuggestion) {
             logger.info('Tab: Accept inline completion');
-            const decorations = editor.getDecorations();
-            const decoration = decorations.find(d => d.id === aiCompletionState.inlineDecoration[0]);
-            if (decoration) {
-                const range = decoration.range;
-                const fullText = decoration.options.inlineValue;
+            const suggestion = aiCompletionState.currentSuggestion;
+            const pos = suggestion.insertPosition || editor.getPosition();
 
-                editor.executeEdits('ai-completion-accept', [{
-                    range: range,
-                    text: fullText,
-                    forceMoveMarkers: true,
-                }]);
+            editor.executeEdits('ai-completion-accept', [{
+                range: new monaco.Range(
+                    pos.lineNumber,
+                    pos.column,
+                    pos.lineNumber,
+                    pos.column
+                ),
+                text: suggestion.text,
+                forceMoveMarkers: true,
+            }]);
 
-                editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
-                aiCompletionState.inlineDecoration = null;
-            }
+            editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+            aiCompletionState.inlineDecoration = null;
+            aiCompletionState.currentSuggestion = null;
         }
     });
 
@@ -250,6 +271,13 @@ export function registerAICompletionProvider(monaco, editor) {
         let lastTriggerTime = 0;
 
         editor.onDidChangeModelContent(() => {
+            // 用户继续输入时，清除已有的 ghost text
+            if (aiCompletionState.inlineDecoration) {
+                editor.deltaDecorations(aiCompletionState.inlineDecoration, []);
+                aiCompletionState.inlineDecoration = null;
+                aiCompletionState.currentSuggestion = null;
+            }
+
             if (!aiCompletionState.autoTrigger || !aiCompletionState.triggerEnabled || aiCompletionState.loading) {
                 return;
             }
