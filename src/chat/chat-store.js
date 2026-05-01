@@ -22,6 +22,8 @@ const chatState = {
         currentMessageIndex: 0,
         foldHeight: 40,
     },
+    settings: {},            // 账户设置
+    settingsPanelVisible: false, // 设置面板可见性
 };
 
 /** 生成唯一 ID */
@@ -40,6 +42,8 @@ const callbacks = {
     onMcpRegistryChanged: [],
     onFoldStateChanged: [],
     onNavigationChanged: [],
+    onSettingsChanged: [],              // 设置变更
+    onSettingsPanelVisibilityChanged: [], // 设置面板可见性变更
 };
 
 /**
@@ -443,4 +447,121 @@ export function getFoldState() {
  */
 export function getState() {
     return { ...chatState };
+}
+
+// ============ 设置管理 ============
+
+/**
+ * 获取设置
+ * @returns {Object} 当前设置
+ */
+export function getSettings() {
+    return { ...chatState.settings };
+}
+
+/**
+ * 更新设置
+ * @param {Object} newSettings 新设置值
+ */
+export function updateSettings(newSettings) {
+    chatState.settings = { ...chatState.settings, ...newSettings };
+    emit('onSettingsChanged');
+}
+
+/**
+ * 清空设置
+ */
+export function clearSettings() {
+    chatState.settings = {};
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('ai_chat_settings');
+    }
+    emit('onSettingsChanged');
+}
+
+/**
+ * 保存设置到 localStorage
+ */
+export function saveSettingsToStorage() {
+    if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('ai_chat_settings', JSON.stringify(chatState.settings));
+    }
+}
+
+/**
+ * 从 localStorage 加载设置
+ */
+export function loadSettingsFromStorage() {
+    if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+            const stored = window.localStorage.getItem('ai_chat_settings');
+            if (stored) {
+                chatState.settings = JSON.parse(stored);
+            } else {
+                chatState.settings = {};
+            }
+            emit('onSettingsChanged');
+        } catch (e) {
+            // 解析失败，保持默认空设置
+            chatState.settings = {};
+            emit('onSettingsChanged');
+        }
+    }
+}
+
+/**
+ * 验证设置
+ * @param {Object} settings 待验证的设置
+ * @returns {{valid: boolean, errors: string[]}} 验证结果
+ */
+export function validateSettings(settings) {
+    const errors = [];
+
+    if (settings.baseUrl) {
+        try {
+            new URL(settings.baseUrl);
+        } catch {
+            errors.push('baseUrl');
+        }
+    }
+
+    return { valid: errors.length === 0, errors };
+}
+
+// ============ 设置面板可见性 ============
+
+/**
+ * 获取设置面板是否可见
+ * @returns {boolean}
+ */
+export function isSettingsPanelVisible() {
+    return chatState.settingsPanelVisible;
+}
+
+/**
+ * 切换设置面板可见性
+ */
+export function toggleSettingsPanel() {
+    chatState.settingsPanelVisible = !chatState.settingsPanelVisible;
+    emit('onSettingsPanelVisibilityChanged');
+}
+
+/**
+ * 打开设置面板
+ */
+export function openSettingsPanel() {
+    if (!chatState.settingsPanelVisible) {
+        chatState.settingsPanelVisible = true;
+        emit('onSettingsPanelVisibilityChanged');
+    }
+}
+
+/**
+ * 关闭设置面板
+ */
+export function closeSettingsPanel() {
+    if (chatState.settingsPanelVisible) {
+        chatState.settingsPanelVisible = false;
+        emit('onSettingsPanelVisibilityChanged');
+    }
 }
