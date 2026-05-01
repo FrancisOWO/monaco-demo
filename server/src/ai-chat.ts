@@ -5,12 +5,24 @@
  */
 
 import express, { Router } from 'express';
+import OpenAI from 'openai';
 import { config } from './config';
 
 const router: Router = express.Router();
 
-// 测试模式开关（设为 true 则使用本地模拟，无需 API）
-const TEST_MODE = true;
+const TEST_MODE = config.ai.testMode;
+
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+    if (!openai) {
+        openai = new OpenAI({
+            apiKey: config.ai.apiKey,
+            baseURL: config.ai.endpoint,
+        });
+    }
+    return openai;
+}
 
 // ============ Skill & MCP Registry ============
 
@@ -63,6 +75,56 @@ interface ChatRequest {
 
 function writeSSE(res: express.Response, event: string, data: object) {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+// 实际调用 AI API 的 SSE 流
+async function realChatSSE(res: express.Response, reqBody: ChatRequest) {
+    const { messages, mode } = reqBody;
+    const client = getOpenAIClient();
+
+    // 构造 OpenAI 消息格式
+    const systemPrompt = mode === 'agent'
+        ? '你是一个代码助手，可以执行工具调用来帮助用户完成任务。'
+        : mode === 'plan'
+            ? '你是一个代码助手，擅长制定实现方案。请给出结构化的实施计划。'
+            : '你是一个代码助手，请简洁准确地回答用户问题。';
+
+    const chatMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+        { role: 'system', content: systemPrompt },
+    ];
+
+    for (const msg of messages) {
+        const text = msg.parts?.find(p => p.type === 'output')?.text || '';
+        if (text) {
+            chatMessages.push({ role: msg.role, content: text });
+        }
+    }
+
+    try {
+        const stream = await client.chat.completions.create({
+            model: config.ai.chatModel,
+            messages: chatMessages,
+            temperature: 0.3,
+            stream: true,
+        });
+
+        let fullText = '';
+
+        for await (const chunk of stream) {
+            const text = chunk.choices?.[0]?.delta?.content ?? '';
+            if (text) {
+                fullText += text;
+                writeSSE(res, 'token', { text });
+            }
+        }
+
+        writeSSE(res, 'done', { fullText });
+        res.end();
+    } catch (error: any) {
+        console.error('[AI Chat] Error:', error);
+        writeSSE(res, 'error', { message: error.message || 'AI request failed' });
+        res.end();
+    }
 }
 
 // 测试模式：模拟 AI 回复的 SSE 流
@@ -183,7 +245,7 @@ function mockChatSSE(res: express.Response, reqBody: ChatRequest) {
 }
 
 // POST /ai/chat/message — SSE 流式对话端点
-router.post('/message', (req, res) => {
+router.post('/message', async (req, res) => {
     const { messages, context, mode } = req.body as ChatRequest;
 
     if (!mode) {
@@ -207,8 +269,7 @@ router.post('/message', (req, res) => {
     if (TEST_MODE) {
         mockChatSSE(res, { messages: messages || [], context: context || [], mode });
     } else {
-        // TODO: 实际调用 AI API
-        res.status(501).json({ error: 'Real AI API not implemented yet' });
+        await realChatSSE(res, { messages: messages || [], context: context || [], mode });
     }
 });
 

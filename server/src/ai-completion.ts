@@ -4,12 +4,24 @@
  */
 
 import express, { Router } from 'express';
+import OpenAI from 'openai';
 import { config } from './config';
 
 const router: Router = express.Router();
 
-// 测试模式开关（设为 true 则使用本地模拟，无需 API）
-const TEST_MODE = true;
+const TEST_MODE = config.ai.testMode;
+
+let openai: OpenAI | null = null;
+
+function getOpenAIClient(): OpenAI {
+    if (!openai) {
+        openai = new OpenAI({
+            apiKey: config.ai.apiKey,
+            baseURL: config.ai.endpoint,
+        });
+    }
+    return openai;
+}
 
 // AI 补全配置
 interface AICompletionRequest {
@@ -28,135 +40,41 @@ interface AICompletionResponse {
     error?: string;
 }
 
-// 模拟 AI 补全（实际项目中应调用 OpenAI/Claude API）
-function generateAICompletion(context: string, language: string): AICompletionResponse {
-    const lines = context.split('\n');
-    const lastLine = lines[lines.length - 1];
+// 通过 LLM FIM 获取补全建议
+async function generateAICompletionFromLLM(context: string, language: string): Promise<AICompletionResponse> {
+    const client = getOpenAIClient();
 
-    // 简单的模式匹配来模拟 AI 补全
-    const suggestions: AICompletionResponse['suggestions'] = [];
+    try {
+        const response = await client.completions.create({
+            model: config.ai.fimModel,
+            prompt: context,
+            max_tokens: 64,
+            temperature: 0.01,
+            n: 3,
+            stream: false,
+        });
 
-    if (language === 'python') {
-        // Python 常用补全模式
-        if (lastLine.trim().startsWith('def ')) {
-            suggestions.push(
-                { text: ':', confidence: 0.95 },
-                { text: 'pass', confidence: 0.7 }
-            );
-        } else if (lastLine.trim().startsWith('class ')) {
-            suggestions.push(
-                { text: ':', confidence: 0.95 },
-                { text: 'pass', confidence: 0.6 }
-            );
-        } else if (lastLine.endsWith('.')) {
-            // 方法调用后补全
-            const methodMatch = lastLine.match(/(\w+)\.\s*$/);
-            if (methodMatch) {
-                const obj = methodMatch[1];
-                if (obj === 'os') {
-                    suggestions.push(
-                        { text: 'path', confidence: 0.9 },
-                        { text: 'getcwd()', confidence: 0.85 },
-                        { text: 'listdir()', confidence: 0.8 }
-                    );
-                } else if (obj === 'str') {
-                    suggestions.push(
-                        { text: 'upper()', confidence: 0.9 },
-                        { text: 'lower()', confidence: 0.9 },
-                        { text: 'split()', confidence: 0.85 }
-                    );
-                }
-            }
-        } else if (lastLine.trim().startsWith('import ')) {
-            suggestions.push(
-                { text: 'os', confidence: 0.8 },
-                { text: 'sys', confidence: 0.8 },
-                { text: 'json', confidence: 0.8 }
-            );
-        } else if (lastLine.trim() === 'if __name__ == \'__main__\':' ||
-            lastLine.trim() === 'if __name__ == "__main__":') {
-            suggestions.push(
-                { text: '\n    main()', confidence: 0.95 },
-                { text: '\n    pass', confidence: 0.5 }
-            );
-        } else if (lastLine.trim().startsWith('for ')) {
-            suggestions.push(
-                { text: ' in range():', confidence: 0.9 },
-                { text: ' in :', confidence: 0.7 }
-            );
-        } else if (lastLine.trim().startsWith('while ')) {
-            suggestions.push(
-                { text: ' True:', confidence: 0.9 },
-                { text: ' True:\n    pass', confidence: 0.7 }
-            );
-        } else if (lastLine.trim().startsWith('try:')) {
-            suggestions.push(
-                { text: '\n    pass\nexcept ', confidence: 0.9 }
-            );
-        } else if (lastLine.trim().startsWith('with ')) {
-            suggestions.push(
-                { text: ' open(\'\') as :', confidence: 0.9 }
-            );
-        } else if (lastLine.trim() === '') {
-            // 空行，智能提示
-            suggestions.push(
-                { text: 'pass', confidence: 0.6 },
-                { text: 'return', confidence: 0.6 }
-            );
-        }
-    } else if (language === 'javascript' || language === 'typescript') {
-        if (lastLine.trim().startsWith('function ')) {
-            suggestions.push(
-                { text: '() {\n    \n}', confidence: 0.9 }
-            );
-        } else if (lastLine.endsWith('.')) {
-            suggestions.push(
-                { text: 'then(', confidence: 0.8 },
-                { text: 'catch(', confidence: 0.8 }
-            );
-        } else if (lastLine.trim().startsWith('const ') || lastLine.trim().startsWith('let ') || lastLine.trim().startsWith('var ')) {
-            suggestions.push(
-                { text: ' = ', confidence: 0.7 }
-            );
-        }
-    } else if (language === 'cpp' || language === 'c') {
-        if (lastLine.trim().startsWith('int main(')) {
-            suggestions.push(
-                { text: ') {\n    \n    return 0;\n}', confidence: 0.9 }
-            );
-        } else if (lastLine.endsWith('<<')) {
-            suggestions.push(
-                { text: 'std::endl', confidence: 0.9 }
-            );
-        } else if (lastLine.endsWith('>>')) {
-            suggestions.push(
-                { text: 'variable', confidence: 0.7 }
-            );
-        }
-    } else if (language === 'go') {
-        if (lastLine.trim().startsWith('func ')) {
-            suggestions.push(
-                { text: '() {\n    \n}', confidence: 0.9 }
-            );
-        } else if (lastLine.trim().startsWith('if err != nil')) {
-            suggestions.push(
-                { text: ' {\n    return err\n}', confidence: 0.95 }
-            );
-        }
+        const suggestions = response.choices
+            .map(choice => choice.text)
+            .filter(text => text.trim().length > 0)
+            .map((text, i) => ({
+                text,
+                confidence: Math.max(0.9 - i * 0.15, 0.5),
+            }));
+
+        return {
+            suggestions: suggestions.length > 0
+                ? suggestions
+                : [{ text: '', confidence: 0 }],
+        };
+    } catch (error: any) {
+        console.error('[AI] Completion LLM error:', error);
+        return { suggestions: [], error: error.message || 'LLM request failed' };
     }
-
-    // 如果没有匹配，添加通用建议
-    if (suggestions.length === 0) {
-        suggestions.push(
-            { text: '\n    pass', confidence: 0.5 }
-        );
-    }
-
-    return { suggestions };
 }
 
 // 单行补全端点
-router.post('/completion', (req, res) => {
+router.post('/completion', async (req, res) => {
     try {
         const { context, language, cursorLine, cursorColumn }: AICompletionRequest = req.body;
 
@@ -173,7 +91,7 @@ router.post('/completion', (req, res) => {
             // 测试模式：返回固定补全
             result = generateTestCompletion(context, language);
         } else {
-            result = generateAICompletion(context, language);
+            result = await generateAICompletionFromLLM(context, language);
         }
         res.json(result);
 
@@ -184,7 +102,7 @@ router.post('/completion', (req, res) => {
 });
 
 // 多行补全端点（返回流式响应）
-router.get('/inline-completion', (req, res) => {
+router.get('/inline-completion', async (req, res) => {
     const context = req.query.context as string;
     const language = req.query.language as string;
 
@@ -200,29 +118,28 @@ router.get('/inline-completion', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // 生成多行补全
-    let completion;
     if (TEST_MODE) {
-        completion = generateTestMultilineCompletion(context, language);
+        let completion = generateTestMultilineCompletion(context, language);
+        if (!completion) {
+            completion = generateDefaultMultilineCompletion(context, language);
+        }
+        streamMockCompletion(res, completion);
     } else {
-        completion = generateMultilineCompletion(context, language);
+        await streamLLMCompletion(res, context);
     }
+});
 
-    // 如果没有匹配到任何模式，生成一个默认的多行补全
-    if (!completion) {
-        completion = generateDefaultMultilineCompletion(context, language);
-    }
-
-    // 流式发送（每次发送一小段，模拟打字效果）
+// 测试模式：模拟流式发送补全
+function streamMockCompletion(res: express.Response, completion: string) {
     const chunks = completion.split('');
     let index = 0;
 
     const sendChunk = () => {
         if (index < chunks.length) {
-            const text = chunks.slice(0, index + 3).join(''); // 每次3个字符
+            const text = chunks.slice(index, index + 3).join('');
             index += 3;
-            res.write(`data: ${JSON.stringify({ text: chunks.slice(index - 3, index).join(''), done: false, progress: Math.round(index / chunks.length * 100) })}\n\n`);
-            setTimeout(sendChunk, 30); // 30ms 间隔，模拟打字
+            res.write(`data: ${JSON.stringify({ text, done: false, progress: Math.round(index / chunks.length * 100) })}\n\n`);
+            setTimeout(sendChunk, 30);
         } else {
             res.write(`data: ${JSON.stringify({ done: true, fullText: completion, confidence: 0.85 })}\n\n`);
             res.end();
@@ -230,7 +147,39 @@ router.get('/inline-completion', (req, res) => {
     };
 
     sendChunk();
-});
+}
+
+// LLM FIM 流式补全
+async function streamLLMCompletion(res: express.Response, context: string) {
+    const client = getOpenAIClient();
+
+    try {
+        const stream = await client.completions.create({
+            model: config.ai.fimModel,
+            prompt: context,
+            max_tokens: 128,
+            temperature: 0.01,
+            stream: true,
+        });
+
+        let fullText = '';
+
+        for await (const chunk of stream) {
+            const text = chunk.choices?.[0]?.text ?? '';
+            if (text) {
+                fullText += text;
+                res.write(`data: ${JSON.stringify({ text, done: false })}\n\n`);
+            }
+        }
+
+        res.write(`data: ${JSON.stringify({ done: true, fullText })}\n\n`);
+        res.end();
+    } catch (error: any) {
+        console.error('[AI] Inline completion LLM error:', error);
+        res.write(`data: ${JSON.stringify({ done: true, fullText: '', error: error.message })}\n\n`);
+        res.end();
+    }
+}
 
 function generateMultilineCompletion(context: string, language: string): string {
     const lines = context.split('\n');

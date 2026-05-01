@@ -4,6 +4,7 @@
  * 等待第一个 token 就返回，后台继续缓存
  */
 
+import OpenAI from 'openai';
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
@@ -30,6 +31,7 @@ export interface StreamingCallbacks {
  * 流式 LLM 客户端
  */
 export class StreamedLLMClient implements ILLMClient {
+    private client: OpenAI;
     private config: {
         endpoint: string;
         model: string;
@@ -40,6 +42,10 @@ export class StreamedLLMClient implements ILLMClient {
 
     constructor(config: { endpoint: string; model: string; apiKey: string }) {
         this.config = config;
+        this.client = new OpenAI({
+            apiKey: config.apiKey,
+            baseURL: config.endpoint,
+        });
     }
 
     /**
@@ -56,7 +62,6 @@ export class StreamedLLMClient implements ILLMClient {
             context,
         );
 
-        // 等待后台缓存完成
         await backgroundCache;
 
         return [firstResult];
@@ -73,101 +78,58 @@ export class StreamedLLMClient implements ILLMClient {
     ): Promise<{ firstResult: CompletionResult; backgroundCache: Promise<CompletionResult[]> }> {
         this.abortController = new AbortController();
 
-        const response = await fetch(this.config.endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.config.apiKey}`,
-            },
-            body: JSON.stringify({
+        const n = context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1;
+
+        const stream = await this.client.completions.create(
+            {
                 model: this.config.model,
                 prompt: prompt.prefix,
                 suffix: prompt.suffix || undefined,
                 max_tokens: strategy.maxTokens ?? 50,
                 stop: strategy.stopTokens.length > 0 ? strategy.stopTokens : undefined,
-                temperature: 0,
-                n: context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1,
-                stream: true, // 启用流式
-            }),
-            signal: this.abortController.signal,
-        });
+                temperature: 0.01,
+                n,
+                stream: true,
+            },
+            { signal: this.abortController.signal },
+        );
 
-        if (!response.ok) {
-            throw new Error(`LLM request failed: ${response.status} ${response.statusText}`);
-        }
-
-        const reader = response.body?.getReader();
-        if (!reader) {
-            throw new Error('No response body');
-        }
-
-        const decoder = new TextDecoder();
         let fullText = '';
         let firstTokenReceived = false;
-
-        // 创建后台缓存 Promise
-        const backgroundCache = new Promise<CompletionResult[]>((resolve, reject) => {
-            const readChunk = async () => {
-                try {
-                    while (true) {
-                        const { done, value } = await reader.read();
-
-                        if (done) {
-                            // 流式完成
-                            const result: CompletionResult = {
-                                insertText: fullText,
-                                range: {
-                                    startLineNumber: context.position.lineNumber,
-                                    startColumn: context.position.column,
-                                    endLineNumber: context.position.lineNumber,
-                                    endColumn: context.position.column,
-                                },
-                                completionId: `${context.requestId}-0`,
-                                source: CompletionSource.Network,
-                                isMultiline: strategy.requestMultiline,
-                            };
-                            resolve([result]);
-                            return;
-                        }
-
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
-
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const dataStr = line.slice(6);
-                                if (dataStr === '[DONE]') {
-                                    continue;
-                                }
-
-                                try {
-                                    const data = JSON.parse(dataStr);
-                                    const text = data.choices?.[0]?.text ?? '';
-                                    fullText += text;
-
-                                    if (!firstTokenReceived && text) {
-                                        firstTokenReceived = true;
-                                    }
-                                } catch {
-                                    // 忽略解析错误
-                                }
-                            }
-                        }
-                    }
-                } catch (error) {
-                    reject(error);
-                }
-            };
-
-            readChunk();
+        let firstTokenResolve!: () => void;
+        const firstTokenPromise = new Promise<void>(resolve => {
+            firstTokenResolve = resolve;
         });
 
-        // 等待第一个 token
-        while (!firstTokenReceived) {
-            await new Promise(resolve => setTimeout(resolve, 10));
-        }
+        const backgroundCache = (async (): Promise<CompletionResult[]> => {
+            for await (const chunk of stream) {
+                const text = chunk.choices?.[0]?.text ?? '';
+                fullText += text;
 
-        // 构造第一个结果
+                if (!firstTokenReceived && text) {
+                    firstTokenReceived = true;
+                    firstTokenResolve?.();
+                }
+            }
+
+            const result: CompletionResult = {
+                insertText: fullText,
+                range: {
+                    startLineNumber: context.position.lineNumber,
+                    startColumn: context.position.column,
+                    endLineNumber: context.position.lineNumber,
+                    endColumn: context.position.column,
+                },
+                completionId: `${context.requestId}-0`,
+                source: CompletionSource.Network,
+                isMultiline: strategy.requestMultiline,
+            };
+            return [result];
+        })();
+
+        // 等待第一个 token
+        await firstTokenPromise;
+
         const firstResult: CompletionResult = {
             insertText: fullText,
             range: {
@@ -201,10 +163,11 @@ export class StreamedLLMClient implements ILLMClient {
     cacheResult(key: string, text: string): void {
         this.streamingCache.set(key, text);
 
-        // 限制缓存大小
         if (this.streamingCache.size > 100) {
             const firstKey = this.streamingCache.keys().next().value;
-            this.streamingCache.delete(firstKey);
+            if (firstKey) {
+                this.streamingCache.delete(firstKey);
+            }
         }
     }
 

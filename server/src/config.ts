@@ -17,6 +17,20 @@ export const config = {
         workspaceRoot: process.cwd(),
     },
 
+    // AI 配置
+    ai: {
+        // OpenAI API Key
+        apiKey: process.env.OPENAI_API_KEY || '',
+        // API endpoint（兼容 OpenAI 的服务地址）
+        endpoint: process.env.OPENAI_API_BASE || 'https://api.openai.com/v1',
+        // 对话模型
+        chatModel: process.env.AI_CHAT_MODEL || 'gpt-4o-mini',
+        // FIM 补全模型
+        fimModel: process.env.AI_FIM_MODEL || 'FIM',
+        // 测试模式（设为 true 则使用本地模拟，无需 API）
+        testMode: (process.env.AI_TEST_MODE || 'true') === 'true',
+    },
+
     // 日志级别
     logLevel: 'debug' as 'debug' | 'info' | 'warn' | 'error',
 };

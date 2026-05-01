@@ -1,8 +1,9 @@
 /**
  * LLM 客户端
- * 调用大模型获取补全结果
+ * 使用 OpenAI SDK 调用 FIM 补全
  */
 
+import OpenAI from 'openai';
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
@@ -22,11 +23,17 @@ export interface LLMClientConfig {
     apiKey: string;
 }
 
-/** 简易 LLM 客户端 */
+/** 使用 OpenAI SDK 的 FIM 补全客户端 */
 export class SimpleLLMClient implements ILLMClient {
+    private client: OpenAI;
     private abortController: AbortController | null = null;
 
-    constructor(private config: LLMClientConfig) { }
+    constructor(private config: LLMClientConfig) {
+        this.client = new OpenAI({
+            apiKey: config.apiKey,
+            baseURL: config.endpoint,
+        });
+    }
 
     async requestCompletion(
         prompt: PromptInfo,
@@ -35,32 +42,23 @@ export class SimpleLLMClient implements ILLMClient {
     ): Promise<CompletionResult[]> {
         this.abortController = new AbortController();
 
-        const response = await fetch(this.config.endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${this.config.apiKey}`,
-            },
-            body: JSON.stringify({
+        const n = context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1;
+
+        const response = await this.client.completions.create(
+            {
                 model: this.config.model,
-                prompt: prompt.prefix,  // 简易版只发 prefix
+                prompt: prompt.prefix,
+                suffix: prompt.suffix || undefined,
                 max_tokens: strategy.maxTokens,
                 stop: strategy.stopTokens,
-                temperature: 0,
-                n: context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1,
-            }),
-            signal: this.abortController.signal,
-        });
+                temperature: 0.01,
+                n,
+                stream: false,
+            },
+            { signal: this.abortController.signal },
+        );
 
-        if (!response.ok) {
-            throw new Error(`LLM request failed: ${response.status} ${response.statusText}`);
-        }
-
-        const data = await response.json() as {
-            choices: Array<{ text: string }>;
-        };
-
-        return data.choices.map((choice, index): CompletionResult => ({
+        return response.choices.map((choice, index): CompletionResult => ({
             insertText: choice.text,
             range: {
                 startLineNumber: context.position.lineNumber,
