@@ -24,6 +24,7 @@ const chatState = {
     },
     settings: {},            // 账户设置
     settingsPanelVisible: false, // 设置面板可见性
+    conversationHistory: [], // 对话历史
 };
 
 /** 生成唯一 ID */
@@ -564,4 +565,67 @@ export function closeSettingsPanel() {
         chatState.settingsPanelVisible = false;
         emit('onSettingsPanelVisibilityChanged');
     }
+}
+
+// ============ 新建对话 ============
+
+/**
+ * 检查是否有活跃对话
+ * @returns {boolean}
+ */
+export function hasActiveConversation() {
+    return chatState.messages.length > 0 || chatState.contextItems.length > 0;
+}
+
+/**
+ * 获取对话历史
+ * @returns {Array} 历史对话列表
+ */
+export function getConversationHistory() {
+    return [...chatState.conversationHistory];
+}
+
+/**
+ * 保存当前对话到历史
+ */
+function saveCurrentConversationToHistory() {
+    if (chatState.messages.length === 0) {
+        return;
+    }
+
+    const historyItem = {
+        id: generateId(),
+        timestamp: Date.now(),
+        messages: JSON.parse(JSON.stringify(chatState.messages)),
+        contextItems: JSON.parse(JSON.stringify(chatState.contextItems)),
+    };
+
+    chatState.conversationHistory.unshift(historyItem);
+
+    // 限制历史记录数量（最多 50 条）
+    if (chatState.conversationHistory.length > 50) {
+        chatState.conversationHistory = chatState.conversationHistory.slice(0, 50);
+    }
+}
+
+/**
+ * 开始新对话
+ * 保存当前对话到历史，然后清空当前状态
+ */
+export function startNewChat() {
+    // 保存当前对话到历史
+    saveCurrentConversationToHistory();
+
+    // 清空消息
+    chatState.messages = [];
+    emit('onMessagesChanged');
+
+    // 清空上下文
+    chatState.contextItems = [];
+    emit('onContextChanged');
+
+    // 重置折叠状态
+    chatState.foldState.foldedMessages = {};
+    chatState.foldState.currentMessageIndex = 0;
+    emit('onFoldStateChanged');
 }
