@@ -15,6 +15,7 @@ import type {
     CompletionRequestContext,
     CompletionStrategy,
 } from './types.js';
+import { getTemplatesForLanguage } from './templates/index.js';
 
 /** 虚拟 LLM 客户端配置 */
 export interface DummyLLMClientConfig {
@@ -25,69 +26,6 @@ export interface DummyLLMClientConfig {
     /** 空结果概率（0-1） */
     emptyProbability?: number;
 }
-
-/**
- * 基于前缀的补全模板
- */
-const completionTemplates: Record<string, string[]> = {
-    'function': [
-        '() {\n    // TODO: implement\n}',
-        '() {\n    return null;\n}',
-        '(param) {\n    console.log(param);\n}',
-    ],
-    'const': [
-        ' = null;',
-        ' = undefined;',
-        ' = [];',
-        ' = {};',
-    ],
-    'let': [
-        ' = null;',
-        ' = 0;',
-        ' = "";',
-    ],
-    'if': [
-        ' (condition) {\n    // TODO\n}',
-        ' (err) {\n    console.error(err);\n}',
-    ],
-    'for': [
-        ' (let i = 0; i < length; i++) {\n    // TODO\n}',
-        ' (const item of items) {\n    console.log(item);\n}',
-    ],
-    'return': [
-        ' null;',
-        ' true;',
-        ' false;',
-        ' result;',
-    ],
-    'console.log': [
-        '("debug");',
-        '(variable);',
-    ],
-    'import': [
-        ' { } from "./module";',
-        ' * as module from "./module";',
-    ],
-    'class': [
-        ' {\n    constructor() {\n        // TODO\n    }\n}',
-    ],
-    'async': [
-        ' function fetchData() {\n    const response = await fetch(url);\n    return response.json();\n}',
-    ],
-    'await': [
-        ' promise;',
-        ' fetch(url);',
-    ],
-    'default': [
-        ';',
-        '()',
-        '{}',
-        '[]',
-        'null',
-        'true',
-        'false',
-    ],
-};
 
 /**
  * 虚拟 LLM 客户端
@@ -206,15 +144,19 @@ export class DummyLLMClient implements ILLMClient {
         // 根据触发类型决定返回数量
         const count = context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1;
 
+        // 根据语言选择模板
+        const templates = getTemplatesForLanguage(context.languageId);
+
         // 尝试匹配模板
-        for (const [key, templates] of Object.entries(completionTemplates)) {
+        for (const [key, tmpl] of Object.entries(templates)) {
+            if (key === 'default') continue;
             if (trimmedLine.endsWith(key) || lastLine.includes(key)) {
-                return this.shuffleArray(templates).slice(0, count);
+                return this.shuffleArray(tmpl).slice(0, count);
             }
         }
 
         // 默认模板
-        const defaults = completionTemplates.default;
+        const defaults = templates.default;
         return this.shuffleArray(defaults).slice(0, count);
     }
 
