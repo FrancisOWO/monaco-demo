@@ -33,7 +33,17 @@ export function setupChatPanel(editor) {
     const settingsBtn = document.getElementById('chat-settings-btn');
     settingsBtn.addEventListener('click', () => chatStore.openSettingsPanel());
 
-    // 初始化设置面板
+    // 新建对话按钮
+    const newBtn = document.getElementById('chat-new-btn');
+    newBtn.addEventListener('click', () => {
+        if (chatStore.hasActiveConversation()) {
+            if (confirm('确定要开始新对话吗？当前对话将被保存到历史记录中。')) {
+                chatStore.startNewChat();
+            }
+        } else {
+            chatStore.startNewChat();
+        }
+    });
     setupSettingsPanel();
 
     // 初始化子组件
