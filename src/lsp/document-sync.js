@@ -28,6 +28,16 @@ export function setupDocumentSync(editorInstance, client) {
     editor = editorInstance;
     lspClient = client;
 
+    // 对已打开的 Python 文件补发 didOpen
+    for (const [path, descriptor] of openFiles) {
+        if (descriptor.language === 'python' && descriptor.model) {
+            const uri = descriptor.model.uri.toString();
+            if (!syncedDocuments.has(uri)) {
+                syncDocumentOpen(uri, descriptor.model);
+            }
+        }
+    }
+
     // 监听文件变化事件
     on('onActiveFileChanged', () => {
         syncActiveDocument();

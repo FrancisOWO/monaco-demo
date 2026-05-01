@@ -4,6 +4,7 @@
  */
 import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
+import { setWorkspaceUriPrefix } from '../file-system/file-store.js';
 
 const logger = getLogger('LSP Client');
 
@@ -17,8 +18,49 @@ let requestId = 0;
 const LSP_SERVER_URL = 'ws://localhost:3000/pyright';
 const LSP_HTTP_URL = 'http://localhost:3000';
 
-// 工作区根路径（从服务端获取）
+// 工作区根路径（从服务端获取真实路径，Pyright 要求工作区必须存在）
 let workspaceRootUri = 'file:///workspace';
+
+/**
+ * 将 Monaco URI 转为 Pyright 能接受的格式
+ * Monaco 的 Uri.toString() 会把 D: 编码为 D%3A，Pyright 不认
+ * 使用 Uri.fsPath 属性获取本地路径，再构造不编码的 file:// URI
+ */
+function toLspUri(monacoUri) {
+    const fsPath = monacoUri.fsPath;
+    if (fsPath) {
+        const normalized = fsPath.replace(/\\/g, '/');
+        return normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`;
+    }
+    return monacoUri.toString();
+}
+
+/**
+ * 将 Pyright 返回的 URI 转为 Monaco 能识别的 URI
+ */
+function toMonacoUri(lspUri) {
+    const parsed = monaco.Uri.parse(lspUri);
+    const fsPath = parsed.fsPath;
+    if (fsPath) {
+        return monaco.Uri.file(fsPath);
+    }
+    return parsed;
+}
+
+/**
+ * 解码 URI 字符串中的编码字符（如 %3A -> :）
+ * Monaco 的 Uri.toString() 会把 D: 编码为 D%3A，Pyright 不认
+ */
+function decodeUri(uri) {
+    if (!uri || !uri.includes('%')) return uri;
+    // 只解码 URI 中路径部分的编码，不影响 file:// 前缀
+    return uri.replace(/%[0-9A-Fa-f]{2}/g, (match) => {
+        const char = decodeURIComponent(match);
+        // 只解码 : / \ 等文件路径中合法的字符，不解码空格等
+        if (':/\\'.includes(char)) return char;
+        return match;
+    });
+}
 
 /**
  * 创建 LSP 客户端
@@ -205,7 +247,7 @@ export function createPythonLSPClient(monaco, editor) {
             let targetModel = null;
 
             if (targetUri) {
-                targetModel = monaco.editor.getModel(monaco.Uri.parse(targetUri));
+                targetModel = monaco.editor.getModel(toMonacoUri(targetUri));
             }
 
             // fallback: 如果 URI 匹配失败，使用当前活跃 model
@@ -251,6 +293,7 @@ export function createPythonLSPClient(monaco, editor) {
                 const data = await response.json();
                 if (data.uri) {
                     workspaceRootUri = data.uri;
+                    setWorkspaceUriPrefix(data.path);
                     logger.info('Workspace root:', workspaceRootUri);
                 }
             } catch (error) {
@@ -334,7 +377,7 @@ export function createPythonLSPClient(monaco, editor) {
         didOpenDocument(uri, languageId, text) {
             this.sendNotification('textDocument/didOpen', {
                 textDocument: {
-                    uri,
+                    uri: decodeUri(uri),
                     languageId,
                     version: 1,
                     text
@@ -348,7 +391,7 @@ export function createPythonLSPClient(monaco, editor) {
         didChangeDocument(uri, text, version = 1) {
             this.sendNotification('textDocument/didChange', {
                 textDocument: {
-                    uri,
+                    uri: decodeUri(uri),
                     version
                 },
                 contentChanges: [
@@ -362,7 +405,7 @@ export function createPythonLSPClient(monaco, editor) {
          */
         async getCompletions(uri, line, character) {
             const params = {
-                textDocument: { uri },
+                textDocument: { uri: decodeUri(uri) },
                 position: { line, character }
             };
 
@@ -382,7 +425,7 @@ export function createPythonLSPClient(monaco, editor) {
          */
         async getHover(uri, line, character) {
             const params = {
-                textDocument: { uri },
+                textDocument: { uri: decodeUri(uri) },
                 position: { line, character }
             };
 
@@ -452,7 +495,7 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
 
                 // 异步请求 LSP 补全，结果回来后直接更新当前列表
                 if (lspClient.is_connected()) {
-                    const uri = model.uri.toString();
+                    const uri = toLspUri(model.uri);
                     const line = position.lineNumber - 1;
                     const character = position.column - 1;
                     const cacheKey = uri + ':' + line + ':' + character;
@@ -463,7 +506,7 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
 
                         lspClient.getCompletions(uri, line, character)
                             .then(result => {
-                                if (result && result.items) {
+                                if (result && result.items && result.items.length > 0) {
                                     cachedLSPItems = result.items;
                                     // 如果有等待中的补全列表，直接补充结果
                                     if (activeCompletionResolve) {
@@ -485,6 +528,14 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
 
                                         resolve({ suggestions: [...allSuggestions, ...lspSuggestions] });
                                     }
+                                } else {
+                                    // LSP 无结果，清除等待中的 resolve
+                                    cachedLSPItems = null;
+                                    if (activeCompletionResolve) {
+                                        const resolve = activeCompletionResolve;
+                                        activeCompletionResolve = null;
+                                        resolve(allSuggestions.length > 0 ? { suggestions: allSuggestions } : null);
+                                    }
                                 }
                             })
                             .catch(err => {
@@ -501,15 +552,13 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                 // 返回 Promise，LSP 结果回来后 resolve 追加到列表
                 return new Promise(resolve => {
                     activeCompletionResolve = resolve;
-                    // 如果有缓存的基础结果，先设置超时兜底
-                    if (allSuggestions.length > 0) {
-                        setTimeout(() => {
-                            if (activeCompletionResolve === resolve) {
-                                activeCompletionResolve = null;
-                                resolve({ suggestions: allSuggestions });
-                            }
-                        }, 3000);
-                    }
+                    // 超时兜底：3 秒内 LSP 无响应则返回已有结果
+                    setTimeout(() => {
+                        if (activeCompletionResolve === resolve) {
+                            activeCompletionResolve = null;
+                            resolve(allSuggestions.length > 0 ? { suggestions: allSuggestions } : null);
+                        }
+                    }, 3000);
                 });
             } catch (err) {
                 logger.error('error:', err);
@@ -566,7 +615,7 @@ export function registerLSPHoverProvider(monaco, lspClient) {
                 return null;
             }
 
-            const uri = model.uri.toString();
+            const uri = toLspUri(model.uri);
             const line = position.lineNumber - 1;
             const character = position.column - 1;
 

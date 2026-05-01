@@ -18,7 +18,7 @@ import { setupInlineCompletion } from './inlineCompletion/setup.js';
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
 
-import { on, getActiveFile } from './file-system/file-store.js';
+import { on, getActiveFile, setWorkspaceUriPrefix } from './file-system/file-store.js';
 import { setupToolbar, updateLanguageSelect } from './ui/toolbar.js';
 import { updateTabs } from './ui/tab-bar.js';
 import { updateSidebarHighlight } from './ui/sidebar.js';
@@ -52,6 +52,18 @@ window.addEventListener('unhandledrejection', (event) => {
 
 // 初始化日志控制面板
 initLogPanel();
+
+// 启动时获取服务端工作区路径，确保文件 model 使用正确的 URI
+// Pyright 要求 rootUri 指向真实存在的目录，虚拟路径会导致 "does not exist" 错误
+try {
+    const wsResp = await fetch('http://localhost:3000/workspace-root');
+    const wsData = await wsResp.json();
+    if (wsData.path) {
+        setWorkspaceUriPrefix(wsData.path);
+    }
+} catch (_e) {
+    // 服务端未启动时使用默认值
+}
 
 // 创建编辑器（无初始模型，等待文件打开）
 const editor = monaco.editor.create(document.getElementById('editor-container'), {

@@ -11,6 +11,17 @@ import { sampleCode } from '../sample-code/sample-code-index.js';
 
 const logger = getLogger('File Store');
 
+/** 工作区本地路径（如 D:\Users\...\monaco-start），由 LSP 客户端从服务端获取后设置 */
+let workspaceLocalPath = '';
+
+/**
+ * 设置工作区本地路径（由 LSP 客户端调用）
+ */
+export function setWorkspaceUriPrefix(localPath) {
+    workspaceLocalPath = localPath;
+    logger.info('Workspace local path:', localPath);
+}
+
 /** 已打开文件 Map: path → OpenFileDescriptor */
 export const openFiles = new Map();
 
@@ -84,7 +95,16 @@ export function setRootDirectory(handle) {
  * 创建 Monaco model
  */
 function createFileModel(path, content, language) {
-    const uri = monaco.Uri.parse('file:///workspace' + path);
+    let uri;
+    if (workspaceLocalPath) {
+        // 有真实工作区路径时，用 Uri.file 避免 URL 编码
+        // path 格式如 /test.py，去掉开头的 / 拼接到本地路径
+        const localPath = workspaceLocalPath + path.replace(/^\//, '\\');
+        uri = monaco.Uri.file(localPath);
+    } else {
+        // fallback: 虚拟路径
+        uri = monaco.Uri.parse('file:///workspace' + path);
+    }
     let model = monaco.editor.getModel(uri);
     if (model) {
         // 已有同 URI 的 model，直接返回
