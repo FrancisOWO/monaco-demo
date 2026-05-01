@@ -189,6 +189,135 @@ lspTogglePopup.addEventListener('click', (e) => {
 updateLSPStatus('disabled', '已关闭');
 updateToggleSwitch();
 
+// ==================== Conda 环境指示器 ====================
+const envIndicator = document.getElementById('status-python-env');
+const envPopup = document.getElementById('env-switcher-popup');
+const envList = document.getElementById('env-switcher-list');
+const envRefreshBtn = document.getElementById('env-switcher-refresh');
+const envNoConda = document.getElementById('env-switcher-no-conda');
+
+let currentEnvName = null;
+let envListCache = null;
+
+const CONDA_API_URL = 'http://localhost:3000/conda';
+
+async function loadEnvironmentInfo() {
+    try {
+        const response = await fetch(`${CONDA_API_URL}/info`);
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        const info = result.data;
+        if (!info.condaAvailable) {
+            envIndicator.textContent = 'Python: 未检测到 Conda';
+            envNoConda.classList.remove('hidden');
+            return;
+        }
+
+        currentEnvName = info.currentEnvironment;
+        envIndicator.textContent = `Python: ${currentEnvName}`;
+        envListCache = info.environments;
+        renderEnvList(info.environments, info.currentEnvironment);
+    } catch (error) {
+        logger.error('Failed to load conda info:', error);
+        envIndicator.textContent = 'Python: 检测失败';
+    }
+}
+
+function renderEnvList(environments, activeName) {
+    envList.innerHTML = '';
+    envNoConda.classList.add('hidden');
+
+    for (const env of environments) {
+        const item = document.createElement('div');
+        item.className = 'env-switcher-item' + (env.name === activeName ? ' active' : '');
+        item.innerHTML = `
+            <span class="env-item-name">${env.name}</span>
+            <span class="env-item-path" title="${env.prefix}">${env.prefix}</span>
+        `;
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            switchEnvironment(env.name);
+        });
+        envList.appendChild(item);
+    }
+}
+
+async function switchEnvironment(envName) {
+    if (envName === currentEnvName) {
+        envPopup.classList.add('hidden');
+        return;
+    }
+
+    try {
+        envIndicator.textContent = 'Python: 切换中...';
+
+        const response = await fetch(`${CONDA_API_URL}/switch-environment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ environmentName: envName }),
+        });
+        const result = await response.json();
+        if (!result.success) throw new Error(result.error);
+
+        currentEnvName = envName;
+        envIndicator.textContent = `Python: ${currentEnvName}`;
+        envPopup.classList.add('hidden');
+
+        // 重启 LSP 以使用新的 Python 路径
+        if (lspEnabled && lspClient) {
+            updateLSPStatus('connecting', '重启中...');
+            try {
+                await lspClient.reconnect();
+                // 重新注册补全和悬停提供者
+                for (const d of lspProviderDisposables) {
+                    d.dispose();
+                }
+                const completionDisp = registerLSPCompletionProvider(monaco, lspClient, editor);
+                const hoverDisp = registerLSPHoverProvider(monaco, lspClient);
+                lspProviderDisposables = [completionDisp, hoverDisp].filter(Boolean);
+                setupDocumentSync(editor, lspClient);
+                updateLSPStatus('connected', '已连接');
+            } catch (error) {
+                logger.error('LSP reconnect failed:', error);
+                updateLSPStatus('error', '重启失败');
+            }
+        }
+
+        renderEnvList(envListCache, currentEnvName);
+    } catch (error) {
+        logger.error('Failed to switch environment:', error);
+        envIndicator.textContent = 'Python: 切换失败';
+        showToast('切换环境失败: ' + error.message, 'error');
+    }
+}
+
+// 点击环境指示器弹出切换面板
+envIndicator.addEventListener('click', (e) => {
+    e.stopPropagation();
+    envPopup.classList.toggle('hidden');
+    if (!envPopup.classList.contains('hidden')) {
+        loadEnvironmentInfo();
+    }
+});
+
+// 刷新按钮
+envRefreshBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    loadEnvironmentInfo();
+});
+
+// 点击其他区域关闭弹出框
+document.addEventListener('click', () => {
+    envPopup.classList.add('hidden');
+});
+envPopup.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+// 启动时加载环境信息
+loadEnvironmentInfo();
+
 // 注册 AI 补全提供者
 registerAICompletionProvider(monaco, editor);
 

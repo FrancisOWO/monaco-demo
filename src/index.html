@@ -433,6 +433,15 @@
         </div>
         <div id="status-right">
             <span id="status-language">语言</span>
+            <span id="status-python-env" class="status-env-indicator" title="选择 Python 环境">Python: 检测中...</span>
+            <div id="env-switcher-popup" class="env-switcher-popup hidden">
+                <div class="env-switcher-header">
+                    <span>选择 Conda 环境</span>
+                    <button id="env-switcher-refresh" class="env-switcher-refresh-btn" title="刷新">&#x21bb;</button>
+                </div>
+                <div id="env-switcher-list" class="env-switcher-list"></div>
+                <div id="env-switcher-no-conda" class="env-switcher-no-conda hidden">未检测到 Conda 安装</div>
+            </div>
             <span id="status-line-col">行 1, 列 1</span>
         </div>
     </div>

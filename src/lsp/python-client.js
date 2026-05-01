@@ -15,6 +15,10 @@ let requestId = 0;
 
 // 服务器配置
 const LSP_SERVER_URL = 'ws://localhost:3000/pyright';
+const LSP_HTTP_URL = 'http://localhost:3000';
+
+// 工作区根路径（从服务端获取）
+let workspaceRootUri = 'file:///workspace';
 
 /**
  * 创建 LSP 客户端
@@ -34,8 +38,10 @@ export function createPythonLSPClient(monaco, editor) {
                     logger.info('WebSocket connected');
                     isConnected = true;
 
-                    // 发送初始化请求
-                    this.initialize().then(() => {
+                    // 先获取工作区路径，再初始化
+                    this.fetchWorkspaceRoot().then(() => {
+                        return this.initialize();
+                    }).then(() => {
                         resolve(true);
                     }).catch(reject);
                 };
@@ -69,9 +75,18 @@ export function createPythonLSPClient(monaco, editor) {
         },
 
         /**
+         * 断开后重连（环境切换后使用）
+         */
+        async reconnect() {
+            this.disconnect();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return this.connect();
+        },
+
+        /**
          * 发送 LSP 请求
          */
-        sendRequest(method, params, timeoutMs = 200) {
+        sendRequest(method, params, timeoutMs = 3000) {
             return new Promise((resolve, reject) => {
                 if (!webSocket || !isConnected) {
                     reject(new Error('Not connected to LSP server'));
@@ -150,8 +165,8 @@ export function createPythonLSPClient(monaco, editor) {
                     const callback = messageCallbacks.get(message.id);
                     messageCallbacks.delete(message.id);
 
-                    if (message.error) {
-                        callback.reject(message.error);
+                    if (message.error && message.error.message) {
+                        callback.reject(new Error(message.error.message));
                     } else {
                         callback.resolve(message.result);
                     }
@@ -228,16 +243,48 @@ export function createPythonLSPClient(monaco, editor) {
         },
 
         /**
+         * 从服务端获取工作区根路径
+         */
+        async fetchWorkspaceRoot() {
+            try {
+                const response = await fetch(`${LSP_HTTP_URL}/workspace-root`);
+                const data = await response.json();
+                if (data.uri) {
+                    workspaceRootUri = data.uri;
+                    logger.info('Workspace root:', workspaceRootUri);
+                }
+            } catch (error) {
+                logger.warn('Failed to fetch workspace root, using default:', error.message);
+            }
+        },
+
+        /**
          * 初始化 LSP 连接
          */
         async initialize() {
+            // 获取当前配置的 Python 路径
+            let pythonPath = null;
+            try {
+                const response = await fetch(`${LSP_HTTP_URL}/conda/current-python`);
+                const data = await response.json();
+                pythonPath = data.pythonPath;
+            } catch (error) {
+                logger.warn('Could not fetch Python path:', error.message);
+            }
+
             const initParams = {
                 processId: null,
                 clientInfo: {
                     name: 'Monaco Editor',
                     version: '1.0.0'
                 },
-                rootUri: 'file:///workspace',
+                rootUri: workspaceRootUri,
+                initializationOptions: pythonPath ? {
+                    pythonPath: pythonPath,
+                    python: {
+                        pythonPath: pythonPath
+                    }
+                } : {},
                 capabilities: {
                     textDocument: {
                         completion: {
@@ -264,11 +311,13 @@ export function createPythonLSPClient(monaco, editor) {
                 },
                 workspaceFolders: [
                     {
-                        uri: 'file:///workspace',
+                        uri: workspaceRootUri,
                         name: 'workspace'
                     }
                 ]
             };
+
+            logger.info('Initializing with pythonPath:', pythonPath || 'default');
 
             const result = await this.sendRequest('initialize', initParams);
             logger.info('Initialized:', result);
@@ -318,10 +367,12 @@ export function createPythonLSPClient(monaco, editor) {
             };
 
             try {
-                const result = await this.sendRequest('textDocument/completion', params);
+                logger.info('Requesting completions for', uri, line, character);
+                const result = await this.sendRequest('textDocument/completion', params, 10000);
+                logger.info('Completion result:', result ? `items: ${result.items?.length || 0}` : 'null');
                 return result;
             } catch (error) {
-                logger.error('Completion error:', error);
+                logger.error('Completion error:', error.message || error);
                 return null;
             }
         },
@@ -360,6 +411,8 @@ export function createPythonLSPClient(monaco, editor) {
 // 缓存 LSP 补全结果
 let cachedLSPItems = null;
 let lspCompletionCacheKey = '';
+// 当前活跃的补全请求，用于取消过时的请求
+let activeCompletionResolve = null;
 
 export function registerLSPCompletionProvider(monaco, lspClient, editor) {
     return monaco.languages.registerCompletionItemProvider('python', {
@@ -397,7 +450,7 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                     }
                 }
 
-                // 异步请求 LSP 补全，结果缓存后下次触发时使用
+                // 异步请求 LSP 补全，结果回来后直接更新当前列表
                 if (lspClient.is_connected()) {
                     const uri = model.uri.toString();
                     const line = position.lineNumber - 1;
@@ -407,12 +460,31 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                     // 只在位置变化时发起新请求
                     if (cacheKey !== lspCompletionCacheKey) {
                         lspCompletionCacheKey = cacheKey;
+
                         lspClient.getCompletions(uri, line, character)
                             .then(result => {
                                 if (result && result.items) {
                                     cachedLSPItems = result.items;
-                                    // 触发补全列表刷新
-                                    editor.trigger('lsp-cache', 'editor.action.triggerSuggest', {});
+                                    // 如果有等待中的补全列表，直接补充结果
+                                    if (activeCompletionResolve) {
+                                        const resolve = activeCompletionResolve;
+                                        activeCompletionResolve = null;
+
+                                        const lspSuggestions = result.items.map((item, i) => ({
+                                            label: item.label,
+                                            kind: mapCompletionKind(monaco, item.kind),
+                                            insertText: item.insertText || item.label,
+                                            insertTextRules: item.insertTextFormat === 2
+                                                ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+                                                : undefined,
+                                            detail: item.detail,
+                                            documentation: item.documentation,
+                                            sortText: String(i).padStart(5, '0'),
+                                            range: matchRange
+                                        }));
+
+                                        resolve({ suggestions: [...allSuggestions, ...lspSuggestions] });
+                                    }
                                 }
                             })
                             .catch(err => {
@@ -421,7 +493,24 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                     }
                 }
 
-                return allSuggestions.length > 0 ? { suggestions: allSuggestions } : null;
+                // 如果有缓存结果直接返回完整列表，否则返回不完整列表等待 LSP 结果补充
+                if (allSuggestions.length > 0 && (!lspClient.is_connected() || cachedLSPItems)) {
+                    return { suggestions: allSuggestions };
+                }
+
+                // 返回 Promise，LSP 结果回来后 resolve 追加到列表
+                return new Promise(resolve => {
+                    activeCompletionResolve = resolve;
+                    // 如果有缓存的基础结果，先设置超时兜底
+                    if (allSuggestions.length > 0) {
+                        setTimeout(() => {
+                            if (activeCompletionResolve === resolve) {
+                                activeCompletionResolve = null;
+                                resolve({ suggestions: allSuggestions });
+                            }
+                        }, 3000);
+                    }
+                });
             } catch (err) {
                 logger.error('error:', err);
                 return null;
@@ -455,6 +544,13 @@ function mapCompletionKind(monaco, kind) {
         16: monaco.languages.CompletionItemKind.Color,
         17: monaco.languages.CompletionItemKind.File,
         18: monaco.languages.CompletionItemKind.Reference,
+        19: monaco.languages.CompletionItemKind.Folder,
+        20: monaco.languages.CompletionItemKind.EnumMember,
+        21: monaco.languages.CompletionItemKind.Constant,
+        22: monaco.languages.CompletionItemKind.Struct,
+        23: monaco.languages.CompletionItemKind.Event,
+        24: monaco.languages.CompletionItemKind.Operator,
+        25: monaco.languages.CompletionItemKind.TypeParameter,
     };
 
     return kinds[kind] || monaco.languages.CompletionItemKind.Property;

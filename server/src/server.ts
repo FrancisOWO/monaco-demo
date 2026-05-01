@@ -11,6 +11,7 @@ import { config } from './config';
 import aiCompletionRouter from './ai-completion';
 import aiChatRouter from './ai-chat';
 import configRouter from './config-api';
+import condaRouter from './conda-api';
 import { editorControlHub } from './editor-control';
 
 const app: express.Express = express();
@@ -41,6 +42,9 @@ app.use('/ai/chat', aiChatRouter);
 // 配置管理 API
 app.use('/config', configRouter);
 
+// Conda 环境 API
+app.use('/conda', condaRouter);
+
 app.get('/editor-control/status', (_req, res) => {
     res.json({ connected: editorControlHub.isEditorConnected() });
 });
@@ -66,6 +70,15 @@ app.post('/editor-control/command', async (req, res) => {
 app.ws('/editor-control', (ws: WebSocket) => {
     console.log('[Editor Control] Editor client connected');
     editorControlHub.registerEditor(ws);
+});
+
+// 返回工作区路径，供客户端构造文件 URI
+app.get('/workspace-root', (_req, res) => {
+    const workspaceRoot = config.pyright.workspaceRoot;
+    // 转换为 file:// URI 格式（Windows: D:\path -> file:///D:/path）
+    const normalized = workspaceRoot.replace(/\\/g, '/');
+    const uri = normalized.startsWith('/') ? `file://${normalized}` : `file:///${normalized}`;
+    res.json({ path: workspaceRoot, uri });
 });
 
 // WebSocket 端点 - Pyright 语言服务器
