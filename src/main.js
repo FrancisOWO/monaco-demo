@@ -115,6 +115,62 @@ if (welcomeOpenFile) {
 }
 
 /**
+ * 渲染欢迎页的最近目录列表
+ */
+async function renderRecentDirectories() {
+    const recentContainer = document.getElementById('welcome-recent');
+    const recentList = document.getElementById('welcome-recent-list');
+    if (!recentContainer || !recentList) return;
+
+    const { getRecentDirectories } = await import('./file-system/persistence.js');
+    const dirs = await getRecentDirectories();
+    if (dirs.length === 0) {
+        recentContainer.classList.add('hidden');
+        return;
+    }
+
+    recentList.innerHTML = '';
+    for (const dir of dirs) {
+        const item = document.createElement('div');
+        item.className = 'welcome-recent-item';
+        item.innerHTML = `<span class="welcome-recent-icon">&#128193;</span><span class="welcome-recent-name">${dir.name}</span><button class="welcome-recent-remove" title="移除">&times;</button>`;
+
+        // 点击目录名恢复
+        item.querySelector('.welcome-recent-name').addEventListener('click', async () => {
+            try {
+                const { requestDirectoryPermission } = await import('./file-system/persistence.js');
+                const workspace = await requestDirectoryPermission(dir.handle);
+                if (workspace) {
+                    await restoreWorkspaceFromData(workspace);
+                    logger.info('Workspace restored from recent directory:', dir.name);
+                } else {
+                    showToast('无法访问该目录，权限被拒绝', 'warning');
+                    // 权限被拒，从列表移除
+                    const { removeRecentDirectory } = await import('./file-system/persistence.js');
+                    await removeRecentDirectory(dir.name);
+                    renderRecentDirectories();
+                }
+            } catch (error) {
+                logger.warn('Failed to open recent directory:', error);
+                showToast('打开目录失败', 'error');
+            }
+        });
+
+        // 点击移除按钮
+        item.querySelector('.welcome-recent-remove').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const { removeRecentDirectory } = await import('./file-system/persistence.js');
+            await removeRecentDirectory(dir.name);
+            renderRecentDirectories();
+        });
+
+        recentList.appendChild(item);
+    }
+
+    recentContainer.classList.remove('hidden');
+}
+
+/**
  * 从持久化数据恢复工作区
  */
 async function restoreWorkspaceFromData(workspace) {
@@ -179,6 +235,8 @@ async function restoreWorkspaceFromData(workspace) {
         logger.warn('Failed to restore workspace:', error);
     }
 
+    // 无论是否自动恢复成功，都渲染最近目录列表
+    renderRecentDirectories();
     updateWelcomeVisibility();
 })();
 

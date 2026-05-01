@@ -584,6 +584,68 @@ body[data-theme="light"] #log-panel::-webkit-scrollbar-thumb {
     margin-bottom: 12px;
 }
 
+.welcome-recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.welcome-recent-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: default;
+    transition: background-color 0.1s;
+}
+
+.welcome-recent-item:hover {
+    background: #2a2d2e;
+}
+
+.welcome-recent-icon {
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.welcome-recent-name {
+    font-size: 13px;
+    color: #ccc;
+    cursor: pointer;
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.welcome-recent-name:hover {
+    color: #fff;
+    text-decoration: underline;
+}
+
+.welcome-recent-remove {
+    background: none;
+    border: none;
+    color: #555;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    flex-shrink: 0;
+    opacity: 0;
+    transition: opacity 0.1s, color 0.1s;
+}
+
+.welcome-recent-item:hover .welcome-recent-remove {
+    opacity: 1;
+}
+
+.welcome-recent-remove:hover {
+    color: #f66;
+}
+
 /* Light theme - welcome page */
 body[data-theme="light"] .welcome-page {
     background: #fff;
@@ -635,4 +697,24 @@ body[data-theme="light"] .welcome-recent {
 
 body[data-theme="light"] .welcome-recent-title {
     color: #999;
+}
+
+body[data-theme="light"] .welcome-recent-item:hover {
+    background: #f0f0f0;
+}
+
+body[data-theme="light"] .welcome-recent-name {
+    color: #333;
+}
+
+body[data-theme="light"] .welcome-recent-name:hover {
+    color: #000;
+}
+
+body[data-theme="light"] .welcome-recent-remove {
+    color: #bbb;
+}
+
+body[data-theme="light"] .welcome-recent-remove:hover {
+    color: #d32f2f;
 }

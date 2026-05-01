@@ -10,7 +10,9 @@ const logger = getLogger('Persistence');
 
 const DB_NAME = 'monaco-demo';
 const STORE_NAME = 'handles';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
+const RECENT_DIRS_KEY = 'recentDirectories';
+const MAX_RECENT = 10;
 
 /**
  * 打开 IndexedDB
@@ -23,6 +25,17 @@ function openDB() {
             const db = event.target.result;
             if (!db.objectStoreNames.contains(STORE_NAME)) {
                 db.createObjectStore(STORE_NAME);
+            }
+            // v1→v2: migrate rootDirectory into recentDirectories list
+            if (event.oldVersion < 2) {
+                const store = event.target.transaction.objectStore(STORE_NAME);
+                const getReq = store.get('rootDirectory');
+                getReq.onsuccess = () => {
+                    const handle = getReq.result;
+                    if (handle) {
+                        store.put([{ name: handle.name, handle }], RECENT_DIRS_KEY);
+                    }
+                };
             }
         };
 
@@ -47,6 +60,21 @@ export async function saveWorkspace(directoryHandle, openFilePaths, activeFilePa
         store.put(openFilePaths || [], 'openFilePaths');
         store.put(activeFilePath || '', 'activeFilePath');
 
+        // 同时更新最近目录列表
+        const getRecent = new Promise((resolve, reject) => {
+            const req = store.get(RECENT_DIRS_KEY);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+
+        // 需要在事务内完成，先收集再写入
+        const recentList = await getRecent;
+        // 去重：移除同名旧条目，将当前目录放到最前面
+        const filtered = recentList.filter(item => item.name !== directoryHandle.name);
+        filtered.unshift({ name: directoryHandle.name, handle: directoryHandle });
+        if (filtered.length > MAX_RECENT) filtered.length = MAX_RECENT;
+        store.put(filtered, RECENT_DIRS_KEY);
+
         return new Promise((resolve, reject) => {
             tx.oncomplete = () => {
                 logger.info('Workspace saved');
@@ -61,6 +89,7 @@ export async function saveWorkspace(directoryHandle, openFilePaths, activeFilePa
 
 /**
  * 加载工作区状态
+ * 仅用 queryPermission 检查，不主动请求权限
  * @returns {Promise<{directoryHandle: FileSystemDirectoryHandle, openFilePaths: string[], activeFilePath: string} | null>}
  */
 export async function loadWorkspace() {
@@ -93,19 +122,8 @@ export async function loadWorkspace() {
             return null;
         }
 
-        // 尝试获取权限（queryPermission 仅检查，requestPermission 主动请求）
-        let permission = await directoryHandle.queryPermission({ mode: 'readwrite' });
+        const permission = await directoryHandle.queryPermission({ mode: 'readwrite' });
         if (permission !== 'granted') {
-            // 主动请求权限，同源且近期授权过时浏览器会自动授予
-            try {
-                permission = await directoryHandle.requestPermission({ mode: 'readwrite' });
-            } catch (e) {
-                logger.warn('Permission request failed:', e);
-                return null;
-            }
-        }
-        if (permission !== 'granted') {
-            logger.info('Directory handle permission not granted:', permission);
             return null;
         }
 
@@ -121,25 +139,70 @@ export async function loadWorkspace() {
 }
 
 /**
- * 请求恢复权限（需要用户手势触发）
- * @returns {Promise<{directoryHandle: FileSystemDirectoryHandle, openFilePaths: string[], activeFilePath: string} | null>}
+ * 获取最近打开的目录列表（仅返回名称和 handle，不检查权限）
+ * @returns {Promise<{name: string, handle: FileSystemDirectoryHandle}[]>}
  */
-export async function requestWorkspacePermission() {
+export async function getRecentDirectories() {
     try {
         const db = await openDB();
         const tx = db.transaction(STORE_NAME, 'readonly');
         const store = tx.objectStore(STORE_NAME);
 
-        const directoryHandle = await new Promise((resolve, reject) => {
-            const req = store.get('rootDirectory');
-            req.onsuccess = () => resolve(req.result);
+        return new Promise((resolve, reject) => {
+            const req = store.get(RECENT_DIRS_KEY);
+            req.onsuccess = () => resolve(req.result || []);
+            req.onerror = () => reject(req.error);
+        });
+    } catch (error) {
+        logger.error('Failed to get recent directories:', error);
+        return [];
+    }
+}
+
+/**
+ * 从最近目录列表中移除指定目录
+ * @param {string} name - 目录名称
+ */
+export async function removeRecentDirectory(name) {
+    try {
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+
+        const getList = new Promise((resolve, reject) => {
+            const req = store.get(RECENT_DIRS_KEY);
+            req.onsuccess = () => resolve(req.result || []);
             req.onerror = () => reject(req.error);
         });
 
-        if (!directoryHandle) return null;
+        const list = await getList;
+        const filtered = list.filter(item => item.name !== name);
+        store.put(filtered, RECENT_DIRS_KEY);
 
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+        });
+    } catch (error) {
+        logger.error('Failed to remove recent directory:', error);
+    }
+}
+
+/**
+ * 请求目录访问权限并恢复工作区（需要用户手势触发）
+ * @param {FileSystemDirectoryHandle} directoryHandle
+ * @returns {Promise<{directoryHandle: FileSystemDirectoryHandle, openFilePaths: string[], activeFilePath: string} | null>}
+ */
+export async function requestDirectoryPermission(directoryHandle) {
+    try {
         const permission = await directoryHandle.requestPermission({ mode: 'readwrite' });
         if (permission !== 'granted') return null;
+
+        // 同时更新 rootDirectory 以便 loadWorkspace 下次能直接恢复
+        const db = await openDB();
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        store.put(directoryHandle, 'rootDirectory');
 
         const openFilePaths = await new Promise((resolve, reject) => {
             const req = store.get('openFilePaths');
@@ -153,13 +216,18 @@ export async function requestWorkspacePermission() {
             req.onerror = () => reject(req.error);
         });
 
-        return {
-            directoryHandle,
-            openFilePaths: openFilePaths || [],
-            activeFilePath: activeFilePath || '',
-        };
+        return new Promise((resolve, reject) => {
+            tx.oncomplete = () => {
+                resolve({
+                    directoryHandle,
+                    openFilePaths: openFilePaths || [],
+                    activeFilePath: activeFilePath || '',
+                });
+            };
+            tx.onerror = () => reject(tx.error);
+        });
     } catch (error) {
-        logger.error('Failed to request workspace permission:', error);
+        logger.error('Failed to request directory permission:', error);
         return null;
     }
 }
