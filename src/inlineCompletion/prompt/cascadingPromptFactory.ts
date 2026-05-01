@@ -9,10 +9,9 @@ import type {
     PromptInfo,
     CompletionRequestContext,
     PromptAllocation,
-    ResolvedContextItems,
 } from '../types.js';
 import { trimLastLine } from './trimLastLine.js';
-import type { IPromptComponent } from './components.js';
+import type { IPromptComponent, ResolvedContextItems } from './components.js';
 import {
     DocumentPrefixComponent,
     DocumentSuffixComponent,
