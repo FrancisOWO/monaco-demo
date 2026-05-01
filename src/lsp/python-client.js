@@ -154,7 +154,8 @@ export function createPythonLSPClient(monaco, editor) {
                 });
 
                 const content = JSON.stringify(message);
-                const lspMessage = `Content-Length: ${content.length}\r\n\r\n${content}`;
+                const byteLength = new TextEncoder().encode(content).length;
+                const lspMessage = `Content-Length: ${byteLength}\r\n\r\n${content}`;
 
                 logger.info('Sending request:', method, id);
                 webSocket.send(lspMessage);
@@ -177,7 +178,8 @@ export function createPythonLSPClient(monaco, editor) {
             };
 
             const content = JSON.stringify(message);
-            const lspMessage = `Content-Length: ${content.length}\r\n\r\n${content}`;
+            const byteLength = new TextEncoder().encode(content).length;
+            const lspMessage = `Content-Length: ${byteLength}\r\n\r\n${content}`;
 
             logger.info('Sending notification:', method);
             webSocket.send(lspMessage);

@@ -95,8 +95,8 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
         return;
     }
 
-    // 用于存储不完整的消息
-    let buffer = '';
+    // 用于存储不完整的消息（字节级操作，避免多字节字符问题）
+    let byteBuffer = Buffer.alloc(0);
     let contentLength = -1;
 
     // 处理来自 Monaco 的消息，转发给 Pyright
@@ -116,44 +116,44 @@ app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
     // 处理来自 Pyright 的消息，转发给 Monaco
     pyright.stdout.on('data', (data: Buffer) => {
         if (closed) return;
-        const chunk = data.toString();
-        buffer += chunk;
-        console.log('[Pyright stdout] Received chunk, buffer length:', buffer.length);
+        byteBuffer = Buffer.concat([byteBuffer, data]);
+        console.log('[Pyright stdout] Received chunk, buffer length:', byteBuffer.length);
 
         // 解析 LSP 消息格式 (Content-Length 头)
         while (true) {
             if (contentLength === -1) {
-                // 查找 Content-Length 头
-                const headerEnd = buffer.indexOf('\r\n\r\n');
-                if (headerEnd === -1) break;
+                // 查找 \r\n\r\n 分隔符（头部结束标记）
+                const headerEndIndex = byteBuffer.indexOf('\r\n\r\n');
+                if (headerEndIndex === -1) break;
 
-                const header = buffer.substring(0, headerEnd);
+                const header = byteBuffer.subarray(0, headerEndIndex).toString('utf-8');
                 const match = header.match(/Content-Length:\s*(\d+)/i);
                 if (match) {
                     contentLength = parseInt(match[1], 10);
-                    buffer = buffer.substring(headerEnd + 4);
-                    console.log('[Pyright stdout] Parsed header, contentLength:', contentLength, 'remaining buffer:', buffer.length);
+                    byteBuffer = byteBuffer.subarray(headerEndIndex + 4);
+                    console.log('[Pyright stdout] Parsed header, contentLength:', contentLength, 'remaining buffer:', byteBuffer.length);
                 } else {
                     // 没有找到 Content-Length，跳过这个头
                     console.log('[Pyright stdout] No Content-Length found, skipping');
-                    buffer = buffer.substring(headerEnd + 4);
+                    byteBuffer = byteBuffer.subarray(headerEndIndex + 4);
                     continue;
                 }
             }
 
-            if (buffer.length >= contentLength) {
-                const content = buffer.substring(0, contentLength);
-                buffer = buffer.substring(contentLength);
+            if (byteBuffer.length >= contentLength) {
+                const contentBytes = byteBuffer.subarray(0, contentLength);
+                byteBuffer = byteBuffer.subarray(contentLength);
                 contentLength = -1;
 
-                // 构造完整的 LSP 响应
-                const response = `Content-Length: ${content.length}\r\n\r\n${content}`;
+                const content = contentBytes.toString('utf-8');
+                const responseByteLength = Buffer.byteLength(content, 'utf-8');
+                const response = `Content-Length: ${responseByteLength}\r\n\r\n${content}`;
                 console.log('[Pyright -> WebSocket]', content.substring(0, 200));
                 if (ws.readyState === WebSocket.OPEN) {
                     ws.send(response);
                 }
             } else {
-                console.log('[Pyright stdout] Buffer has', buffer.length, 'bytes, need', contentLength, '- waiting for more');
+                console.log('[Pyright stdout] Buffer has', byteBuffer.length, 'bytes, need', contentLength, '- waiting for more');
                 break;
             }
         }
