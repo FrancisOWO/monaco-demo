@@ -333,7 +333,7 @@ body[data-theme="light"] #status-bar {
 .status-env-indicator {
     cursor: pointer;
     user-select: none;
-    padding: 2px 8px;
+    padding: 2px 6px;
     border-radius: 3px;
     transition: background-color 0.15s;
 }
@@ -346,12 +346,12 @@ body[data-theme="light"] #status-bar {
     position: absolute;
     bottom: 24px;
     right: 0;
-    background: #fff;
+    background: #ffffff;
     border: 1px solid #d0d0d0;
-    border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-    min-width: 320px;
-    max-width: 420px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    min-width: 240px;
+    max-width: 360px;
     z-index: 1000;
     overflow: hidden;
 }
@@ -364,104 +364,97 @@ body[data-theme="light"] #status-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
+    padding: 4px 8px;
     border-bottom: 1px solid #e0e0e0;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
-    color: #333;
+    color: #555;
 }
 
 .env-switcher-refresh-btn {
     background: none;
     border: none;
-    font-size: 16px;
+    font-size: 14px;
     cursor: pointer;
-    padding: 2px 6px;
-    color: #666;
-    border-radius: 3px;
-    transition: background-color 0.15s, color 0.15s;
+    padding: 0 4px;
+    color: #888;
+    border-radius: 2px;
+    transition: color 0.15s;
 }
 
 .env-switcher-refresh-btn:hover {
-    background: rgba(0, 0, 0, 0.06);
     color: #007acc;
 }
 
 .env-switcher-list {
-    max-height: 260px;
+    max-height: 200px;
     overflow-y: auto;
 }
 
 .env-switcher-item {
     display: flex;
-    flex-direction: column;
-    padding: 8px 12px;
+    align-items: center;
+    padding: 3px 8px;
     cursor: pointer;
+    font-size: 12px;
     transition: background-color 0.1s;
 }
 
 .env-switcher-item:hover {
-    background: rgba(0, 122, 204, 0.08);
+    background: #e8e8e8;
 }
 
 .env-switcher-item.active {
-    background: rgba(0, 122, 204, 0.12);
+    background: #f0f0f0;
 }
 
 .env-switcher-item.active .env-item-name::before {
     content: '\2713 ';
     color: #007acc;
-    font-weight: bold;
 }
 
 .env-item-name {
-    font-size: 13px;
-    font-weight: 500;
     color: #333;
+    white-space: nowrap;
 }
 
 .env-item-path {
+    color: #999;
     font-size: 11px;
-    color: #888;
+    margin-left: auto;
+    padding-left: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-top: 2px;
-}
-
-.env-switcher-no-conda {
-    padding: 20px 12px;
-    font-size: 13px;
-    text-align: center;
-    color: #888;
+    max-width: 160px;
 }
 
 /* Dark theme - env switcher */
 body[data-theme="dark"] .env-switcher-popup {
-    background: #252526;
+    background: #1e1e1e;
     border-color: #454545;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 body[data-theme="dark"] .env-switcher-header {
     border-bottom-color: #454545;
-    color: #ccc;
-}
-
-body[data-theme="dark"] .env-switcher-refresh-btn {
     color: #aaa;
 }
 
+body[data-theme="dark"] .env-switcher-refresh-btn {
+    color: #888;
+}
+
 body[data-theme="dark"] .env-switcher-refresh-btn:hover {
-    background: rgba(255, 255, 255, 0.08);
     color: #4fc3f7;
 }
 
 body[data-theme="dark"] .env-switcher-item:hover {
-    background: rgba(79, 195, 247, 0.08);
+    background: #2a2d2e;
 }
 
 body[data-theme="dark"] .env-switcher-item.active {
-    background: rgba(79, 195, 247, 0.12);
+    background: #37373d;
 }
 
 body[data-theme="dark"] .env-switcher-item.active .env-item-name::before {
@@ -473,9 +466,5 @@ body[data-theme="dark"] .env-item-name {
 }
 
 body[data-theme="dark"] .env-item-path {
-    color: #777;
-}
-
-body[data-theme="dark"] .env-switcher-no-conda {
-    color: #777;
+    color: #666;
 }

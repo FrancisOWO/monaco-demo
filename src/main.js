@@ -194,7 +194,6 @@ const envIndicator = document.getElementById('status-python-env');
 const envPopup = document.getElementById('env-switcher-popup');
 const envList = document.getElementById('env-switcher-list');
 const envRefreshBtn = document.getElementById('env-switcher-refresh');
-const envNoConda = document.getElementById('env-switcher-no-conda');
 
 let currentEnvName = null;
 let envListCache = null;
@@ -208,9 +207,8 @@ async function loadEnvironmentInfo() {
         if (!result.success) throw new Error(result.error);
 
         const info = result.data;
-        if (!info.condaAvailable) {
+        if (!info.condaAvailable || info.environments.length === 0) {
             envIndicator.textContent = 'Python: 未检测到 Conda';
-            envNoConda.classList.remove('hidden');
             return;
         }
 
@@ -226,7 +224,6 @@ async function loadEnvironmentInfo() {
 
 function renderEnvList(environments, activeName) {
     envList.innerHTML = '';
-    envNoConda.classList.add('hidden');
 
     for (const env of environments) {
         const item = document.createElement('div');

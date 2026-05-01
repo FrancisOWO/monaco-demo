@@ -37,7 +37,7 @@ export async function detectConda(): Promise<boolean> {
     }
 
     return new Promise((resolve) => {
-        execFile('conda', ['--version'], { timeout: 10000 }, (error, stdout) => {
+        execFile('conda', ['--version'], { timeout: 10000 }, (error, stdout, stderr) => {
             if (error) {
                 condaAvailableCache = false;
                 condaVersionCache = null;
@@ -45,7 +45,7 @@ export async function detectConda(): Promise<boolean> {
                 return;
             }
             condaAvailableCache = true;
-            condaVersionCache = stdout.trim();
+            condaVersionCache = (stdout || stderr).trim();
             console.log('[Conda] Detected version:', condaVersionCache);
             resolve(true);
         });
@@ -110,9 +110,9 @@ export async function listCondaEnvironments(): Promise<CondaEnvironment[]> {
  * 获取当前 Conda 环境信息
  */
 export async function getCondaInfo(): Promise<CondaInfo> {
-    const available = await detectConda();
-    const version = await getCondaVersion();
     const environments = await listCondaEnvironments();
+    const available = environments.length > 0 || await detectConda();
+    const version = await getCondaVersion();
 
     // 当前环境优先级：settings 保存值 > CONDA_DEFAULT_ENV > "base"
     const settings = readSettings();
