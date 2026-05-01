@@ -95,6 +95,7 @@ const lspToggleSwitch = document.getElementById('lsp-toggle-switch');
 let lspEnabled = false;
 let lspClient = null;
 let lspRetryTimer = null;
+let lspProviderDisposables = [];
 
 function updateLSPStatus(status, message) {
     lspStatusEl.className = 'lsp-status ' + status;
@@ -117,8 +118,9 @@ async function initLSP() {
         lspClient = createPythonLSPClient(monaco, editor);
         await lspClient.connect();
 
-        registerLSPCompletionProvider(monaco, lspClient, editor);
-        registerLSPHoverProvider(monaco, lspClient);
+        const completionDisp = registerLSPCompletionProvider(monaco, lspClient, editor);
+        const hoverDisp = registerLSPHoverProvider(monaco, lspClient);
+        lspProviderDisposables = [completionDisp, hoverDisp].filter(Boolean);
         setupDocumentSync(editor, lspClient);
 
         updateLSPStatus('connected', '已连接');
@@ -140,6 +142,10 @@ function disableLSP() {
         clearTimeout(lspRetryTimer);
         lspRetryTimer = null;
     }
+    for (const d of lspProviderDisposables) {
+        d.dispose();
+    }
+    lspProviderDisposables = [];
     if (lspClient) {
         lspClient.disconnect();
         lspClient = null;

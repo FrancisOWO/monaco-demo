@@ -362,7 +362,7 @@ let cachedLSPItems = null;
 let lspCompletionCacheKey = '';
 
 export function registerLSPCompletionProvider(monaco, lspClient, editor) {
-    monaco.languages.registerCompletionItemProvider('python', {
+    return monaco.languages.registerCompletionItemProvider('python', {
         triggerCharacters: ['.', '('],
 
         provideCompletionItems(model, position) {
@@ -377,33 +377,6 @@ export function registerLSPCompletionProvider(monaco, lspClient, editor) {
                 );
 
                 const allSuggestions = [];
-
-                // 合入基础补全（关键字、snippet 等）
-                // const baseResult = getBasePythonCompletions(monaco, model, position);
-                // if (baseResult && baseResult.suggestions) {
-                //     for (const item of baseResult.suggestions) {
-                //         allSuggestions.push({ ...item, range: matchRange });
-                //     }
-                // }
-
-                // 从文档内容中提取已有符号，恢复上下文补全
-                const seenLabels = new Set(allSuggestions.map(s => s.label));
-                const text = model.getValue();
-                const wordPattern = /[a-zA-Z_]\w*/g;
-                let match;
-                while ((match = wordPattern.exec(text)) !== null) {
-                    const label = match[0];
-                    if (!seenLabels.has(label) && label.length > 2) {
-                        seenLabels.add(label);
-                        allSuggestions.push({
-                            label,
-                            kind: monaco.languages.CompletionItemKind.Text,
-                            insertText: label,
-                            range: matchRange,
-                            sortText: 'zzz' + label
-                        });
-                    }
-                }
 
                 // 合入缓存的 LSP 补全
                 if (cachedLSPItems && cachedLSPItems.length > 0) {
@@ -491,7 +464,7 @@ function mapCompletionKind(monaco, kind) {
  * 注册 LSP 悬停提供者
  */
 export function registerLSPHoverProvider(monaco, lspClient) {
-    monaco.languages.registerHoverProvider('python', {
+    return monaco.languages.registerHoverProvider('python', {
         async provideHover(model, position) {
             if (!lspClient.is_connected()) {
                 return null;
