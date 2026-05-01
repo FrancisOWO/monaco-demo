@@ -237,7 +237,7 @@ body[data-theme="dark"] .lsp-toggle-label {
 /* Toast */
 #toast-container {
     position: fixed;
-    bottom: 50px;
+    bottom: 30px;
     right: 20px;
     z-index: 10001;
     display: flex;

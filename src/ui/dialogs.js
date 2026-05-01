@@ -49,7 +49,7 @@ export function showDialog(message, options = {}) {
  * @param {string} type 'info' | 'warning' | 'error'
  * @param {number} duration ms
  */
-export function showToast(message, type = 'info', duration = 3000) {
+export function showToast(message, type = 'info', duration = 1200) {
     const container = document.getElementById('toast-container');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -65,6 +65,6 @@ export function showToast(message, type = 'info', duration = 3000) {
         toast.classList.remove('show');
         setTimeout(() => {
             toast.remove();
-        }, 300);
+        }, 100);
     }, duration);
 }
