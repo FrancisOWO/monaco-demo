@@ -62,8 +62,8 @@ export function setupChatPanel(editor) {
     // 获取 Skill & MCP 注册列表（异步，不影响基本功能）
     fetchSkillMcpRegistry();
 
-    // 从 localStorage 加载设置
-    chatStore.loadSettingsFromStorage();
+    // 从服务端加载设置和历史记录
+    loadStoredData();
 
     // 拖拽调整宽度
     setupResize();
@@ -74,6 +74,20 @@ export function setupChatPanel(editor) {
 
     // 初始状态
     updatePanelVisibility();
+}
+
+/**
+ * 从服务端加载存储的数据
+ */
+async function loadStoredData() {
+    try {
+        // 加载 API 配置
+        await chatStore.loadSettingsFromStorage();
+        // 加载对话历史
+        await chatStore.loadConversationHistoryFromStorage();
+    } catch (error) {
+        console.error('[ChatPanel] Failed to load stored data:', error);
+    }
 }
 
 /**
@@ -291,7 +305,7 @@ function setupSettingsPanel() {
     cancelBtn.addEventListener('click', closePanel);
 
     // 保存设置
-    saveBtn.addEventListener('click', () => {
+    saveBtn.addEventListener('click', async () => {
         const config = chatStore.getApiConfigById(editingConfigId);
         if (!config || config.isBuiltIn) {
             // Dummy 配置直接关闭
@@ -326,8 +340,14 @@ function setupSettingsPanel() {
         // 更新选择框显示
         renderConfigSelect();
 
-        // 保存到 localStorage
-        chatStore.saveSettingsToStorage();
+        // 保存到服务端
+        try {
+            await chatStore.saveSettingsToStorage();
+        } catch (error) {
+            console.error('[ChatPanel] Failed to save settings:', error);
+            alert('保存设置失败，请重试');
+            return;
+        }
 
         // 关闭面板
         closePanel();

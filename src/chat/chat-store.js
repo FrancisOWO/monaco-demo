@@ -3,6 +3,8 @@
  * 管理对话消息、模式、上下文、流式状态
  */
 
+import { configService } from './config-service.js';
+
 const logger = { info: (...args) => console.log('[ChatStore]', ...args) };
 
 /** 对话状态 */
@@ -633,59 +635,65 @@ export function closeSettingsPanel() {
 }
 
 /**
- * 保存设置到 localStorage
+ * 保存设置到服务端
+ * @returns {Promise<boolean>}
  */
-export function saveSettingsToStorage() {
-    if (typeof window !== 'undefined' && window.localStorage) {
+export async function saveSettingsToStorage() {
+    try {
         const data = {
             configs: chatState.apiConfigs.filter(c => !c.isBuiltIn),
             currentConfigId: chatState.currentConfigId,
         };
-        window.localStorage.setItem('ai_chat_settings', JSON.stringify(data));
+        await configService.apiConfigs.save(data);
+        return true;
+    } catch (error) {
+        console.error('[ChatStore] Failed to save settings:', error);
+        return false;
     }
 }
 
 /**
- * 从 localStorage 加载设置
+ * 从服务端加载设置
+ * @returns {Promise<boolean>}
  */
-export function loadSettingsFromStorage() {
-    if (typeof window !== 'undefined' && window.localStorage) {
-        try {
-            const stored = window.localStorage.getItem('ai_chat_settings');
-            if (stored) {
-                const data = JSON.parse(stored);
-                // 合并自定义配置（保留 dummy 内置配置）
-                if (data.configs && Array.isArray(data.configs)) {
-                    chatState.apiConfigs = [
-                        chatState.apiConfigs.find(c => c.isBuiltIn),
-                        ...data.configs,
-                    ];
-                }
-                // 恢复当前配置（如果存在）
-                if (data.currentConfigId) {
-                    const config = chatState.apiConfigs.find(c => c.id === data.currentConfigId);
-                    if (config) {
-                        chatState.currentConfigId = data.currentConfigId;
-                    }
-                }
-            }
-            emit('onSettingsChanged');
-        } catch (e) {
-            // 解析失败，保持默认配置
-            emit('onSettingsChanged');
+export async function loadSettingsFromStorage() {
+    try {
+        const data = await configService.apiConfigs.get();
+        // 合并自定义配置（保留 dummy 内置配置）
+        if (data.configs && Array.isArray(data.configs)) {
+            chatState.apiConfigs = [
+                chatState.apiConfigs.find(c => c.isBuiltIn),
+                ...data.configs,
+            ];
         }
+        // 恢复当前配置（如果存在）
+        if (data.currentConfigId) {
+            const config = chatState.apiConfigs.find(c => c.id === data.currentConfigId);
+            if (config) {
+                chatState.currentConfigId = data.currentConfigId;
+            }
+        }
+        emit('onSettingsChanged');
+        return true;
+    } catch (error) {
+        console.error('[ChatStore] Failed to load settings:', error);
+        // 保持默认配置
+        emit('onSettingsChanged');
+        return false;
     }
 }
 
 /**
  * 清空所有自定义配置
  */
-export function clearSettings() {
+export async function clearSettings() {
     // 只保留内置配置
     chatState.apiConfigs = chatState.apiConfigs.filter(c => c.isBuiltIn);
     chatState.currentConfigId = 'dummy';
-    if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem('ai_chat_settings');
+    try {
+        await configService.apiConfigs.save({ configs: [], currentConfigId: 'dummy' });
+    } catch (error) {
+        console.error('[ChatStore] Failed to clear settings:', error);
     }
     emit('onSettingsChanged');
     emit('onCurrentConfigChanged');
@@ -693,7 +701,39 @@ export function clearSettings() {
 
 // ============ 新建对话 ============
 
-// ============ 新建对话 ============
+/**
+ * 保存对话历史到服务端
+ * @returns {Promise<boolean>}
+ */
+export async function saveConversationHistoryToStorage() {
+    try {
+        await configService.conversationHistory.save({
+            history: chatState.conversationHistory,
+        });
+        return true;
+    } catch (error) {
+        console.error('[ChatStore] Failed to save conversation history:', error);
+        return false;
+    }
+}
+
+/**
+ * 从服务端加载对话历史
+ * @returns {Promise<boolean>}
+ */
+export async function loadConversationHistoryFromStorage() {
+    try {
+        const data = await configService.conversationHistory.get();
+        if (data.history && Array.isArray(data.history)) {
+            chatState.conversationHistory = data.history;
+        }
+        emit('onHistoryChanged');
+        return true;
+    } catch (error) {
+        console.error('[ChatStore] Failed to load conversation history:', error);
+        return false;
+    }
+}
 
 /**
  * 检查是否有活跃对话

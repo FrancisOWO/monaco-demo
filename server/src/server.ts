@@ -10,6 +10,7 @@ import { launchPyright } from './pyright-launcher';
 import { config } from './config';
 import aiCompletionRouter from './ai-completion';
 import aiChatRouter from './ai-chat';
+import configRouter from './config-api';
 import { editorControlHub } from './editor-control';
 
 const app: express.Express = express();
@@ -36,6 +37,9 @@ app.use('/ai', aiCompletionRouter);
 
 // AI Chat SSE 端点
 app.use('/ai/chat', aiChatRouter);
+
+// 配置管理 API
+app.use('/config', configRouter);
 
 app.get('/editor-control/status', (_req, res) => {
     res.json({ connected: editorControlHub.isEditorConnected() });
