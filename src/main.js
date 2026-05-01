@@ -90,13 +90,19 @@ setupEditorMcpClient(editor);
 
 // LSP 状态显示（状态栏）
 const lspStatusEl = document.getElementById('lsp-status');
-let lspEnabled = true;
+const lspTogglePopup = document.getElementById('lsp-toggle-popup');
+const lspToggleSwitch = document.getElementById('lsp-toggle-switch');
+let lspEnabled = false;
 let lspClient = null;
 let lspRetryTimer = null;
 
 function updateLSPStatus(status, message) {
     lspStatusEl.className = 'lsp-status ' + status;
     lspStatusEl.textContent = 'LSP: ' + message;
+}
+
+function updateToggleSwitch() {
+    lspToggleSwitch.className = 'lsp-toggle-switch ' + (lspEnabled ? 'on' : 'off');
 }
 
 async function initLSP() {
@@ -128,8 +134,54 @@ async function initLSP() {
     }
 }
 
-// 启动 LSP
-// initLSP();
+function disableLSP() {
+    lspEnabled = false;
+    if (lspRetryTimer) {
+        clearTimeout(lspRetryTimer);
+        lspRetryTimer = null;
+    }
+    if (lspClient) {
+        lspClient.disconnect();
+        lspClient = null;
+    }
+    updateLSPStatus('disabled', '已关闭');
+    updateToggleSwitch();
+}
+
+function enableLSP() {
+    lspEnabled = true;
+    updateToggleSwitch();
+    initLSP();
+}
+
+// 点击 LSP 状态弹出切换面板
+lspStatusEl.addEventListener('click', (e) => {
+    e.stopPropagation();
+    lspTogglePopup.classList.toggle('hidden');
+});
+
+// 点击开关切换 LSP
+lspToggleSwitch.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (lspEnabled) {
+        disableLSP();
+    } else {
+        enableLSP();
+    }
+});
+
+// 点击其他区域关闭弹出框
+document.addEventListener('click', () => {
+    lspTogglePopup.classList.add('hidden');
+});
+
+lspTogglePopup.addEventListener('click', (e) => {
+    e.stopPropagation();
+});
+
+// 初始化 LSP 状态显示
+updateLSPStatus('disabled', '已关闭');
+updateToggleSwitch();
 
 // 注册 AI 补全提供者
 registerAICompletionProvider(monaco, editor);

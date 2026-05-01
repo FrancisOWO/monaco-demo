@@ -92,6 +92,87 @@ body.panel-visible #workspace {
     color: #fff;
 }
 
+.lsp-status {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* LSP 切换弹出框 */
+.lsp-toggle-popup {
+    position: absolute;
+    bottom: 28px;
+    left: 8px;
+    background: #fff;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 10px 14px;
+    z-index: 1000;
+    min-width: 160px;
+}
+
+.lsp-toggle-popup.hidden {
+    display: none;
+}
+
+.lsp-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.lsp-toggle-label {
+    font-size: 13px;
+    color: #333;
+}
+
+.lsp-toggle-switch {
+    position: relative;
+    width: 36px;
+    height: 20px;
+    border: none;
+    border-radius: 10px;
+    background: #ccc;
+    cursor: pointer;
+    padding: 0;
+    transition: background 0.2s;
+}
+
+.lsp-toggle-switch.on {
+    background: #28a745;
+}
+
+.lsp-toggle-switch.off {
+    background: #ccc;
+}
+
+.lsp-toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #fff;
+    transition: left 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.lsp-toggle-switch.on .lsp-toggle-knob {
+    left: 18px;
+}
+
+/* Dark theme */
+body[data-theme="dark"] .lsp-toggle-popup {
+    background: #2d2d30;
+    border-color: #454545;
+}
+
+body[data-theme="dark"] .lsp-toggle-label {
+    color: #ccc;
+}
+
 /* Dialog overlay */
 #dialog-overlay {
     position: fixed;
