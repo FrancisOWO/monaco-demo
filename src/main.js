@@ -18,8 +18,8 @@ import { setupInlineCompletion } from './inlineCompletion/setup.js';
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
 
-import { on, getActiveFile, setWorkspaceUriPrefix } from './file-system/file-store.js';
-import { setupToolbar, updateLanguageSelect } from './ui/toolbar.js';
+import { on, getActiveFile, setWorkspaceUriPrefix, openFiles } from './file-system/file-store.js';
+import { setupToolbar, updateLanguageSelect, handleAction } from './ui/toolbar.js';
 import { updateTabs } from './ui/tab-bar.js';
 import { updateSidebarHighlight } from './ui/sidebar.js';
 import { setupLayoutControls } from './ui/layout-controls.js';
@@ -78,12 +78,109 @@ const editor = monaco.editor.create(document.getElementById('editor-container'),
 // 注册事件回调
 on('onTabsChanged', () => {
     updateTabs(editor);
+    updateWelcomeVisibility();
 });
 
 on('onActiveFileChanged', () => {
     updateLanguageSelect();
     updateSidebarHighlight();
+    updateWelcomeVisibility();
 });
+
+// ==================== Welcome Page ====================
+const welcomePage = document.getElementById('welcome-page');
+const welcomeOpenFolder = document.getElementById('welcome-open-folder');
+const welcomeOpenFile = document.getElementById('welcome-open-file');
+
+function updateWelcomeVisibility() {
+    if (!welcomePage) return;
+    if (openFiles.size > 0) {
+        welcomePage.classList.add('hidden');
+    } else {
+        welcomePage.classList.remove('hidden');
+    }
+}
+
+// 欢迎页按钮绑定
+if (welcomeOpenFolder) {
+    welcomeOpenFolder.addEventListener('click', () => {
+        handleAction('open-folder', editor);
+    });
+}
+
+if (welcomeOpenFile) {
+    welcomeOpenFile.addEventListener('click', () => {
+        handleAction('open-file', editor);
+    });
+}
+
+/**
+ * 从持久化数据恢复工作区
+ */
+async function restoreWorkspaceFromData(workspace) {
+    const { setRootDirectory } = await import('./file-system/file-store.js');
+    const { renderFileTree } = await import('./ui/sidebar.js');
+
+    setRootDirectory(workspace.directoryHandle);
+    await renderFileTree(workspace.directoryHandle, editor);
+
+    // 尝试恢复上次打开的文件
+    if (workspace.openFilePaths.length > 0) {
+        const { openFileFromHandle } = await import('./file-system/file-store.js');
+        const { buildTree } = await import('./file-system/file-tree.js');
+
+        const tree = await buildTree(workspace.directoryHandle);
+
+        // 构建路径到 handle 的映射
+        const handleMap = new Map();
+        function collectHandles(node) {
+            if (node.handle && node.path) {
+                handleMap.set(node.path, node.handle);
+            }
+            if (node.children) {
+                node.children.forEach(collectHandles);
+            }
+        }
+        collectHandles(tree);
+
+        // 按保存的顺序恢复打开的文件
+        for (const filePath of workspace.openFilePaths) {
+            const handle = handleMap.get(filePath);
+            if (handle) {
+                try {
+                    await openFileFromHandle(handle, filePath, editor);
+                } catch (e) {
+                    logger.warn('Failed to restore file:', filePath, e);
+                }
+            }
+        }
+
+        // 恢复上次活跃的文件
+        if (workspace.activeFilePath && handleMap.has(workspace.activeFilePath)) {
+            const { setActiveFile } = await import('./file-system/file-store.js');
+            setActiveFile(workspace.activeFilePath, editor);
+        }
+    }
+
+    updateWelcomeVisibility();
+}
+
+// 启动时尝试自动恢复工作区
+(async () => {
+    try {
+        const { loadWorkspace } = await import('./file-system/persistence.js');
+
+        const workspace = await loadWorkspace();
+        if (workspace) {
+            await restoreWorkspaceFromData(workspace);
+            logger.info('Workspace restored from persistence');
+        }
+    } catch (error) {
+        logger.warn('Failed to restore workspace:', error);
+    }
+
+    updateWelcomeVisibility();
+})();
 
 // Setup menu bar（绑定所有菜单事件）
 setupToolbar(editor);

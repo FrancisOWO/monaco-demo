@@ -469,3 +469,170 @@ body[data-theme="light"] #log-panel::-webkit-scrollbar-track {
 body[data-theme="light"] #log-panel::-webkit-scrollbar-thumb {
     background: #ccc;
 }
+
+/* ==================== Welcome Page ==================== */
+
+#editor-area {
+    position: relative;
+}
+
+.welcome-page {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    background: #1e1e1e;
+}
+
+.welcome-page.hidden {
+    display: none;
+}
+
+.welcome-content {
+    text-align: center;
+    max-width: 400px;
+}
+
+.welcome-logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto 20px;
+    background: #007acc;
+    border-radius: 12px;
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    line-height: 64px;
+}
+
+.welcome-title {
+    font-size: 24px;
+    font-weight: 300;
+    color: #ccc;
+    margin-bottom: 8px;
+}
+
+.welcome-desc {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 32px;
+}
+
+.welcome-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 32px;
+}
+
+.welcome-btn {
+    padding: 8px 20px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid #454545;
+    background: #2d2d2d;
+    color: #ccc;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.welcome-btn:hover {
+    background: #37373d;
+    border-color: #555;
+}
+
+.welcome-btn.primary {
+    background: #007acc;
+    border-color: #007acc;
+    color: #fff;
+}
+
+.welcome-btn.primary:hover {
+    background: #0098ff;
+    border-color: #0098ff;
+}
+
+.welcome-btn.secondary {
+    border-style: dashed;
+    color: #888;
+}
+
+.welcome-btn.secondary:hover {
+    color: #ccc;
+    border-color: #777;
+}
+
+.welcome-recent {
+    border-top: 1px solid #3c3c3c;
+    padding-top: 20px;
+}
+
+.welcome-recent.hidden {
+    display: none;
+}
+
+.welcome-recent-title {
+    font-size: 11px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 12px;
+}
+
+/* Light theme - welcome page */
+body[data-theme="light"] .welcome-page {
+    background: #fff;
+}
+
+body[data-theme="light"] .welcome-title {
+    color: #333;
+}
+
+body[data-theme="light"] .welcome-desc {
+    color: #666;
+}
+
+body[data-theme="light"] .welcome-btn {
+    background: #fff;
+    border-color: #d0d0d0;
+    color: #333;
+}
+
+body[data-theme="light"] .welcome-btn:hover {
+    background: #f0f0f0;
+    border-color: #999;
+}
+
+body[data-theme="light"] .welcome-btn.primary {
+    background: #007acc;
+    border-color: #007acc;
+    color: #fff;
+}
+
+body[data-theme="light"] .welcome-btn.primary:hover {
+    background: #0098ff;
+    border-color: #0098ff;
+}
+
+body[data-theme="light"] .welcome-btn.secondary {
+    border-color: #d0d0d0;
+    color: #888;
+}
+
+body[data-theme="light"] .welcome-btn.secondary:hover {
+    color: #333;
+    border-color: #999;
+}
+
+body[data-theme="light"] .welcome-recent {
+    border-top-color: #e0e0e0;
+}
+
+body[data-theme="light"] .welcome-recent-title {
+    color: #999;
+}

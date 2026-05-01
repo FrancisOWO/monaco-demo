@@ -7,6 +7,7 @@ import * as monaco from 'monaco-editor';
 import { getLogger } from '../utils/logger.js';
 import { isFileSystemAccessSupported, openDirectory, openFile } from '../file-system/fs-access.js';
 import { setRootDirectory, openFileFromHandle, openRecentFile, recentFiles, createNewFile, saveActiveFile, saveActiveFileAs, saveAllFiles, closeFile, forceCloseFile, setActiveFileLanguage, getActiveFile, on } from '../file-system/file-store.js';
+import { hasSavedWorkspace } from '../file-system/persistence.js';
 import { renderFileTree, refreshFileTree } from '../ui/sidebar.js';
 import { togglePanel } from '../chat/chat-store.js';
 import { renderTabs } from '../ui/tab-bar.js';

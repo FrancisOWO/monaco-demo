@@ -8,6 +8,7 @@ import { getLogger } from '../utils/logger.js';
 import { readFileContent, writeFileContent, saveNewFile, createFileInDirectory, deleteFileFromDirectory } from './fs-access.js';
 import { detectLanguage, getExtension } from './language-utils.js';
 import { sampleCode } from '../sample-code/sample-code-index.js';
+import { saveWorkspace } from './persistence.js';
 
 const logger = getLogger('File Store');
 
@@ -89,6 +90,11 @@ function basenameFromPath(path) {
  */
 export function setRootDirectory(handle) {
     rootDirectoryHandle = handle;
+    // 保存工作区到 IndexedDB
+    if (handle) {
+        const paths = Array.from(openFiles.keys());
+        saveWorkspace(handle, paths, activeFilePath);
+    }
 }
 
 /**
@@ -312,6 +318,12 @@ export function setActiveFile(path, editor) {
         editor.restoreViewState(descriptor.viewState);
     }
 
+    // 持久化当前状态
+    if (rootDirectoryHandle) {
+        const paths = Array.from(openFiles.keys());
+        saveWorkspace(rootDirectoryHandle, paths, activeFilePath);
+    }
+
     // 更新语言下拉框
     emit('onActiveFileChanged');
     emit('onTabsChanged');
@@ -404,6 +416,10 @@ export function closeFile(path, editor) {
         } else {
             activeFilePath = null;
             editor.setModel(null);
+            // 所有文件关闭后更新持久化状态
+            if (rootDirectoryHandle) {
+                saveWorkspace(rootDirectoryHandle, [], '');
+            }
             emit('onActiveFileChanged');
             emit('onTabsChanged');
         }
