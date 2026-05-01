@@ -170,20 +170,114 @@ function setupSettingsPanel() {
     const closeBtn = document.getElementById('chat-settings-close');
     const cancelBtn = document.getElementById('chat-settings-cancel');
     const saveBtn = document.getElementById('chat-settings-save');
-    const baseUrlInput = document.getElementById('chat-settings-baseurl');
-    const apiKeyInput = document.getElementById('chat-settings-apikey');
+
+    // 配置选择相关元素
+    const configSelect = document.getElementById('chat-config-select');
+    const addConfigBtn = document.getElementById('chat-config-add');
+    const deleteConfigBtn = document.getElementById('chat-config-delete');
+    const formSection = document.getElementById('chat-config-form-section');
+    const dummyInfo = document.getElementById('chat-dummy-info');
+
+    // 配置表单字段
+    const nameInput = document.getElementById('chat-config-name');
+    const baseUrlInput = document.getElementById('chat-config-baseurl');
+    const apiKeyInput = document.getElementById('chat-config-apikey');
+
+    // 当前编辑的配置 ID
+    let editingConfigId = null;
+
+    // 渲染配置选择下拉框
+    function renderConfigSelect() {
+        const configs = chatStore.getApiConfigs();
+        const currentId = chatStore.getCurrentConfigId();
+
+        configSelect.innerHTML = '';
+        configs.forEach(config => {
+            const option = document.createElement('option');
+            option.value = config.id;
+            option.textContent = config.name;
+            if (config.id === currentId) {
+                option.selected = true;
+            }
+            configSelect.appendChild(option);
+        });
+    }
+
+    // 加载配置详情到表单
+    function loadConfigToForm(configId) {
+        const config = chatStore.getApiConfigById(configId);
+        if (!config) return;
+
+        editingConfigId = configId;
+
+        if (config.isBuiltIn) {
+            // Dummy 配置：禁用表单，显示提示
+            formSection.classList.add('disabled');
+            dummyInfo.classList.add('visible');
+            deleteConfigBtn.disabled = true;
+
+            // 清空表单
+            nameInput.value = '';
+            baseUrlInput.value = '';
+            apiKeyInput.value = '';
+        } else {
+            // 自定义配置：启用表单
+            formSection.classList.remove('disabled');
+            dummyInfo.classList.remove('visible');
+            deleteConfigBtn.disabled = false;
+
+            // 填充表单
+            nameInput.value = config.name || '';
+            baseUrlInput.value = config.baseUrl || '';
+            apiKeyInput.value = config.apiKey || '';
+        }
+    }
 
     // 监听设置面板可见性变化
     chatStore.on('onSettingsPanelVisibilityChanged', () => {
         const isVisible = chatStore.isSettingsPanelVisible();
         if (isVisible) {
-            // 打开面板时，加载当前设置
-            const settings = chatStore.getSettings();
-            baseUrlInput.value = settings.baseUrl || '';
-            apiKeyInput.value = settings.apiKey || '';
+            renderConfigSelect();
+            loadConfigToForm(chatStore.getCurrentConfigId());
             modal.classList.remove('hidden');
         } else {
             modal.classList.add('hidden');
+        }
+    });
+
+    // 配置切换
+    configSelect.addEventListener('change', () => {
+        const selectedId = configSelect.value;
+        chatStore.setCurrentConfigId(selectedId);
+        loadConfigToForm(selectedId);
+    });
+
+    // 添加新配置
+    addConfigBtn.addEventListener('click', () => {
+        const name = prompt('请输入新配置的名称:');
+        if (!name || !name.trim()) return;
+
+        const newId = chatStore.addApiConfig({
+            name: name.trim(),
+            baseUrl: '',
+            apiKey: '',
+        });
+
+        // 切换到新配置
+        chatStore.setCurrentConfigId(newId);
+        renderConfigSelect();
+        loadConfigToForm(newId);
+    });
+
+    // 删除当前配置
+    deleteConfigBtn.addEventListener('click', () => {
+        const config = chatStore.getApiConfigById(editingConfigId);
+        if (!config || config.isBuiltIn) return;
+
+        if (confirm(`确定要删除配置 "${config.name}" 吗？`)) {
+            chatStore.deleteApiConfig(editingConfigId);
+            renderConfigSelect();
+            loadConfigToForm(chatStore.getCurrentConfigId());
         }
     });
 
@@ -198,24 +292,39 @@ function setupSettingsPanel() {
 
     // 保存设置
     saveBtn.addEventListener('click', () => {
-        const baseUrl = baseUrlInput.value.trim();
-        const apiKey = apiKeyInput.value.trim();
-
-        // 验证设置
-        const settingsToValidate = {};
-        if (baseUrl) settingsToValidate.baseUrl = baseUrl;
-
-        const validation = chatStore.validateSettings(settingsToValidate);
-        if (!validation.valid) {
-            alert('请输入有效的 Base URL');
+        const config = chatStore.getApiConfigById(editingConfigId);
+        if (!config || config.isBuiltIn) {
+            // Dummy 配置直接关闭
+            closePanel();
             return;
         }
 
-        // 更新设置
-        chatStore.updateSettings({
-            baseUrl: baseUrl || undefined,
-            apiKey: apiKey || undefined,
+        const name = nameInput.value.trim();
+        const baseUrl = baseUrlInput.value.trim();
+        const apiKey = apiKeyInput.value.trim();
+
+        // 验证配置
+        const validation = chatStore.validateApiConfig({ name, baseUrl });
+        if (!validation.valid) {
+            if (validation.errors.includes('name')) {
+                alert('请输入配置名称');
+                return;
+            }
+            if (validation.errors.includes('baseUrl')) {
+                alert('请输入有效的 Base URL');
+                return;
+            }
+        }
+
+        // 更新配置
+        chatStore.updateApiConfig(editingConfigId, {
+            name,
+            baseUrl,
+            apiKey,
         });
+
+        // 更新选择框显示
+        renderConfigSelect();
 
         // 保存到 localStorage
         chatStore.saveSettingsToStorage();

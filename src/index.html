@@ -249,14 +249,40 @@
                 <button class="chat-modal-close" id="chat-settings-close" title="关闭">✕</button>
             </div>
             <div class="chat-modal-body">
-                <div class="chat-settings-form">
-                    <div class="chat-settings-field">
-                        <label for="chat-settings-baseurl">Base URL</label>
-                        <input type="url" id="chat-settings-baseurl" placeholder="https://api.example.com/v1" />
+                <!-- 配置选择器 -->
+                <div class="chat-settings-section">
+                    <div class="chat-settings-section-title">选择配置</div>
+                    <div class="chat-config-selector">
+                        <select id="chat-config-select"></select>
+                        <button class="chat-config-btn" id="chat-config-add" title="添加配置">+</button>
+                        <button class="chat-config-btn chat-config-btn-danger" id="chat-config-delete" title="删除当前配置">删除</button>
                     </div>
-                    <div class="chat-settings-field">
-                        <label for="chat-settings-apikey">API Key</label>
-                        <input type="password" id="chat-settings-apikey" placeholder="sk-..." />
+                </div>
+
+                <!-- 配置详情表单 -->
+                <div class="chat-settings-section" id="chat-config-form-section">
+                    <div class="chat-settings-section-title">配置详情</div>
+                    <div class="chat-settings-form" id="chat-config-form">
+                        <div class="chat-settings-field">
+                            <label for="chat-config-name">配置名称</label>
+                            <input type="text" id="chat-config-name" placeholder="例如: OpenAI" />
+                        </div>
+                        <div class="chat-settings-field">
+                            <label for="chat-config-baseurl">Base URL</label>
+                            <input type="url" id="chat-config-baseurl" placeholder="https://api.example.com/v1" />
+                        </div>
+                        <div class="chat-settings-field">
+                            <label for="chat-config-apikey">API Key</label>
+                            <input type="password" id="chat-config-apikey" placeholder="sk-..." />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dummy 配置说明 -->
+                <div class="chat-settings-section chat-settings-info" id="chat-dummy-info">
+                    <div class="chat-settings-info-icon">ℹ</div>
+                    <div class="chat-settings-info-text">
+                        Dummy 配置使用本地模拟响应进行测试，无需填写 API 信息。
                     </div>
                 </div>
             </div>
