@@ -1,193 +1,201 @@
 # Monaco Editor 示例项目
 
-基于 Monaco Editor 的代码编辑器示例，支持多种编程语言的语法高亮、主题切换、智能代码补全和 Python LSP 集成。
+本仓库是一个基于 Monaco Editor 的编辑器演示平台，融合了以下能力：
 
-## 功能特性
+- Monaco 编辑器前端 UI 与多语言语法支持
+- 使用 Vite 作为开发服务器与构建工具
+- AI 代码补全与 AI 聊天面板
+- Python LSP 后端（Pyright）
+- MCP / 编辑器控制桥接与远程控制演示
+- 端到端测试与 Playwright UI 测试示例
 
-- **代码编辑** - 完整的代码编辑功能，支持语法高亮、代码折叠、括号匹配
-- **多语言支持** - Python、C++、Go 语法高亮
-- **主题切换** - 深色/浅色主题
-- **代码片段补全** - 常用代码片段模板
-- **Python LSP 补全** - 基于 Pyright 的智能补全（诊断、跳转等）
-- **AI 智能补全** - 单行/多行 AI 补全，支持自动触发和快捷键
+## 关键特性
 
-## 项目结构
+- **多语言编辑器**：支持 Python、C++、Go、JavaScript/TypeScript 等语言的语法高亮、折叠与主题切换
+- **AI 补全**：单行补全、内联补全（Ghost Text）与多行补全演示
+- **AI 聊天面板**：可将编辑器选中内容发送到 AI 聊天上下文
+- **Python LSP**：后端通过 Pyright 启动本地语言服务器，可支持补全、悬停、诊断等功能
+- **MCP 编辑器控制**：支持编辑器控制桥接，并可通过 HTTP/WebSocket 向编辑器发送命令
+- **测试与示例**：包含 Jest 单元测试、Playwright E2E 测试，以及多组设计与实现文档
+
+## 当前仓库结构
 
 ```
 monaco-start/
-├── src/                          # 前端源码
-│   ├── index.html                # 主页面
-│   ├── completions.js            # 代码片段补全配置
-│   ├── ai-completion.js          # AI 智能补全
-│   ├── lsp/                      # LSP 客户端
-│   │   ├── python-client.js      # Python 语言客户端
-│   │   └── document-sync.js      # 文档同步模块
-│   ├── sample-code/              # 示例代码
-│   │   ├── sample-code-python.js
-│   │   ├── sample-code-cpp.js
-│   │   └── sample-code-go.js
-│   └── styles/                   # 样式文件
-│
-├── server/                       # 后端 LSP 服务器
-│   ├── src/                      # 服务器源码
-│   │   ├── index.ts              # 入口
-│   │   ├── server.ts             # WebSocket 服务器
-│   │   ├── ai-completion.ts      # AI 补全服务
-│   │   └── pyright-launcher.ts   # Pyright 启动器
-│   └── test/                     # 测试文件
-│       └── server.test.js        # 自动化测试
-│
-├── docs/                         # 文档
-│   ├── summary-lsp-test-fix.md   # LSP 测试修复总结
-│   └── plan-ai-completion.md    # AI 补全实现规划
-│
-├── package.json                  # 项目依赖（pnpm）
-└── webpack.config.js              # Webpack 配置
+├── docs/                  # 设计文档与规划
+├── e2e/                   # Playwright 端到端测试方案
+├── example/               # 演示页面与示例资产
+├── python-mcp/            # Python MCP 示例工程
+├── playwright-mcp/        # Playwright MCP 测试示例
+├── server/                # 后端服务与 Pyright 语言服务器桥接
+│   ├── src/
+│   │   ├── index.ts
+│   │   ├── server.ts
+│   │   ├── ai-completion.ts
+│   │   ├── ai-chat.ts
+│   │   ├── editor-control.ts
+│   │   ├── pyright-launcher.ts
+│   │   └── config.ts
+│   └── test/
+├── shared/                # 共享模块与扩展集成代码
+├── src/                   # 前端源码
+│   ├── ai-completion.js
+│   ├── completions/
+│   ├── chat/
+│   ├── file-system/
+│   ├── inlineCompletion/
+│   ├── lsp/
+│   ├── mcp/
+│   ├── sample-code/
+│   ├── styles/
+│   ├── ui/
+│   ├── utils/
+│   └── main.js
+├── test/                  # 根级测试配置与辅助代码
+├── ts-mcp/                # TypeScript MCP 示例工程
+├── vite.config.js         # Vite 配置
+├── package.json           # 依赖与项目脚本
+└── README.md
 ```
 
 ## 环境要求
 
 - Node.js >= 18
-- pnpm >= 8（项目使用 pnpm 管理依赖）
+- pnpm >= 8
 
-## 安装依赖
+## 快速启动
+
+1. 安装依赖：
 
 ```bash
 pnpm install
 ```
 
-## 运行项目
-
-### 1. 编译后端服务器
+2. 编译后端服务器：
 
 ```bash
 pnpm run server:build
 ```
 
-### 2. 启动后端服务器
+3. 启动后端服务器：
 
 ```bash
 pnpm run server:start
 ```
 
-后端服务器运行在 http://localhost:3000
+或使用 Windows 便捷脚本：
 
-### 3. 启动前端开发服务器
+```bat
+start-server.bat
+```
+
+4. 启动前端开发服务器：
 
 ```bash
 pnpm run dev
 ```
 
-访问 http://localhost:8080 查看编辑器。
+或使用：
+
+```bat
+start-client.bat
+```
+
+默认前端地址：`http://localhost:5173`
+
+> 注意：后端服务默认监听 `http://localhost:3000`，AI / LSP / MCP 相关功能依赖后端运行。
+
+## 常用脚本
+
+- `pnpm run dev`：启动 Vite 开发服务器
+- `pnpm run build`：构建前端生产包
+- `pnpm run preview`：本地预览构建结果
+- `pnpm run server:dev`：直接运行后端开发版本
+- `pnpm run server:build`：编译后端 TypeScript
+- `pnpm run server:start`：运行编译后的后端服务器
+- `pnpm run mcp:editor`：启动编辑器 MCP 服务
+- `pnpm test`：运行 Jest 单元测试
+- `pnpm run test:watch`：Jest watch 模式
+- `pnpm run test:e2e`：Playwright 端到端测试
+- `pnpm run test:e2e:ui`：Playwright GUI 模式
+
+## 主要功能说明
+
+### 编辑器功能
+
+- 语法高亮、代码折叠、行号和自动布局
+- 主题切换与侧边栏布局控制
+- 文件标签页与差异比较视图
+- 右键菜单将当前选区发送至 AI 聊天面板
+
+### AI 支持
+
+- `src/ai-completion.js` 提供 AI 补全适配器
+- `src/inlineCompletion/setup.ts` 支持 Ghost Text 内联补全
+- `server/src/ai-completion.ts` 提供 AI 补全后端 API
+- `server/src/ai-chat.ts` 支持 AI 聊天流式 SSE
+
+当前默认使用本地测试/模拟补全逻辑，真实 API 集成可在 `server/src/ai-completion.ts` 中启用。
+
+### Python LSP 支持
+
+- `server/src/server.ts` 通过 WebSocket 代理 Pyright
+- `server/src/pyright-launcher.ts` 启动本地 Pyright 语言服务器
+- `src/lsp/python-client.js` 和 `src/lsp/document-sync.js` 管理 Monaco 与 LSP 交互
+
+> 目前前端 `src/main.js` 中的 `initLSP()` 调用为可选，可根据测试需求启用。
+
+### MCP 与编辑器控制
+
+- `src/mcp/editor-mcp-client.js` 管理编辑器 MCP 连接
+- `server/src/editor-control.ts` / `server/src/server.ts` 提供远程命令发送与状态查询
+- 仓库包含 `python-mcp/`、`ts-mcp/` 与 `playwright-mcp/` 目录，用于 MCP 交互示例与测试
+
+## 目录说明
+
+- `src/`：前端主应用代码
+- `server/`：后端 Express + WebSocket 服务，带 Pyright 和 AI API
+- `docs/`：文档与架构设计说明
+- `e2e/`：端到端测试相关
+- `python-mcp/`、`ts-mcp/`：MCP 示例工程
+- `playwright-mcp/`：Playwright 结合 MCP 的测试示例
+- `shared/`：可复用共享模块
+- `wiki/`：项目知识库与文档站点
 
 ## 测试
 
-### 运行所有测试
+### 运行单元测试
 
 ```bash
 pnpm test
 ```
 
-### 开发模式（热重载）
+### Playwright UI 测试
 
 ```bash
-# 后端热重载
+pnpm run test:e2e
+```
+
+### 后端开发测试
+
+```bash
 pnpm run server:dev
-
-# 前端热重载
-pnpm run dev
 ```
 
-### 构建生产版本
+## 贡献与扩展
 
-```bash
-pnpm run build
-```
-
-## 使用说明
-
-### 语言切换
-
-通过右上角下拉菜单切换编程语言（Python / C++ / Go）。
-
-### 主题切换
-
-通过右上角下拉菜单切换编辑器主题（浅色 / 深色）。
-
-### 代码补全
-
-| 类型 | 说明 | 触发方式 |
-|------|------|----------|
-| 代码片段 | 常用代码模板 | 输入触发词后按 Tab |
-| LSP 补全 | Python 智能补全 | 自动触发（需启动 LSP 服务器） |
-| AI 补全 | AI 智能补全 | 自动或快捷键触发 |
-
-### AI 智能补全
-
-#### 快捷键
-
-| 快捷键 | 功能 |
-|--------|------|
-| `Ctrl+Space` | 触发单行补全 |
-| `Alt+Enter` | 触发多行补全 |
-| `Tab` | 接受当前内联补全 |
-| `Escape` | 拒绝当前内联补全 |
-
-#### 自动触发
-
-AI 补全会在以下情况自动触发：
-- 输入 `.` `:` `(` 等字符后（方法调用、属性访问）
-- 输入 `def` `class` `function` `if` `for` `while` `try` `with` `import` 等关键字后
-
-#### 测试模式
-
-AI 补全默认使用测试模式（无需 API），可直接体验功能。如需切换到真实 AI API，修改 `server/src/ai-completion.ts` 中的 `TEST_MODE = false`。
-
-### Python LSP
-
-Python 语言支持完整的 LSP 功能：
-- 智能代码补全
-- 悬停文档
-- 诊断信息
-- 语法检查
-
-启动后端服务器后自动启用。
-
-## 技术栈
-
-| 类别 | 技术 |
-|------|------|
-| 编辑器 | Monaco Editor 0.55.1 |
-| 构建工具 | Webpack 5 |
-| 后端框架 | Express + WebSocket |
-| 语言服务器 | Pyright |
-| 测试框架 | Jest |
-| 包管理器 | pnpm |
-
-## 开发指南
-
-### 添加新的代码片段
-
-编辑 `src/completions.js`，在对应语言的数组中添加新的补全项：
-
-```javascript
-{
-    label: 'trigger',           // 触发词
-    kind: monaco.languages.CompletionItemKind.Snippet,
-    insertText: 'code ${1:placeholder}',  // 插入内容，支持占位符
-    documentation: '描述'        // 文档说明
-}
-```
-
-### 添加新的示例代码
-
-在 `src/sample-code/` 目录下创建新文件，然后在 `sample-code-index.js` 中导出。
+- 新增 AI 补全策略：编辑 `src/ai-completion.js` 和 `server/src/ai-completion.ts`
+- 新增 LSP 语言：扩展 `server/src/pyright-launcher.ts` 或在 `src/lsp/` 中添加客户端适配
+- 新增 MCP 集成：参考 `src/mcp/editor-mcp-client.js` 和 `server/src/editor-control.ts`
+- 更新文档：新增 `docs/` 或 `wiki/` 页面
 
 ## 相关文档
 
-- [AI 智能补全实现规划](docs/plan-ai-completion.md)
-- [LSP 测试修复总结](docs/summary-lsp-test-fix.md)
+- `docs/plan-ai-completion.md`
+- `docs/summary-lsp-test-fix.md`
+- `wiki/` 下的架构、API 与组件说明
 
 ## License
 
 MIT
+
