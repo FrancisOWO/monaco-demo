@@ -25,6 +25,7 @@ const chatState = {
     settings: {},            // 账户设置
     settingsPanelVisible: false, // 设置面板可见性
     conversationHistory: [], // 对话历史
+    historyPanelVisible: false, // 历史面板可见性
 };
 
 /** 生成唯一 ID */
@@ -45,6 +46,8 @@ const callbacks = {
     onNavigationChanged: [],
     onSettingsChanged: [],              // 设置变更
     onSettingsPanelVisibilityChanged: [], // 设置面板可见性变更
+    onHistoryChanged: [],               // 历史变更
+    onHistoryPanelVisibilityChanged: [], // 历史面板可见性变更
 };
 
 /**
@@ -628,4 +631,106 @@ export function startNewChat() {
     chatState.foldState.foldedMessages = {};
     chatState.foldState.currentMessageIndex = 0;
     emit('onFoldStateChanged');
+}
+
+// ============ 历史对话管理 ============
+
+/**
+ * 添加当前对话到历史
+ */
+export function addConversationToHistory() {
+    if (chatState.messages.length === 0) {
+        return;
+    }
+
+    const historyItem = {
+        id: generateId(),
+        timestamp: Date.now(),
+        messages: JSON.parse(JSON.stringify(chatState.messages)),
+        contextItems: JSON.parse(JSON.stringify(chatState.contextItems)),
+    };
+
+    chatState.conversationHistory.unshift(historyItem);
+
+    // 限制历史记录数量（最多 50 条）
+    if (chatState.conversationHistory.length > 50) {
+        chatState.conversationHistory = chatState.conversationHistory.slice(0, 50);
+    }
+
+    emit('onHistoryChanged');
+}
+
+/**
+ * 从历史加载指定对话
+ * @param {string} historyId 历史项 ID
+ */
+export function loadConversationFromHistory(historyId) {
+    const historyItem = chatState.conversationHistory.find(h => h.id === historyId);
+    if (!historyItem) {
+        return;
+    }
+
+    // 恢复消息
+    chatState.messages = JSON.parse(JSON.stringify(historyItem.messages));
+    emit('onMessagesChanged');
+
+    // 恢复上下文
+    chatState.contextItems = JSON.parse(JSON.stringify(historyItem.contextItems));
+    emit('onContextChanged');
+}
+
+/**
+ * 删除指定历史项
+ * @param {string} historyId 历史项 ID
+ */
+export function deleteConversationFromHistory(historyId) {
+    const index = chatState.conversationHistory.findIndex(h => h.id === historyId);
+    if (index >= 0) {
+        chatState.conversationHistory.splice(index, 1);
+        emit('onHistoryChanged');
+    }
+}
+
+/**
+ * 清空所有历史
+ */
+export function clearHistory() {
+    chatState.conversationHistory = [];
+    emit('onHistoryChanged');
+}
+
+/**
+ * 获取历史面板是否可见
+ * @returns {boolean}
+ */
+export function isHistoryPanelVisible() {
+    return chatState.historyPanelVisible;
+}
+
+/**
+ * 切换历史面板可见性
+ */
+export function toggleHistoryPanel() {
+    chatState.historyPanelVisible = !chatState.historyPanelVisible;
+    emit('onHistoryPanelVisibilityChanged');
+}
+
+/**
+ * 打开历史面板
+ */
+export function openHistoryPanel() {
+    if (!chatState.historyPanelVisible) {
+        chatState.historyPanelVisible = true;
+        emit('onHistoryPanelVisibilityChanged');
+    }
+}
+
+/**
+ * 关闭历史面板
+ */
+export function closeHistoryPanel() {
+    if (chatState.historyPanelVisible) {
+        chatState.historyPanelVisible = false;
+        emit('onHistoryPanelVisibilityChanged');
+    }
 }

@@ -26,6 +26,7 @@ describe('chatHistory', () => {
 
         it('addConversationToHistory 添加对话到历史', () => {
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             expect(history.length).toBe(1);
             expect(history[0].messages.length).toBe(1);
@@ -34,6 +35,7 @@ describe('chatHistory', () => {
 
         it('addConversationToHistory 包含时间戳', () => {
             chatStore.addUserMessage('test');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             expect(history[0].timestamp).toBeDefined();
             expect(typeof history[0].timestamp).toBe('number');
@@ -42,6 +44,7 @@ describe('chatHistory', () => {
         it('addConversationToHistory 包含上下文', () => {
             chatStore.addFileContext('/test.js', 'test.js', 'content');
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             expect(history[0].contextItems.length).toBe(1);
             expect(history[0].contextItems[0].name).toBe('test.js');
@@ -51,6 +54,7 @@ describe('chatHistory', () => {
     describe('从历史加载对话', () => {
         it('loadConversationFromHistory 加载指定历史项', () => {
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             const historyId = history[0].id;
 
@@ -67,6 +71,7 @@ describe('chatHistory', () => {
         it('loadConversationFromHistory 恢复上下文', () => {
             chatStore.addFileContext('/test.js', 'test.js', 'content');
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             const historyId = history[0].id;
 
@@ -80,6 +85,7 @@ describe('chatHistory', () => {
 
         it('loadConversationFromHistory 触发 onMessagesChanged', () => {
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             const historyId = history[0].id;
 
@@ -93,6 +99,7 @@ describe('chatHistory', () => {
         it('loadConversationFromHistory 触发 onContextChanged', () => {
             chatStore.addFileContext('/test.js', 'test.js', 'content');
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             const historyId = history[0].id;
 
@@ -118,6 +125,7 @@ describe('chatHistory', () => {
     describe('删除历史', () => {
         it('deleteConversationFromHistory 删除指定历史项', () => {
             chatStore.addUserMessage('hello');
+            chatStore.addConversationToHistory();
             const history = chatStore.getConversationHistory();
             const historyId = history[0].id;
 
@@ -126,9 +134,12 @@ describe('chatHistory', () => {
         });
 
         it('deleteConversationFromHistory 不影响其他历史项', () => {
+            // 直接添加两条历史记录（不经过 startNewChat）
             chatStore.addUserMessage('first');
-            chatStore.startNewChat();
+            chatStore.addConversationToHistory();
+            chatStore.clearMessages();
             chatStore.addUserMessage('second');
+            chatStore.addConversationToHistory();
 
             const history = chatStore.getConversationHistory();
             expect(history.length).toBe(2);
