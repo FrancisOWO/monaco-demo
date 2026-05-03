@@ -444,26 +444,13 @@
                         <span class="lsp-toggle-knob"></span>
                     </button>
                 </div>
-                <div id="lsp-language-toggles" class="lsp-language-toggles hidden">
-                    <div class="lsp-toggle-row lsp-toggle-sub">
-                        <span class="lsp-toggle-label">Python (Pyright)</span>
-                        <button id="lsp-toggle-python" class="lsp-toggle-switch off" type="button">
-                            <span class="lsp-toggle-knob"></span>
-                        </button>
-                    </div>
-                    <div class="lsp-toggle-row lsp-toggle-sub">
-                        <span class="lsp-toggle-label">C++ (clangd)</span>
-                        <button id="lsp-toggle-cpp" class="lsp-toggle-switch off" type="button">
-                            <span class="lsp-toggle-knob"></span>
-                        </button>
-                    </div>
-                    <div class="lsp-toggle-row lsp-toggle-sub">
-                        <span class="lsp-toggle-label">Go (gopls)</span>
-                        <button id="lsp-toggle-go" class="lsp-toggle-switch off" type="button">
-                            <span class="lsp-toggle-knob"></span>
-                        </button>
-                    </div>
+                <div class="lsp-toggle-row lsp-language-settings-row">
+                    <a id="lsp-language-settings" class="lsp-language-settings-link" href="#">语言设置…</a>
                 </div>
+            </div>
+            <div id="lsp-language-popup" class="lsp-language-popup hidden">
+                <div class="lsp-language-popup-header">语言服务器设置</div>
+                <div id="lsp-language-popup-list"></div>
             </div>
         </div>
         <div id="status-right">

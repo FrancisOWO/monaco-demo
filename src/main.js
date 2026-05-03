@@ -330,10 +330,9 @@ setupEditorMcpClient(editor);
 const lspStatusEl = document.getElementById('lsp-status');
 const lspTogglePopup = document.getElementById('lsp-toggle-popup');
 const lspToggleSwitch = document.getElementById('lsp-toggle-switch');
-const lspLanguageToggles = document.getElementById('lsp-language-toggles');
-const lspTogglePython = document.getElementById('lsp-toggle-python');
-const lspToggleCpp = document.getElementById('lsp-toggle-cpp');
-const lspToggleGo = document.getElementById('lsp-toggle-go');
+const lspLanguageSettings = document.getElementById('lsp-language-settings');
+const lspLanguagePopup = document.getElementById('lsp-language-popup');
+const lspLanguagePopupList = document.getElementById('lsp-language-popup-list');
 
 let lspManager = null;
 
@@ -341,28 +340,52 @@ if (getLSPManager) {
     lspManager = getLSPManager();
     lspManager.setEditor(editor);
 
+    // 动态生成语言设置弹窗中的开关
+    function buildLanguagePopupItems() {
+        if (!LANGUAGE_CONFIGS) return;
+        lspLanguagePopupList.innerHTML = '';
+        for (const [languageId, config] of Object.entries(LANGUAGE_CONFIGS)) {
+            const enabled = lspManager.languageToggles[languageId];
+            const item = document.createElement('div');
+            item.className = 'lsp-language-popup-item';
+            item.innerHTML = `
+                <div>
+                    <span class="lsp-toggle-label">${config.languageId} (${config.wsEndpoint.replace('/', '')})</span>
+                    <span class="lsp-language-popup-status" id="lsp-lang-status-${languageId}"></span>
+                </div>
+                <button id="lsp-toggle-${languageId}" class="lsp-toggle-switch ${enabled ? 'on' : 'off'}" type="button">
+                    <span class="lsp-toggle-knob"></span>
+                </button>
+            `;
+            lspLanguagePopupList.appendChild(item);
+
+            // 语言开关点击
+            item.querySelector(`#lsp-toggle-${languageId}`).addEventListener('click', (e) => {
+                e.stopPropagation();
+                lspManager.setLanguageEnabled(languageId, !lspManager.languageToggles[languageId]);
+            });
+        }
+    }
+    buildLanguagePopupItems();
+
     lspManager.setOnStatusChange((status) => {
         // 更新全局开关
         lspToggleSwitch.className = 'lsp-toggle-switch ' + (status.globalEnabled ? 'on' : 'off');
-        lspLanguageToggles.classList.toggle('hidden', !status.globalEnabled);
 
-        // 更新各语言子开关
+        // 更新语言设置弹窗中的开关和状态文字
         for (const lang of status.languages) {
             const toggleEl = document.getElementById(`lsp-toggle-${lang.languageId}`);
             if (toggleEl) {
                 toggleEl.className = 'lsp-toggle-switch ' + (lang.enabled ? 'on' : 'off');
-                const config = LANGUAGE_CONFIGS?.[lang.languageId];
-                if (config) {
-                    const labelEl = toggleEl.parentElement.querySelector('.lsp-toggle-label');
-                    if (labelEl) {
-                        const statusText = lang.connected ? ' ✓' : '';
-                        labelEl.textContent = `${config.languageId} (${lang.connected ? '已连接' : '未连接'})${statusText}`;
-                    }
-                }
+            }
+            const statusEl = document.getElementById(`lsp-lang-status-${lang.languageId}`);
+            if (statusEl) {
+                statusEl.textContent = lang.connected ? '已连接 ✓' : '未连接';
             }
         }
 
         // 更新状态栏文本
+        const enabledLangs = status.languages.filter(l => l.enabled);
         const connectedLangs = status.languages.filter(l => l.connected);
         if (!status.globalEnabled) {
             lspStatusEl.className = 'lsp-status disabled';
@@ -379,6 +402,7 @@ if (getLSPManager) {
     // 点击 LSP 状态弹出切换面板
     lspStatusEl.addEventListener('click', (e) => {
         e.stopPropagation();
+        lspLanguagePopup.classList.add('hidden');
         lspTogglePopup.classList.toggle('hidden');
     });
 
@@ -388,26 +412,23 @@ if (getLSPManager) {
         lspManager.setGlobalEnabled(!lspManager.globalEnabled);
     });
 
-    // 点击各语言子开关
-    lspTogglePython.addEventListener('click', (e) => {
+    // 点击"语言设置…" → 打开语言设置弹窗，关闭主弹窗
+    lspLanguageSettings.addEventListener('click', (e) => {
         e.stopPropagation();
-        lspManager.setLanguageEnabled('python', !lspManager.languageToggles.python);
-    });
-    lspToggleCpp.addEventListener('click', (e) => {
-        e.stopPropagation();
-        lspManager.setLanguageEnabled('cpp', !lspManager.languageToggles.cpp);
-    });
-    lspToggleGo.addEventListener('click', (e) => {
-        e.stopPropagation();
-        lspManager.setLanguageEnabled('go', !lspManager.languageToggles.go);
+        lspTogglePopup.classList.add('hidden');
+        lspLanguagePopup.classList.toggle('hidden');
     });
 
-    // 点击其他区域关闭弹出框
+    // 点击其他区域关闭两个弹出框
     document.addEventListener('click', () => {
         lspTogglePopup.classList.add('hidden');
+        lspLanguagePopup.classList.add('hidden');
     });
 
     lspTogglePopup.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+    lspLanguagePopup.addEventListener('click', (e) => {
         e.stopPropagation();
     });
 } else {

@@ -13,9 +13,9 @@ const logger = getLogger('LSP Manager');
 class LSPManager {
     globalEnabled = false;
     languageToggles = {
-        python: false,
-        cpp: false,
-        go: false,
+        python: true,
+        cpp: true,
+        go: true,
     };
     clients = {};
     disposables = {};
