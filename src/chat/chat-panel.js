@@ -187,6 +187,9 @@ function setupSettingsPanel() {
 
     // 配置选择相关元素
     const configSelect = document.getElementById('chat-config-select');
+    const configLabel = configSelect.querySelector('.custom-dropdown-label');
+    const configList = configSelect.querySelector('.custom-dropdown-list');
+    const configTrigger = configSelect.querySelector('.custom-dropdown-trigger');
     const addConfigBtn = document.getElementById('chat-config-add');
     const deleteConfigBtn = document.getElementById('chat-config-delete');
     const formSection = document.getElementById('chat-config-form-section');
@@ -205,17 +208,43 @@ function setupSettingsPanel() {
         const configs = chatStore.getApiConfigs();
         const currentId = chatStore.getCurrentConfigId();
 
-        configSelect.innerHTML = '';
+        configList.innerHTML = '';
         configs.forEach(config => {
-            const option = document.createElement('option');
-            option.value = config.id;
-            option.textContent = config.name;
-            if (config.id === currentId) {
-                option.selected = true;
-            }
-            configSelect.appendChild(option);
+            const item = document.createElement('div');
+            item.className = 'custom-dropdown-item' + (config.id === currentId ? ' active' : '');
+            item.dataset.value = config.id;
+            item.textContent = config.name;
+            item.addEventListener('click', () => {
+                selectConfig(config.id);
+            });
+            configList.appendChild(item);
         });
+
+        // 更新显示标签
+        const current = configs.find(c => c.id === currentId);
+        configLabel.textContent = current ? current.name : '';
     }
+
+    // 选中配置
+    function selectConfig(id) {
+        chatStore.setCurrentConfigId(id);
+        loadConfigToForm(id);
+        configSelect.classList.remove('open');
+        renderConfigSelect();
+    }
+
+    // 切换下拉展开/收起
+    configTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        configSelect.classList.toggle('open');
+    });
+
+    // 点击外部关闭
+    document.addEventListener('click', (e) => {
+        if (!configSelect.contains(e.target)) {
+            configSelect.classList.remove('open');
+        }
+    });
 
     // 加载配置详情到表单
     function loadConfigToForm(configId) {
@@ -259,12 +288,7 @@ function setupSettingsPanel() {
         }
     });
 
-    // 配置切换
-    configSelect.addEventListener('change', () => {
-        const selectedId = configSelect.value;
-        chatStore.setCurrentConfigId(selectedId);
-        loadConfigToForm(selectedId);
-    });
+    // 配置切换（已在 selectConfig 中处理）
 
     // 添加新配置
     addConfigBtn.addEventListener('click', () => {

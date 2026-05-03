@@ -661,10 +661,13 @@ export async function loadSettingsFromStorage() {
         const data = await configService.apiConfigs.get();
         // 合并自定义配置（保留 mock 内置配置）
         if (data.configs && Array.isArray(data.configs)) {
-            chatState.apiConfigs = [
-                chatState.apiConfigs.find(c => c.isBuiltIn),
-                ...data.configs,
-            ];
+            // 服务端数据已含内置配置，去重后直接使用
+            const seen = new Set();
+            chatState.apiConfigs = data.configs.filter(c => {
+                if (seen.has(c.id)) return false;
+                seen.add(c.id);
+                return true;
+            });
         }
         // 恢复当前配置（如果存在）
         if (data.currentConfigId) {

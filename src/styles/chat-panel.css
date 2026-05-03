@@ -429,12 +429,7 @@
 
 #chat-config-select {
     flex: 1;
-    padding: 8px 12px;
-    border: 1px solid #d0d0d0;
-    border-radius: 6px;
     font-size: 13px;
-    outline: none;
-    background: #fff;
 }
 
 #chat-config-select:focus {
@@ -1952,12 +1947,6 @@ body[data-theme="dark"] .chat-modal-btn-secondary:hover {
 
 /* Dark theme: Multi-Config Settings */
 body[data-theme="dark"] .chat-settings-section-title {
-    color: #d4d4d4;
-}
-
-body[data-theme="dark"] #chat-config-select {
-    background: #3c3c3c;
-    border-color: #444;
     color: #d4d4d4;
 }
 

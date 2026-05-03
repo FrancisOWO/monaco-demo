@@ -269,7 +269,13 @@
                 <div class="chat-settings-section">
                     <div class="chat-settings-section-title">选择配置</div>
                     <div class="chat-config-selector">
-                        <select id="chat-config-select"></select>
+                        <div id="chat-config-select" class="custom-dropdown">
+                            <div class="custom-dropdown-trigger">
+                                <span class="custom-dropdown-label"></span>
+                                <span class="custom-dropdown-arrow">⌵</span>
+                            </div>
+                            <div class="custom-dropdown-list"></div>
+                        </div>
                         <button class="chat-config-btn" id="chat-config-add" title="添加配置">+</button>
                         <button class="chat-config-btn chat-config-btn-danger" id="chat-config-delete" title="删除当前配置">删除</button>
                     </div>
