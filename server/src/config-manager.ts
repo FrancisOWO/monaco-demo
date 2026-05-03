@@ -119,6 +119,7 @@ export interface ApiConfig {
     id: string;
     name: string;
     baseUrl: string;
+    modelId: string;
     apiKey: string;
     isBuiltIn?: boolean;
 }
@@ -138,6 +139,7 @@ export function getDefaultApiConfigs(): ApiConfigsData {
                 id: 'mock',
                 name: 'Mock (本地测试)',
                 baseUrl: '',
+                modelId: '',
                 apiKey: '',
                 isBuiltIn: true,
             },

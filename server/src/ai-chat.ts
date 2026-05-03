@@ -75,6 +75,7 @@ interface ChatRequest {
     apiConfig?: {
         id: string;
         baseUrl: string;
+        modelId: string;
         apiKey: string;
     };
 }
@@ -84,9 +85,10 @@ function writeSSE(res: express.Response, event: string, data: object) {
 }
 
 // 实际调用 AI API 的 SSE 流
-async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?: string, apiKey?: string) {
+async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?: string, apiKey?: string, modelId?: string) {
     const { messages, mode } = reqBody;
     const client = getOpenAIClient(baseUrl, apiKey);
+    const model = modelId || config.ai.chatModel;
 
     // 构造 OpenAI 消息格式
     const systemPrompt = mode === 'agent'
@@ -108,7 +110,7 @@ async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?
 
     try {
         const stream = await client.chat.completions.create({
-            model: config.ai.chatModel,
+            model: model,
             messages: chatMessages,
             temperature: 0.3,
             stream: true,
@@ -276,7 +278,7 @@ router.post('/message', async (req, res) => {
     if (isMock) {
         mockChatSSE(res, { messages: messages || [], context: context || [], mode });
     } else {
-        await realChatSSE(res, { messages: messages || [], context: context || [], mode }, apiConfig!.baseUrl, apiConfig!.apiKey);
+        await realChatSSE(res, { messages: messages || [], context: context || [], mode }, apiConfig!.baseUrl, apiConfig!.apiKey, apiConfig!.modelId);
     }
 });
 

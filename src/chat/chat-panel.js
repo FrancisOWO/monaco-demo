@@ -198,6 +198,7 @@ function setupSettingsPanel() {
     // 配置表单字段
     const nameInput = document.getElementById('chat-config-name');
     const baseUrlInput = document.getElementById('chat-config-baseurl');
+    const modelIdInput = document.getElementById('chat-config-modelid');
     const apiKeyInput = document.getElementById('chat-config-apikey');
 
     // 当前编辑的配置 ID
@@ -262,6 +263,7 @@ function setupSettingsPanel() {
             // 清空表单
             nameInput.value = '';
             baseUrlInput.value = '';
+            modelIdInput.value = '';
             apiKeyInput.value = '';
         } else {
             // 自定义配置：启用表单
@@ -272,6 +274,7 @@ function setupSettingsPanel() {
             // 填充表单
             nameInput.value = config.name || '';
             baseUrlInput.value = config.baseUrl || '';
+            modelIdInput.value = config.modelId || '';
             apiKeyInput.value = config.apiKey || '';
         }
     }
@@ -339,6 +342,7 @@ function setupSettingsPanel() {
 
         const name = nameInput.value.trim();
         const baseUrl = baseUrlInput.value.trim();
+        const modelId = modelIdInput.value.trim();
         const apiKey = apiKeyInput.value.trim();
 
         // 验证配置
@@ -358,6 +362,7 @@ function setupSettingsPanel() {
         chatStore.updateApiConfig(editingConfigId, {
             name,
             baseUrl,
+            modelId,
             apiKey,
         });
 

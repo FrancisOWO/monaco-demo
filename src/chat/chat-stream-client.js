@@ -33,7 +33,7 @@ export async function streamChatMessage() {
                 context,
                 mode,
                 apiConfig: apiConfig
-                    ? { id: apiConfig.id, baseUrl: apiConfig.baseUrl, apiKey: apiConfig.apiKey }
+                    ? { id: apiConfig.id, baseUrl: apiConfig.baseUrl, modelId: apiConfig.modelId, apiKey: apiConfig.apiKey }
                     : undefined,
             }),
             signal: abortController.signal,

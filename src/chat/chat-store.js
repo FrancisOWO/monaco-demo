@@ -32,6 +32,7 @@ const chatState = {
             id: 'mock',
             name: 'Mock (本地测试)',
             baseUrl: '',
+            modelId: '',
             apiKey: '',
             isBuiltIn: true,
         },
@@ -515,6 +516,7 @@ export function addApiConfig(config) {
         id: generateConfigId(),
         name: config.name,
         baseUrl: config.baseUrl || '',
+        modelId: config.modelId || '',
         apiKey: config.apiKey || '',
         isBuiltIn: false,
     };
