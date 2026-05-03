@@ -8,6 +8,7 @@ import * as chatStore from './chat-store.js';
 import { streamChatMessage } from './chat-stream-client.js';
 import * as monaco from 'monaco-editor';
 import { ICON, LABEL, TITLE } from './chat-icons.js';
+import { marked } from 'marked';
 
 let monacoReady = false;
 
@@ -173,49 +174,47 @@ function createPartNode(part) {
 function createOutputNode(part) {
     const div = document.createElement('div');
     div.className = 'msg-output';
-    div.innerHTML = renderMarkdownLite(part.text || '');
+    div.innerHTML = renderMarkdown(part.text || '');
+    // 将 marked 生成的代码块替换为自定义 UI（含复制按钮和 Monaco 渲染容器）
+    div.querySelectorAll('pre code').forEach(codeEl => {
+        const lang = [...codeEl.classList]
+            .find(c => c.startsWith('language-'))
+            ?.replace('language-', '') || 'text';
+        const code = codeEl.textContent || '';
+        const block = buildCodeBlockDom(lang, code);
+        codeEl.closest('pre')?.replaceWith(block);
+    });
     return div;
 }
 
+// marked 配置
+marked.setOptions({
+    breaks: true,
+    gfm: true,
+});
+
 /**
- * 简单的 markdown-lite 渲染（返回 HTML 字符串）
+ * 使用 marked 渲染 markdown
  */
-function renderMarkdownLite(text) {
-    // 步骤 1：提取所有代码块（含未闭合的），用占位符替换，防止内容被后续规则破坏
-    const codeBlocks = [];
-    let result = text.replace(/```(\w+)?\n([\s\S]*?)(?:```|$)/g, (_, lang, code) => {
-        const idx = codeBlocks.length;
-        codeBlocks.push({ lang: lang || 'text', code });
-        return `\x00CODEBLOCK${idx}\x00`;
-    });
+function renderMarkdown(text) {
+    return marked.parse(text);
+}
 
-    // 步骤 2：处理行内代码（也要保护起来）
-    const inlineCodes = [];
-    result = result.replace(/`([^`]+)`/g, (_, code) => {
-        const idx = inlineCodes.length;
-        inlineCodes.push(code);
-        return `\x00INLINE${idx}\x00`;
-    });
-
-    // 步骤 3：处理其余 markdown 语法
-    result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
-    result = result.replace(/\n\n+/g, '<br>');  // 多换行（段落分隔）压缩为单 <br>
-    result = result.replace(/\n/g, '<br>');     // 单换行也变 <br>
-
-    // 步骤 4：还原行内代码
-    result = result.replace(/\x00INLINE(\d+)\x00/g, (_, idx) => {
-        const code = inlineCodes[parseInt(idx)];
-        return `<code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;font-size:12px;">${escapeHtml(code)}</code>`;
-    });
-
-    // 步骤 5：还原代码块
-    result = result.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, idx) => {
-        const block = codeBlocks[parseInt(idx)];
-        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${block.lang}</span><button class="msg-code-copy" data-code="${escapeAttr(block.code)}"></button></div><div class="msg-code-content" data-lang="${block.lang}" data-code="${escapeAttr(block.code)}"><pre>${escapeHtml(block.code)}</pre></div></div>`;
-    });
-
-    return result;
+/**
+ * 构建自定义代码块 DOM（复用 msg-code-block 样式）
+ */
+function buildCodeBlockDom(lang, code) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'msg-code-block';
+    wrapper.innerHTML =
+        `<div class="msg-code-header">` +
+        `<span class="msg-code-lang">${escapeHtml(lang)}</span>` +
+        `<button class="msg-code-copy" data-code="${escapeAttr(code)}"></button>` +
+        `</div>` +
+        `<div class="msg-code-content" data-lang="${escapeAttr(lang)}" data-code="${escapeAttr(code)}">` +
+        `<pre>${escapeHtml(code)}</pre>` +
+        `</div>`;
+    return wrapper;
 }
 
 /**
