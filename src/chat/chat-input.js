@@ -343,9 +343,10 @@ function insertMention(item) {
     if (item.category === 'skill') prefix = '@skill:';
     else if (item.category === 'mcp') prefix = '@mcp:';
 
-    input.value = before + prefix + item.path + ' ' + after;
+    const displayPath = item.category === 'file' ? item.path.replace(/^\//, '') : item.path;
+    input.value = before + prefix + displayPath + ' ' + after;
 
-    const newPos = mentionStartIndex + prefix.length + item.path.length + 1;
+    const newPos = mentionStartIndex + prefix.length + displayPath.length + 1;
     input.setSelectionRange(newPos, newPos);
     input.focus();
 
