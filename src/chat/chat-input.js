@@ -9,7 +9,7 @@ import { openFiles } from '../file-system/file-store.js';
 import { getFileTreeRoot } from '../ui/sidebar.js';
 import { FILE_ICON_MAP, DEFAULT_FILE_ICON } from './chat-icons.js';
 
-const AI_CHAT_URL = 'http://localhost:3000/ai/chat';
+const AI_CHAT_URL = '/ai/chat';
 
 let mentionPopupActive = false;
 let mentionStartIndex = -1;

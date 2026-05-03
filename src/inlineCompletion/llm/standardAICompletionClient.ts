@@ -1,52 +1,34 @@
 /**
  * StandardAICompletionClient
- * 流式 LLM 客户端
- * 等待第一个 token 就返回，后台继续缓存
+ * 流式补全客户端，通过后端代理 SSE 调用 AI API（Copilot 模式）
+ * 前端不持有 apiKey，只发 HTTP 请求到后端
  */
 
-import OpenAI from 'openai';
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
-    type CompletionResult,
-    type PromptInfo,
-    type CompletionRequestContext,
-    type CompletionStrategy,
-    type IAICompletionClient,
+} from '../types.js';
+import type {
+    IAICompletionClient,
+    CompletionResult,
+    PromptInfo,
+    CompletionRequestContext,
+    CompletionStrategy,
 } from '../types.js';
 
-/** 流式响应回调 */
-export interface StreamingCallbacks {
-    /** 收到第一个 token */
-    onFirstToken?: (text: string) => void;
-    /** 收到新 token */
-    onToken?: (text: string) => void;
-    /** 流式完成 */
-    onComplete?: (text: string) => void;
-    /** 发生错误 */
-    onError?: (error: Error) => void;
+/** AI 补全客户端配置（只需要后端地址，不需要 apiKey） */
+export interface AICompletionClientConfig {
+    endpoint: string;
+    model: string;
+    apiKey: string;
 }
 
 /**
- * 流式 LLM 客户端
+ * 流式补全客户端 — fetch POST /ai/completion/stream + SSE 解析
+ * 等待第一个 token 就返回，后台继续缓存
  */
 export class StandardAICompletionClient implements IAICompletionClient {
-    private client: OpenAI;
-    private config: {
-        endpoint: string;
-        model: string;
-        apiKey: string;
-    };
     private abortController: AbortController | null = null;
-    private streamingCache = new Map<string, string>();
-
-    constructor(config: { endpoint: string; model: string; apiKey: string }) {
-        this.config = config;
-        this.client = new OpenAI({
-            apiKey: config.apiKey,
-            baseURL: config.endpoint,
-        });
-    }
 
     /**
      * 标准请求（兼容接口）
@@ -78,22 +60,42 @@ export class StandardAICompletionClient implements IAICompletionClient {
     ): Promise<{ firstResult: CompletionResult; backgroundCache: Promise<CompletionResult[]> }> {
         this.abortController = new AbortController();
 
-        const n = context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1;
+        const response = await fetch('/ai/completion/stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prefix: prompt.prefix,
+                suffix: prompt.suffix,
+                language: context.languageId,
+                strategy: {
+                    requestMultiline: strategy.requestMultiline,
+                    maxTokens: strategy.maxTokens,
+                    stopTokens: strategy.stopTokens,
+                },
+                position: context.position,
+            }),
+            signal: this.abortController.signal,
+        });
 
-        const stream = await this.client.completions.create(
-            {
-                model: this.config.model,
-                prompt: prompt.prefix,
-                suffix: prompt.suffix || undefined,
-                max_tokens: strategy.maxTokens ?? 64,
-                stop: strategy.stopTokens.length > 0 ? strategy.stopTokens : undefined,
-                temperature: 0.01,
-                n,
-                stream: true,
-            },
-            { signal: this.abortController.signal },
-        );
+        if (!response.ok) {
+            // 后端无真实配置，返回空结果
+            const emptyResult: CompletionResult = {
+                insertText: '',
+                range: {
+                    startLineNumber: context.position.lineNumber,
+                    startColumn: context.position.column,
+                    endLineNumber: context.position.lineNumber,
+                    endColumn: context.position.column,
+                },
+                completionId: `${context.requestId}-0`,
+                source: CompletionSource.Network,
+                isMultiline: strategy.requestMultiline,
+            };
+            return { firstResult: emptyResult, backgroundCache: Promise.resolve([emptyResult]) };
+        }
 
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
         let fullText = '';
         let firstTokenReceived = false;
         let firstTokenResolve!: () => void;
@@ -102,13 +104,45 @@ export class StandardAICompletionClient implements IAICompletionClient {
         });
 
         const backgroundCache = (async (): Promise<CompletionResult[]> => {
-            for await (const chunk of stream) {
-                const text = chunk.choices?.[0]?.text ?? '';
-                fullText += text;
+            let buffer = '';
+            let currentEvent = '';
 
-                if (!firstTokenReceived && text) {
-                    firstTokenReceived = true;
-                    firstTokenResolve?.();
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+
+                // SSE 解析（与 chat-stream-client.js 相同模式）
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('event: ')) {
+                        currentEvent = line.substring(7).trim();
+                    } else if (line.startsWith('data: ')) {
+                        const dataStr = line.substring(6);
+                        try {
+                            const data = JSON.parse(dataStr);
+
+                            if (currentEvent === 'token' && data.text) {
+                                fullText += data.text;
+
+                                if (!firstTokenReceived) {
+                                    firstTokenReceived = true;
+                                    firstTokenResolve?.();
+                                }
+                            } else if (currentEvent === 'done') {
+                                // 流结束
+                                firstTokenResolve?.();
+                            }
+                        } catch {
+                            // 忽略解析失败的行
+                        }
+                        currentEvent = '';
+                    } else if (line.trim() === '') {
+                        currentEvent = '';
+                    }
                 }
             }
 
@@ -155,33 +189,5 @@ export class StandardAICompletionClient implements IAICompletionClient {
     cancelRequest(_requestId: string): void {
         this.abortController?.abort();
         this.abortController = null;
-    }
-
-    /**
-     * 添加缓存
-     */
-    cacheResult(key: string, text: string): void {
-        this.streamingCache.set(key, text);
-
-        if (this.streamingCache.size > 100) {
-            const firstKey = this.streamingCache.keys().next().value;
-            if (firstKey) {
-                this.streamingCache.delete(firstKey);
-            }
-        }
-    }
-
-    /**
-     * 获取缓存
-     */
-    getCachedResult(key: string): string | undefined {
-        return this.streamingCache.get(key);
-    }
-
-    /**
-     * 清空缓存
-     */
-    clearCache(): void {
-        this.streamingCache.clear();
     }
 }

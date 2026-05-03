@@ -1,9 +1,9 @@
 /**
- * LLM 客户端
- * 使用 OpenAI SDK 调用 FIM 补全
+ * SimpleAICompletionClient
+ * 非流式补全客户端，通过后端代理调用 AI API（Copilot 模式）
+ * 前端不持有 apiKey，只发 HTTP 请求到后端
  */
 
-import OpenAI from 'openai';
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
@@ -16,24 +16,16 @@ import type {
     CompletionStrategy,
 } from '../types.js';
 
-/** LLM 客户端配置 */
+/** AI 补全客户端配置（只需要后端地址，不需要 apiKey） */
 export interface AICompletionClientConfig {
     endpoint: string;
     model: string;
     apiKey: string;
 }
 
-/** 使用 OpenAI SDK 的 FIM 补全客户端 */
+/** 非流式补全客户端 — fetch POST /ai/completion */
 export class SimpleAICompletionClient implements IAICompletionClient {
-    private client: OpenAI;
     private abortController: AbortController | null = null;
-
-    constructor(private config: AICompletionClientConfig) {
-        this.client = new OpenAI({
-            apiKey: config.apiKey,
-            baseURL: config.endpoint,
-        });
-    }
 
     async requestCompletion(
         prompt: PromptInfo,
@@ -44,32 +36,55 @@ export class SimpleAICompletionClient implements IAICompletionClient {
 
         const n = context.triggerKind === InlineCompletionTriggerKind.Invoke ? 3 : 1;
 
-        const response = await this.client.completions.create(
-            {
-                model: this.config.model,
-                prompt: prompt.prefix,
-                suffix: prompt.suffix || undefined,
-                max_tokens: strategy.maxTokens,
-                stop: strategy.stopTokens,
-                temperature: 0.01,
-                n,
-                stream: false,
-            },
-            { signal: this.abortController.signal },
-        );
+        try {
+            const response = await fetch('/ai/completion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prefix: prompt.prefix,
+                    suffix: prompt.suffix,
+                    language: context.languageId,
+                    strategy: {
+                        requestMultiline: strategy.requestMultiline,
+                        maxTokens: strategy.maxTokens,
+                        stopTokens: strategy.stopTokens,
+                    },
+                    position: context.position,
+                }),
+                signal: this.abortController.signal,
+            });
 
-        return response.choices.map((choice, index): CompletionResult => ({
-            insertText: choice.text,
-            range: {
-                startLineNumber: context.position.lineNumber,
-                startColumn: context.position.column,
-                endLineNumber: context.position.lineNumber,
-                endColumn: context.position.column,
-            },
-            completionId: `${context.requestId}-${index}`,
-            source: CompletionSource.Network,
-            isMultiline: false,
-        }));
+            if (!response.ok) {
+                return [];
+            }
+
+            const data = await response.json();
+
+            if (!data.items || data.items.length === 0) {
+                return [];
+            }
+
+            // 只取前 n 个结果
+            return data.items.slice(0, n).map((item: any, index: number): CompletionResult => ({
+                insertText: item.insertText,
+                range: {
+                    startLineNumber: context.position.lineNumber,
+                    startColumn: context.position.column,
+                    endLineNumber: context.position.lineNumber,
+                    endColumn: context.position.column,
+                },
+                completionId: `${context.requestId}-${index}`,
+                source: CompletionSource.Network,
+                isMultiline: strategy.requestMultiline,
+            }));
+
+        } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return [];
+            }
+            console.error('[SimpleAICompletionClient] Error:', error);
+            return [];
+        }
     }
 
     cancelRequest(_requestId: string): void {

@@ -6,9 +6,9 @@
 
 import * as chatStore from './chat-store.js';
 
-const AI_CHAT_URL = 'http://localhost:3000/ai/chat';
-const AI_CONTEXT_URL = 'http://localhost:3000/ai/chat/context/file';
-const AI_REGISTRY_URL = 'http://localhost:3000/ai/chat/registry';
+const AI_CHAT_URL = '/ai/chat';
+const AI_CONTEXT_URL = '/ai/chat/context/file';
+const AI_REGISTRY_URL = '/ai/chat/registry';
 
 /**
  * 发送聊天消息并接收流式响应

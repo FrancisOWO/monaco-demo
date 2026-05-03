@@ -482,7 +482,7 @@ envPopup.addEventListener('click', (e) => {
 loadEnvironmentInfo();
 
 // 注册 AI 行内补全（Monaco Provider + 快捷键 + 自动触发）
-// 配置统一在 inlineCompletion/aiCompletionConfig.ts 中管理
+// apiKey 由后端代理处理，前端不持有
 setupInlineCompletion(monaco, editor);
 
 // 注册基础代码补全（作为 LSP 的后备）

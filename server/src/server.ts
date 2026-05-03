@@ -33,8 +33,8 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Python LSP Server is running' });
 });
 
-// AI 补全端点
-app.use('/ai', aiCompletionRouter);
+// AI 补全端点（Copilot 模式：后端代理）
+app.use('/ai/completion', aiCompletionRouter);
 
 // AI Chat SSE 端点
 app.use('/ai/chat', aiChatRouter);

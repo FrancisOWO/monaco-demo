@@ -76,14 +76,14 @@ export function setupInlineCompletion(
  * 根据统一配置创建 AI 补全客户端
  */
 function createClientFromConfig() {
-    const { clientMode, server, dummy } = aiCompletionConfig;
+    const { clientMode, dummy } = aiCompletionConfig;
     if (clientMode === 'dummy') {
         return new DummyAICompletionClient(dummy);
     }
     if (clientMode === 'simple') {
-        return new SimpleAICompletionClient(server);
+        return new SimpleAICompletionClient();
     }
-    return new StandardAICompletionClient(server);
+    return new StandardAICompletionClient();
 }
 
 /**
