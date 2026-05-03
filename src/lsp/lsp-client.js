@@ -62,7 +62,7 @@ export function createLSPClient(monaco, editor, languageConfig) {
     let webSocket = null;
     const messageCallbacks = new Map();
     let requestId = 0;
-    let workspaceRootUri = 'file:///workspace';
+    let workspaceRootUri = 'file:///workspace/';  // 与 createFileModel 的 URI 前缀一致，目录 URI 以 / 结尾
 
     const LSP_SERVER_URL = `ws://localhost:3000${languageConfig.wsEndpoint}`;
 
@@ -302,11 +302,11 @@ export function createLSPClient(monaco, editor, languageConfig) {
             try {
                 const response = await fetch(`${LSP_HTTP_URL}/workspace-root`);
                 const data = await response.json();
-                if (data.uri) {
-                    workspaceRootUri = data.uri;
+                if (data.path) {
                     setWorkspaceUriPrefix(data.path);
-                    logger.info('Workspace root:', workspaceRootUri);
                 }
+                // workspaceRootUri 始终使用 file:///workspace，与 createFileModel 中的 URI 前缀一致
+                logger.info('Workspace root:', workspaceRootUri, 'local path:', data.path);
             } catch (error) {
                 logger.warn('Failed to fetch workspace root, using default:', error.message);
             }

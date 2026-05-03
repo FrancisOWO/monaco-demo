@@ -12,6 +12,18 @@ import { saveWorkspace } from './persistence.js';
 
 const logger = getLogger('File Store');
 
+/** 使用 URL API 安全地拼接工作区路径下的文件 URI，自动处理斜杠 */
+function buildFileUri(filePath) {
+    // URL 构造会规范化路径：去除双斜杠、解析 . 和 ..
+    const url = new URL(filePath, 'file:///workspace/');
+    return url.href;
+}
+
+/** 规范化文件路径：保证以 / 开头 */
+function normalizePath(p) {
+    return p.startsWith('/') ? p : '/' + p;
+}
+
 /** 工作区本地路径（如 D:\Users\...\monaco-start），由 LSP 客户端从服务端获取后设置 */
 let workspaceLocalPath = '';
 
@@ -101,16 +113,7 @@ export function setRootDirectory(handle) {
  * 创建 Monaco model
  */
 function createFileModel(path, content, language) {
-    let uri;
-    if (workspaceLocalPath) {
-        // 有真实工作区路径时，用 Uri.file 避免 URL 编码
-        // path 格式如 /test.py，去掉开头的 / 拼接到本地路径
-        const localPath = workspaceLocalPath + path.replace(/^\//, '\\');
-        uri = monaco.Uri.file(localPath);
-    } else {
-        // fallback: 虚拟路径
-        uri = monaco.Uri.parse('file:///workspace' + path);
-    }
+    const uri = monaco.Uri.parse(buildFileUri(path));
     let model = monaco.editor.getModel(uri);
     if (model) {
         // 已有同 URI 的 model，直接返回
@@ -127,6 +130,7 @@ function createFileModel(path, content, language) {
  * @param {monaco.editor} editor Monaco 编辑器实例
  */
 export async function openFileFromHandle(handle, path, editor) {
+    path = normalizePath(path);
     if (openFiles.has(path)) {
         setActiveFile(path, editor);
         return;
@@ -175,6 +179,7 @@ export function openFileFromContent({ path, name, content = '', language }, edit
     if (!path) {
         throw new Error('path is required');
     }
+    path = normalizePath(path);
 
     const fileName = name || basenameFromPath(path);
     const detectedLanguage = language || detectLanguage(fileName);

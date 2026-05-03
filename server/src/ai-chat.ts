@@ -6,7 +6,9 @@
 
 import express, { Router } from 'express';
 import OpenAI from 'openai';
+import path from 'path';
 import { config } from './config';
+import { editorControlHub } from './editor-control';
 
 const router: Router = express.Router();
 
@@ -23,6 +25,21 @@ function getOpenAIClient(baseUrl?: string, apiKey?: string): OpenAI {
         });
     }
     return openai;
+}
+
+/** 根据文件名/路径推断语言标识 */
+function languageFromPath(filePath: string): string {
+    const ext = path.extname(filePath).toLowerCase();
+    const map: Record<string, string> = {
+        '.py': 'python', '.js': 'javascript', '.ts': 'typescript',
+        '.tsx': 'typescript', '.jsx': 'javascript', '.css': 'css',
+        '.html': 'html', '.json': 'json', '.md': 'markdown',
+        '.cpp': 'cpp', '.c': 'c', '.h': 'cpp', '.hpp': 'cpp',
+        '.go': 'go', '.rs': 'rust', '.java': 'java', '.xml': 'xml',
+        '.yaml': 'yaml', '.yml': 'yaml', '.toml': 'toml',
+        '.sh': 'shell', '.sql': 'sql', '.txt': 'plaintext',
+    };
+    return map[ext] || 'plaintext';
 }
 
 // ============ Skill & MCP Registry ============
@@ -84,21 +101,203 @@ function writeSSE(res: express.Response, event: string, data: object) {
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
+// ============ 上下文组装 ============
+
+/**
+ * 将 context 项组装为 prompt 片段
+ * 全文件用 <file> 标签，选中区域用 <selection> 标签
+ */
+function buildContextBlock(context: ChatRequest['context']): string {
+    if (!context || context.length === 0) return '';
+
+    const parts: string[] = [];
+
+    for (const item of context) {
+        if (item.type === 'file' && item.content) {
+            parts.push(
+                `<file path="${item.path}" name="${item.name}">\n${item.content}\n</file>`
+            );
+        } else if (item.type === 'selection' && item.content) {
+            const rangeAttr = item.range
+                ? ` startLine="${item.range.startLine}" endLine="${item.range.endLine}"`
+                : '';
+            parts.push(
+                `<selection path="${item.path}" name="${item.name}"${rangeAttr}>\n${item.content}\n</selection>`
+            );
+        } else if (item.type === 'skill') {
+            parts.push(`<skill id="${item.skillId}" name="${item.skillName}">用户引用了此 Skill</skill>`);
+        } else if (item.type === 'mcp') {
+            parts.push(`<mcp server="${item.mcpServer}" toolId="${item.mcpToolId}" name="${item.mcpToolName}">用户引用了此 MCP 工具</mcp>`);
+        }
+    }
+
+    if (parts.length === 0) return '';
+
+    return `<context>\n${parts.join('\n\n')}\n</context>`;
+}
+
+// ============ 工具定义 ============
+
+const READ_FILE_TOOL: OpenAI.ChatCompletionTool = {
+    type: 'function',
+    function: {
+        name: 'read_file',
+        description: '读取编辑器中已打开文件的完整内容。传入文件路径（与编辑器标签页中显示的路径一致）。',
+        parameters: {
+            type: 'object',
+            required: ['path'],
+            properties: {
+                path: { type: 'string', description: '编辑器中文件的路径' },
+            },
+        },
+    },
+};
+
+const WRITE_FILE_TOOL: OpenAI.ChatCompletionTool = {
+    type: 'function',
+    function: {
+        name: 'write_file',
+        description: '在编辑器中创建或覆盖文件内容。',
+        parameters: {
+            type: 'object',
+            required: ['path', 'content'],
+            properties: {
+                path: { type: 'string', description: '文件路径' },
+                content: { type: 'string', description: '文件内容' },
+            },
+        },
+    },
+};
+
+const EDIT_FILE_TOOL: OpenAI.ChatCompletionTool = {
+    type: 'function',
+    function: {
+        name: 'edit_file',
+        description: '编辑编辑器中已打开的文件：将文件中的 old_string 替换为 new_string。old_string 必须与文件中的确切内容匹配。',
+        parameters: {
+            type: 'object',
+            required: ['path', 'old_string', 'new_string'],
+            properties: {
+                path: { type: 'string', description: '文件路径' },
+                old_string: { type: 'string', description: '要替换的原始文本（必须精确匹配）' },
+                new_string: { type: 'string', description: '替换后的新文本' },
+            },
+        },
+    },
+};
+
+/** 根据模式返回工具列表：ask/plan 只读，agent 可读写 */
+function getToolsForMode(mode: string): OpenAI.ChatCompletionTool[] {
+    if (mode === 'agent') {
+        return [READ_FILE_TOOL, WRITE_FILE_TOOL, EDIT_FILE_TOOL];
+    }
+    // ask 和 plan 模式都提供只读工具
+    return [READ_FILE_TOOL];
+}
+
+/** 通过编辑器控制通道获取文件内容，支持路径模糊匹配 */
+async function readFileFromEditor(filePath: string): Promise<{ content: string; path: string; name: string } | null> {
+    if (!editorControlHub.isEditorConnected()) return null;
+
+    // 精确匹配
+    try {
+        const snapshot = await editorControlHub.sendCommand('editor.getFileContent', { path: filePath });
+        const result = snapshot as { content?: string; name?: string; path?: string } | null;
+        if (result && result.content !== undefined) return { content: result.content, path: result.path || filePath, name: result.name || '' };
+    } catch { /* 精确匹配失败 */ }
+
+    // 尝试添加前导 /（编辑器中路径格式通常为 /filename）
+    if (!filePath.startsWith('/')) {
+        try {
+            const altPath = '/' + filePath;
+            const snapshot = await editorControlHub.sendCommand('editor.getFileContent', { path: altPath });
+            const result = snapshot as { content?: string; name?: string; path?: string } | null;
+            if (result && result.content !== undefined) return { content: result.content, path: result.path || altPath, name: result.name || '' };
+        } catch { /* fallback 失败 */ }
+    }
+
+    return null;
+}
+
+/** 通过编辑器控制通道执行工具调用 */
+async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
+    const filePath = String(args.path || '');
+
+    if (!editorControlHub.isEditorConnected()) {
+        return `Error: 编辑器未连接，无法执行 ${name}`;
+    }
+
+    switch (name) {
+        case 'read_file': {
+            const file = await readFileFromEditor(filePath);
+            if (file) return file.content;
+            return `Error: 文件 "${filePath}" 未在编辑器中打开`;
+        }
+
+        case 'write_file': {
+            const content = String(args.content ?? '');
+            try {
+                await editorControlHub.sendCommand('editor.openFile', {
+                    path: filePath,
+                    name: path.basename(filePath),
+                    content,
+                    language: languageFromPath(filePath),
+                });
+                return `文件 "${filePath}" 已写入编辑器 (${content.length} 字符)`;
+            } catch (err: any) {
+                return `Error: 无法写入文件 "${filePath}" — ${err.message}`;
+            }
+        }
+
+        case 'edit_file': {
+            const oldStr = String(args.old_string ?? '');
+            const newStr = String(args.new_string ?? '');
+            const file = await readFileFromEditor(filePath);
+            if (!file) {
+                return `Error: 文件 "${filePath}" 未在编辑器中打开`;
+            }
+            if (!file.content.includes(oldStr)) {
+                const lines = file.content.split('\n');
+                const nearby = lines.slice(0, 5).join('\n');
+                return `Error: old_string 未在 "${file.path}" 中找到。文件开头：\n${nearby}`;
+            }
+            const newContent = file.content.replace(oldStr, newStr);
+            try {
+                await editorControlHub.sendCommand('editor.editFile', { path: file.path, content: newContent });
+                return `文件 "${file.path}" 已编辑`;
+            } catch (err: any) {
+                return `Error: 无法编辑文件 "${filePath}" — ${err.message}`;
+            }
+        }
+
+        default:
+            return `Error: 未知工具 "${name}"`;
+    }
+}
+
 // 实际调用 AI API 的 SSE 流
 async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?: string, apiKey?: string, modelId?: string) {
-    const { messages, mode } = reqBody;
+    const { messages, context, mode } = reqBody;
     const client = getOpenAIClient(baseUrl, apiKey);
     const model = modelId || config.ai.chatModel;
 
-    // 构造 OpenAI 消息格式
-    const systemPrompt = mode === 'agent'
-        ? '你是一个代码助手，可以执行工具调用来帮助用户完成任务。'
+    // 构造系统提示（按模式区分）
+    const modeInstructions = mode === 'agent'
+        ? '你是一个代码助手，可以执行工具调用来帮助用户完成任务。当需要读取、创建或修改文件时，请使用提供的工具。'
         : mode === 'plan'
-            ? '你是一个代码助手，擅长制定实现方案。请给出结构化的实施计划。'
-            : '你是一个代码助手，请简洁准确地回答用户问题。';
+            ? '你是一个代码助手，擅长制定实现方案。请给出结构化的实施计划。你可以使用 read_file 工具读取文件内容来辅助分析。'
+            : '你是一个代码助手，请简洁准确地回答用户问题。你可以使用 read_file 工具读取文件内容来辅助回答。';
+
+    // 组装上下文信息
+    const contextBlock = buildContextBlock(context);
+    const contextInstruction = contextBlock
+        ? '用户通过 @mention 引用了以下文件/代码/工具，这些内容已作为上下文提供在 <context> 标签中。你不需要再对已引用的文件调用 read_file，直接基于上下文中的内容回答即可。仅当你需要读取上下文中未引用的文件时才使用 read_file。\n'
+        : '';
+
+    const systemContent = `${modeInstructions}\n${contextInstruction}${contextBlock}`;
 
     const chatMessages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
-        { role: 'system', content: systemPrompt },
+        { role: 'system', content: systemContent },
     ];
 
     for (const msg of messages) {
@@ -108,25 +307,105 @@ async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?
         }
     }
 
+    const tools = getToolsForMode(mode);
+
     try {
-        const stream = await client.chat.completions.create({
-            model: model,
-            messages: chatMessages,
-            temperature: 0.3,
-            stream: true,
-        });
+        // 带工具的多轮对话（支持 tool_call 循环）
+        let maxToolRounds = 8;
+        let roundMessages: OpenAI.ChatCompletionMessageParam[] = chatMessages.map(m => ({
+            role: m.role as 'system' | 'user' | 'assistant',
+            content: m.content,
+        }));
 
-        let fullText = '';
+        while (maxToolRounds-- > 0) {
+            const stream = await client.chat.completions.create({
+                model: model,
+                messages: roundMessages,
+                temperature: 0.3,
+                stream: true,
+                ...(tools.length > 0 ? { tools } : {}),
+            });
 
-        for await (const chunk of stream) {
-            const text = chunk.choices?.[0]?.delta?.content ?? '';
-            if (text) {
-                fullText += text;
-                writeSSE(res, 'token', { text });
+            let fullText = '';
+            let toolCalls: OpenAI.ChatCompletionMessageFunctionToolCall[] = [];
+            let hasToolCall = false;
+
+            for await (const chunk of stream) {
+                const choice = chunk.choices?.[0];
+                if (!choice) continue;
+
+                // 文本输出
+                const text = choice.delta?.content ?? '';
+                if (text) {
+                    fullText += text;
+                    writeSSE(res, 'token', { text });
+                }
+
+                // 工具调用
+                if (choice.delta?.tool_calls) {
+                    for (const tc of choice.delta.tool_calls) {
+                        if (tc.type !== 'function') continue;
+                        const idx = tc.index ?? 0;
+                        if (!toolCalls[idx]) {
+                            toolCalls[idx] = {
+                                id: tc.id || `call_${idx}`,
+                                type: 'function',
+                                function: { name: '', arguments: '' },
+                            };
+                        }
+                        if (tc.function?.name) toolCalls[idx].function.name += tc.function.name;
+                        if (tc.function?.arguments) toolCalls[idx].function.arguments += tc.function.arguments;
+                    }
+                    hasToolCall = true;
+                }
+            }
+
+            // 无工具调用，直接结束
+            if (!hasToolCall) {
+                writeSSE(res, 'done', { fullText });
+                res.end();
+                return;
+            }
+
+            // 有工具调用：逐个执行，发送 SSE 事件，追加到对话
+            const assistantMsg: OpenAI.ChatCompletionAssistantMessageParam = {
+                role: 'assistant',
+                content: fullText || null,
+                tool_calls: toolCalls,
+            };
+            roundMessages.push(assistantMsg);
+
+            for (const tc of toolCalls) {
+                const toolName = tc.function.name;
+                let toolInput: Record<string, unknown>;
+                try {
+                    toolInput = JSON.parse(tc.function.arguments);
+                } catch {
+                    toolInput = {};
+                }
+
+                writeSSE(res, 'tool-call', {
+                    toolName,
+                    input: toolInput,
+                });
+
+                const result = await executeTool(toolName, toolInput);
+
+                writeSSE(res, 'tool-result', {
+                    toolName,
+                    output: { content: result.substring(0, 4000) },
+                });
+
+                roundMessages.push({
+                    role: 'tool' as const,
+                    tool_call_id: tc.id,
+                    content: result.substring(0, 8000),
+                });
             }
         }
 
-        writeSSE(res, 'done', { fullText });
+        // 工具轮次用完，追加结束事件
+        writeSSE(res, 'done', { fullText: '工具调用轮次已用完' });
         res.end();
     } catch (error: any) {
         console.error('[AI Chat] Error:', error);
@@ -283,15 +562,27 @@ router.post('/message', async (req, res) => {
 });
 
 // GET /ai/chat/context/file — 返回文件内容用于上下文解析
-router.get('/context/file', (req, res) => {
-    const path = req.query.path as string;
+router.get('/context/file', async (req, res) => {
+    const filePath = req.query.path as string;
 
-    if (!path) {
+    if (!filePath) {
         res.status(400).json({ error: 'Missing path parameter' });
         return;
     }
 
-    // 测试模式：返回模拟文件内容
+    // 优先从编辑器控制通道获取（浏览器端 Monaco model），复用路径模糊匹配
+    const file = await readFileFromEditor(filePath);
+    if (file) {
+        res.json({
+            path: file.path,
+            name: file.name || path.basename(filePath),
+            content: file.content,
+            language: languageFromPath(filePath),
+        });
+        return;
+    }
+
+    // 测试模式：返回预定义的 mock 文件内容
     if (config.ai.testMode) {
         const mockFiles: Record<string, { name: string; content: string; language: string }> = {
             '/main.py': { name: 'main.py', content: 'def main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()', language: 'python' },
@@ -299,17 +590,14 @@ router.get('/context/file', (req, res) => {
             '/style.css': { name: 'style.css', content: 'body {\n  margin: 0;\n  font-family: sans-serif;\n}', language: 'css' },
         };
 
-        const file = mockFiles[path] || {
-            name: path.split('/').pop() || path,
-            content: `// Content of ${path}\n// This is a mock file for testing`,
-            language: 'plaintext',
-        };
-
-        res.json({ path, ...file });
-    } else {
-        // TODO: 实际读取项目文件
-        res.status(501).json({ error: 'File reading not implemented yet' });
+        const file = mockFiles[filePath];
+        if (file) {
+            res.json({ path: filePath, ...file });
+            return;
+        }
     }
+
+    res.status(404).json({ error: `File not found in editor: ${filePath}` });
 });
 
 // GET /ai/chat/registry/skills — 返回 Skill 注册列表
