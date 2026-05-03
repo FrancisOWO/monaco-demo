@@ -347,9 +347,9 @@ body[data-theme="light"] #status-bar {
     border: 1px solid #d0d0d0;
     border-radius: 6px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
-    min-width: 280px;
-    max-width: 400px;
-    max-height: 60vh;
+    min-width: 360px;
+    max-width: 480px;
+    max-height: 320px;
     overflow-y: auto;
     z-index: 10000;
 }
@@ -398,11 +398,6 @@ body[data-theme="light"] #status-bar {
     color: #007acc;
 }
 
-.lang-env-list {
-    max-height: 200px;
-    overflow-y: auto;
-}
-
 .lang-env-item {
     display: flex;
     align-items: center;
@@ -410,6 +405,14 @@ body[data-theme="light"] #status-bar {
     cursor: pointer;
     font-size: 12px;
     transition: background-color 0.1s;
+}
+
+.lang-env-item::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    min-width: 16px;
+    text-align: center;
 }
 
 .lang-env-item:hover {
@@ -420,9 +423,10 @@ body[data-theme="light"] #status-bar {
     background: #f0f0f0;
 }
 
-.lang-env-item.active .lang-env-item-name::before {
-    content: '\2713 ';
+.lang-env-item.active::before {
+    content: '\25CF';
     color: #007acc;
+    font-size: 10px;
 }
 
 .lang-env-item-name {
@@ -430,21 +434,18 @@ body[data-theme="light"] #status-bar {
     white-space: nowrap;
 }
 
-.lang-env-item-path {
+.lang-env-item-detail {
     color: #999;
     font-size: 11px;
-    margin-left: auto;
-    padding-left: 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    max-width: 180px;
 }
 
 .lang-env-divider {
     height: 1px;
     background: #e0e0e0;
-    margin: 0;
+    margin: 10px 0 0px 0;
 }
 
 /* Dark theme - lang/env switcher */
@@ -479,7 +480,7 @@ body[data-theme="dark"] .lang-env-item.active {
     background: #37373d;
 }
 
-body[data-theme="dark"] .lang-env-item.active .lang-env-item-name::before {
+body[data-theme="dark"] .lang-env-item.active::before {
     color: #4fc3f7;
 }
 
@@ -487,7 +488,7 @@ body[data-theme="dark"] .lang-env-item-name {
     color: #ccc;
 }
 
-body[data-theme="dark"] .lang-env-item-path {
+body[data-theme="dark"] .lang-env-item-detail {
     color: #666;
 }
 

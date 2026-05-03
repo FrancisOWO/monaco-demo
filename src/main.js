@@ -547,7 +547,7 @@ function renderDefaultEnv(language) {
     item.className = 'lang-env-item active';
     item.innerHTML = `
         <span class="lang-env-item-name">${env.name}</span>
-        <span class="lang-env-item-path" title="${env.path}">${env.path}</span>
+        <span class="lang-env-item-detail" title="${env.path}">&nbsp;&nbsp;${env.path}</span>
     `;
     envListEl.appendChild(item);
 }
@@ -596,7 +596,7 @@ function renderEnvList(environments, activeName) {
         item.className = 'lang-env-item' + (env.name === activeName ? ' active' : '');
         item.innerHTML = `
             <span class="lang-env-item-name">${env.name}</span>
-            <span class="lang-env-item-path" title="${env.prefix}">${env.prefix}</span>
+            <span class="lang-env-item-detail" title="${env.prefix}">&nbsp;&nbsp;${env.prefix}</span>
         `;
         item.addEventListener('click', (e) => {
             e.stopPropagation();
