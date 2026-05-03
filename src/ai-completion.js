@@ -1,9 +1,16 @@
 /**
  * AI 智能补全功能
  * 支持单行补全、多行补全、自动触发和快捷键触发
+ * 底层统一使用 ILLMClient 接口，单行/多行通过不同的 CompletionStrategy 区分
+ * 默认使用 DummyLLMClient（伪模型），有真实 AI 服务时切换到 StreamedLLMClient
  */
 import * as monaco from 'monaco-editor';
 import { getLogger } from './utils/logger.js';
+import { StreamedLLMClient } from './inlineCompletion/llm/streamedLLMClient.js';
+import { DummyLLMClient } from './inlineCompletion/dummyLLMClient.js';
+import { SimplePromptBuilder } from './inlineCompletion/promptBuilder.js';
+import { SimplePostProcessor } from './inlineCompletion/postProcessor.js';
+import { InlineCompletionTriggerKind, BlockMode } from './inlineCompletion/types.js';
 
 const logger = getLogger('AI');
 
@@ -15,74 +22,201 @@ const aiCompletionState = {
     loading: false,
     inlineDecoration: null,
     triggerEnabled: true,
+    useDummy: true, // 默认使用伪模型
 };
 
-// 服务器地址
-const AI_SERVER_URL = 'http://localhost:3000/ai';
+// LLM 客户端实例（延迟初始化）
+let llmClient = null;
+let promptBuilder = null;
+let postProcessor = null;
+
+// 真实 AI 服务器配置
+const AI_SERVER_CONFIG = {
+    endpoint: 'http://localhost:3000/v1',
+    model: 'default',
+    apiKey: 'sk-placeholder',
+};
 
 /**
- * 获取编辑器内容上下文
+ * 初始化 LLM 客户端（如果尚未初始化）
+ * 根据 useDummy 标志选择 DummyLLMClient 或 StreamedLLMClient
  */
-function getEditorContext(editor) {
+function ensureLLMClient(editor) {
+    if (!llmClient) {
+        promptBuilder = new SimplePromptBuilder(editor);
+        postProcessor = new SimplePostProcessor();
+
+        if (aiCompletionState.useDummy) {
+            llmClient = new DummyLLMClient({
+                delayMs: 500,
+                randomEmpty: true,
+                emptyProbability: 0.3,
+            });
+            logger.info('Using DummyLLMClient (no real AI service)');
+        } else {
+            llmClient = new StreamedLLMClient(AI_SERVER_CONFIG);
+            logger.info('Using StreamedLLMClient (real AI service)');
+        }
+    }
+}
+
+/**
+ * 切换到真实 AI 服务
+ */
+export function switchToRealLLM(config) {
+    if (config) {
+        Object.assign(AI_SERVER_CONFIG, config);
+    }
+    aiCompletionState.useDummy = false;
+    // 重置客户端，下次请求时重新创建
+    llmClient = null;
+    logger.info('Switched to real AI service');
+}
+
+/**
+ * 切换到伪模型
+ */
+export function switchToDummyLLM(config) {
+    aiCompletionState.useDummy = true;
+    // 重置客户端，下次请求时重新创建
+    llmClient = null;
+    logger.info('Switched to dummy LLM client');
+}
+
+/**
+ * 获取编辑器内容上下文，构建 CompletionRequestContext
+ */
+function buildRequestContext(editor, triggerKind = InlineCompletionTriggerKind.Automatic) {
     const model = editor.getModel();
     const position = editor.getPosition();
 
-    // 获取当前光标位置之前的文本
-    const range = new monaco.Range(1, 1, position.lineNumber, position.column);
-    const context = model.getValueInRange(range);
+    const requestContext = {
+        requestId: `ai-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        uri: model.uri.toString(),
+        languageId: model.getLanguageId(),
+        position: { lineNumber: position.lineNumber, column: position.column },
+        triggerKind,
+        strategy: singleLineStrategy(), // 默认单行，调用方可覆盖
+        prompt: {
+            prefix: '',
+            suffix: '',
+            context: [],
+            isFimEnabled: false,
+        },
+        versionId: model.getVersionId(),
+    };
 
+    // 使用 promptBuilder 构建 prompt
+    requestContext.prompt = promptBuilder.buildPrompt(requestContext);
+
+    return requestContext;
+}
+
+/**
+ * 单行补全策略
+ */
+function singleLineStrategy() {
     return {
-        context: context,
-        language: model.getLanguageId(),
-        cursorLine: position.lineNumber,
-        cursorColumn: position.column,
+        requestMultiline: false,
+        blockMode: BlockMode.Server,
+        stopTokens: ['\n'],
+        maxTokens: 64,
     };
 }
 
 /**
- * 请求单行补全
+ * 多行补全策略
  */
-async function requestSingleLineCompletion(editor) {
+function multiLineStrategy() {
+    return {
+        requestMultiline: true,
+        blockMode: BlockMode.Parsing,
+        stopTokens: [],
+        maxTokens: 150,
+    };
+}
+
+/**
+ * 统一的补全请求函数
+ * 单行和多行共用此接口，通过 strategy 参数区分
+ * 同时兼容 DummyLLMClient 和 StreamedLLMClient
+ */
+async function requestCompletion(editor, strategy, triggerKind = InlineCompletionTriggerKind.Invoke) {
     if (aiCompletionState.loading || !aiCompletionState.enabled) {
-        return null;
+        return [];
     }
 
-    const { context, language } = getEditorContext(editor);
+    ensureLLMClient(editor);
+
+    const context = buildRequestContext(editor, triggerKind);
+    // 覆盖策略
+    context.strategy = strategy;
 
     try {
         aiCompletionState.loading = true;
-        logger.info('Requesting single-line completion...');
+        const isMultiline = strategy.requestMultiline;
+        logger.info(`Requesting ${isMultiline ? 'multi' : 'single'}-line completion...`);
 
-        const response = await fetch(`${AI_SERVER_URL}/completion`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+        // 尝试使用流式请求（DummyLLMClient 和 StreamedLLMClient 都支持）
+        if (llmClient.requestCompletionStreaming) {
+            const { firstResult, backgroundCache } = await llmClient.requestCompletionStreaming(
+                context.prompt,
+                context.strategy,
                 context,
-                language,
-                cursorLine: editor.getPosition().lineNumber,
-                cursorColumn: editor.getPosition().column,
-            }),
-        });
+            );
 
-        const data = await response.json();
+            // 后处理首个结果
+            const model = editor.getModel();
+            const documentContent = model.getValue();
+            const processed = postProcessor.process(
+                firstResult,
+                documentContent,
+                context.position,
+                context.strategy,
+            );
 
-        if (data.suggestions && data.suggestions.length > 0) {
-            const best = data.suggestions.reduce((a, b) => a.confidence > b.confidence ? a : b);
-            aiCompletionState.currentSuggestion = best;
+            // 后台缓存不阻塞，但记录最终结果
+            backgroundCache.then((results) => {
+                logger.info(`Background cache complete, ${results.length} result(s)`);
+            }).catch(() => {
+                // 忽略后台缓存错误
+            });
+
             aiCompletionState.loading = false;
-            logger.info('Got suggestion:', best.text);
-            return best;
+
+            if (processed) {
+                logger.info('Got suggestion:', processed.insertText.substring(0, 80));
+                return [processed];
+            }
+
+            return [];
         }
 
+        // 回退到非流式请求
+        const results = await llmClient.requestCompletion(
+            context.prompt,
+            context.strategy,
+            context,
+        );
+
+        // 后处理
+        const model = editor.getModel();
+        const documentContent = model.getValue();
+        const processed = results
+            .map(r => postProcessor.process(r, documentContent, context.position, context.strategy))
+            .filter(r => r !== undefined);
+
         aiCompletionState.loading = false;
-        return null;
+        return processed;
 
     } catch (error) {
-        logger.error('Completion request failed:', error);
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            logger.info('Completion request aborted');
+        } else {
+            logger.error('Completion request failed:', error);
+        }
         aiCompletionState.loading = false;
-        return null;
+        return [];
     }
 }
 
@@ -90,11 +224,11 @@ async function requestSingleLineCompletion(editor) {
  * 显示单行补全（作为 Ghost Text，按 Tab 接受、Esc 拒绝）
  */
 async function showSingleLineCompletion(editor) {
-    const suggestion = await requestSingleLineCompletion(editor);
+    const results = await requestCompletion(editor, singleLineStrategy());
 
-    if (suggestion && suggestion.text) {
+    if (results.length > 0 && results[0].insertText) {
+        const suggestion = results[0];
         const position = editor.getPosition();
-        const lineContent = editor.getModel().getLineContent(position.lineNumber);
 
         // 清除已有的 ghost text 装饰
         if (aiCompletionState.inlineDecoration) {
@@ -112,7 +246,7 @@ async function showSingleLineCompletion(editor) {
             ),
             options: {
                 after: {
-                    content: suggestion.text,
+                    content: suggestion.insertText,
                     inlineClassName: 'ghost-text-decoration',
                 },
                 inlineClassName: 'ghost-text-decoration',
@@ -136,80 +270,106 @@ async function showMultiLineCompletion(editor) {
         return;
     }
 
-    const { context, language } = getEditorContext(editor);
+    ensureLLMClient(editor);
+
+    const context = buildRequestContext(editor, InlineCompletionTriggerKind.Invoke);
+    const strategy = multiLineStrategy();
+    context.strategy = strategy;
 
     try {
         aiCompletionState.loading = true;
-        logger.info('Requesting multi-line completion...');
+        logger.info('Requesting multi-line completion (streaming)...');
 
         const position = editor.getPosition();
-        const insertPosition = position;
 
-        const response = await fetch(
-            `${AI_SERVER_URL}/inline-completion?context=${encodeURIComponent(context)}&language=${encodeURIComponent(language)}`
-        );
+        // 使用流式请求，等待完整结果
+        if (llmClient.requestCompletionStreaming) {
+            const { backgroundCache } = await llmClient.requestCompletionStreaming(
+                context.prompt,
+                context.strategy,
+                context,
+            );
 
-        if (!response.ok) {
-            throw new Error('Request failed');
-        }
+            let cancelled = false;
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullText = '';
-        let cancelled = false;
+            // 监听用户输入，取消补全
+            const disposable = editor.onDidChangeModelContent(() => {
+                cancelled = true;
+                disposable.dispose();
+            });
 
-        // 监听用户输入，取消补全
-        const disposable = editor.onDidChangeModelContent(() => {
-            cancelled = true;
+            // 等待流式完成
+            const results = await backgroundCache;
             disposable.dispose();
-        });
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done || cancelled) break;
+            if (!cancelled && results.length > 0) {
+                const result = results[0];
+                // 后处理
+                const model = editor.getModel();
+                const documentContent = model.getValue();
+                const processed = postProcessor.process(
+                    result,
+                    documentContent,
+                    context.position,
+                    context.strategy,
+                );
 
-            const chunk = decoder.decode(value);
-            const lines = chunk.split('\n');
+                if (processed && processed.insertText) {
+                    editor.executeEdits('ai-completion', [{
+                        range: new monaco.Range(
+                            position.lineNumber,
+                            position.column,
+                            position.lineNumber,
+                            position.column
+                        ),
+                        text: processed.insertText,
+                        forceMoveMarkers: true,
+                    }]);
+                    logger.info('Multi-line completion inserted:', processed.insertText.substring(0, 80));
+                }
+            }
+        } else {
+            // 回退：非流式请求
+            const results = await llmClient.requestCompletion(
+                context.prompt,
+                context.strategy,
+                context,
+            );
 
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    try {
-                        const data = JSON.parse(line.substring(6));
-                        if (data.text) {
-                            fullText += data.text;
-                        }
-                        if (data.done) {
-                            disposable.dispose();
+            if (results.length > 0) {
+                const model = editor.getModel();
+                const documentContent = model.getValue();
+                const processed = postProcessor.process(
+                    results[0],
+                    documentContent,
+                    context.position,
+                    context.strategy,
+                );
 
-                            if (!cancelled && fullText) {
-                                editor.executeEdits('ai-completion', [{
-                                    range: new monaco.Range(
-                                        insertPosition.lineNumber,
-                                        insertPosition.column,
-                                        insertPosition.lineNumber,
-                                        insertPosition.column
-                                    ),
-                                    text: fullText,
-                                    forceMoveMarkers: true,
-                                }]);
-                                logger.info('Multi-line completion inserted:', fullText);
-                            }
-
-                            aiCompletionState.loading = false;
-                            return;
-                        }
-                    } catch (e) {
-                        // 忽略解析错误
-                    }
+                if (processed && processed.insertText) {
+                    editor.executeEdits('ai-completion', [{
+                        range: new monaco.Range(
+                            position.lineNumber,
+                            position.column,
+                            position.lineNumber,
+                            position.column
+                        ),
+                        text: processed.insertText,
+                        forceMoveMarkers: true,
+                    }]);
+                    logger.info('Multi-line completion inserted:', processed.insertText.substring(0, 80));
                 }
             }
         }
 
-        disposable.dispose();
         aiCompletionState.loading = false;
 
     } catch (error) {
-        logger.error('Multi-line completion failed:', error);
+        if (error instanceof DOMException && error.name === 'AbortError') {
+            logger.info('Multi-line completion aborted');
+        } else {
+            logger.error('Multi-line completion failed:', error);
+        }
         aiCompletionState.loading = false;
     }
 }
@@ -246,7 +406,7 @@ export function registerAICompletionProvider(monaco, editor) {
                     pos.lineNumber,
                     pos.column
                 ),
-                text: suggestion.text,
+                text: suggestion.insertText,
                 forceMoveMarkers: true,
             }]);
 
@@ -284,8 +444,8 @@ export function registerAICompletionProvider(monaco, editor) {
 
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-                const context = getEditorContext(editor);
-                const lastLine = context.context.split('\n').pop();
+                const context = buildRequestContext(editor);
+                const lastLine = context.prompt.prefix.split('\n').pop();
                 const lastChar = lastLine.slice(-1);
                 const trimmedLine = lastLine.trim();
 
@@ -309,14 +469,16 @@ export function registerAICompletionProvider(monaco, editor) {
         });
     }
 
+    const clientType = aiCompletionState.useDummy ? 'DummyLLMClient' : 'StreamedLLMClient';
     logger.info('AI completion provider registered');
+    logger.info(`LLM Client: ${clientType}`);
     logger.info('Hotkeys:');
-    logger.info('  Ctrl+Alt+L: Single-line completion');
-    logger.info('  Alt+Enter:  Multi-line completion');
-    logger.info('  Tab:        Accept inline completion');
-    logger.info('  Escape:     Reject inline completion');
+    logger.info('  Alt+Enter:       Single-line completion');
+    logger.info('  Ctrl+Alt+Enter:  Multi-line completion');
+    logger.info('  Ctrl+Tab:        Accept inline completion');
+    logger.info('  Escape:          Reject inline completion');
     logger.info('Auto-trigger: Enabled');
-    logger.info('  Triggers on: . : ( def class function if for while try with import');
+    logger.info('  Triggers on: . def class if for while try with');
 }
 
 export { showSingleLineCompletion, showMultiLineCompletion };
