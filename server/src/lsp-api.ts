@@ -7,13 +7,9 @@ import express from 'express';
 import { detectAllLanguageServers, resolveExecutable } from './lang-detector';
 import { config } from './config';
 import { LANGUAGE_SERVERS } from './language-servers';
-import * as fs from 'fs';
-import * as path from 'path';
+import { configManager } from './config-manager';
 
 const router: express.Router = express.Router();
-
-// 设置文件路径
-const SETTINGS_PATH = path.resolve(__dirname, '..', '..', 'lsp-settings.json');
 
 interface LspSettings {
     lspGlobalEnabled?: boolean;
@@ -24,20 +20,17 @@ interface LspSettings {
     goplsPath?: string;
 }
 
-function readSettings(): LspSettings {
-    try {
-        if (fs.existsSync(SETTINGS_PATH)) {
-            const content = fs.readFileSync(SETTINGS_PATH, 'utf-8');
-            return JSON.parse(content);
-        }
-    } catch (_e) {
-        // 设置文件不存在或格式错误
-    }
-    return {};
+const SETTINGS_KEY = 'lsp';
+
+function readLspSettings(): LspSettings {
+    const allSettings = configManager.settings.read();
+    return allSettings[SETTINGS_KEY] || {};
 }
 
-function writeSettings(settings: LspSettings): void {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), 'utf-8');
+function writeLspSettings(lspSettings: LspSettings): boolean {
+    const allSettings = configManager.settings.read();
+    allSettings[SETTINGS_KEY] = lspSettings;
+    return configManager.settings.write(allSettings);
 }
 
 // GET /lsp/detect - 检测语言服务器可用性
@@ -55,7 +48,7 @@ router.get('/detect', async (_req, res) => {
 
 // GET /lsp/config - 获取 LSP 配置
 router.get('/config', (_req, res) => {
-    const settings = readSettings();
+    const settings = readLspSettings();
     res.json({
         success: true,
         data: {
@@ -81,7 +74,7 @@ router.get('/config', (_req, res) => {
 
 // POST /lsp/config - 更新 LSP 配置
 router.post('/config', (req, res) => {
-    const settings = readSettings();
+    const settings = readLspSettings();
     const { globalEnabled, languages } = req.body || {};
 
     if (globalEnabled !== undefined) {
@@ -103,8 +96,8 @@ router.post('/config', (req, res) => {
         settings.goplsPath = languages.go.path;
     }
 
-    writeSettings(settings);
-    res.json({ success: true });
+    const success = writeLspSettings(settings);
+    res.json({ success });
 });
 
 export default router;
