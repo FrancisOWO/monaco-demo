@@ -214,6 +214,16 @@ function toolCallSummary(name: string, input: Record<string, unknown>): string {
     }
 }
 
+/** 工具调用显示名称映射 */
+function getToolDisplayName(name: string): string {
+    switch (name) {
+        case 'read_file': return 'Read';
+        case 'write_file': return 'Write';
+        case 'edit_file': return 'Edit';
+        default: return name;
+    }
+}
+
 /** 生成工具结果的简短描述 */
 function toolResultSummary(name: string, result: string): string {
     if (result.startsWith('Error:')) {
@@ -435,6 +445,8 @@ async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?
                 // SSE: 发出缩略描述
                 writeSSE(res, 'tool-call', {
                     toolName,
+                    displayAction: getToolDisplayName(toolName),
+                    filePath: displayPath(String(toolInput.path || '')),
                     summary: toolCallSummary(toolName, toolInput),
                 });
 
@@ -492,6 +504,9 @@ function mockChatSSE(res: express.Response, reqBody: ChatRequest) {
             setTimeout(() => {
                 writeSSE(res, 'tool-call', {
                     toolName: 'read_file',
+                    displayAction: 'Read',
+                    filePath: displayPath(ctxFile.path || ''),
+                    summary: `读取文件 ${displayPath(ctxFile.path || '')}`,
                     input: { path: ctxFile.path },
                 });
             }, delay);

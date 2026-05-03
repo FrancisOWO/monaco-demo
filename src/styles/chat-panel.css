@@ -1115,25 +1115,22 @@
     background: #f0f8ff;
     font-size: 12px;
     position: relative;
-}
-
-.msg-tool-call-header {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-weight: 600;
-    color: #007acc;
-    margin-bottom: 4px;
 }
 
 .tool-icon::before {
     content: "🔧";
 }
 
-.msg-tool-call-input {
-    color: #555;
-    font-size: 11px;
-    margin-top: 4px;
+.tool-action-label {
+    font-weight: 700;
+    color: #333;
+}
+
+.tool-action-path {
+    color: #888;
 }
 
 .msg-tool-call-output {
@@ -1696,8 +1693,12 @@ body[data-theme="dark"] .msg-tool-call {
     border-left-color: #007acc;
 }
 
-body[data-theme="dark"] .msg-tool-call-header {
-    color: #007acc;
+body[data-theme="dark"] .tool-action-label {
+    color: #d4d4d4;
+}
+
+body[data-theme="dark"] .tool-action-path {
+    color: #888;
 }
 
 body[data-theme="dark"] #chat-thinking-indicator {

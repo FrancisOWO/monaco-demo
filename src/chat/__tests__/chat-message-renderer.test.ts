@@ -246,20 +246,16 @@ function buildToolCallTemplate() {
     const root = createMockElement('div');
     root.className = 'msg-tool-call';
 
-    const header = createMockElement('div');
-    header.className = 'msg-tool-call-header';
     const icon = createMockElement('span');
     icon.className = 'tool-icon';
-    const nameSpan = createMockElement('span');
-    nameSpan.className = 'tool-name';
-    header.appendChild(icon);
-    header.appendChild(nameSpan);
+    const labelSpan = createMockElement('span');
+    labelSpan.className = 'tool-action-label';
+    const pathSpan = createMockElement('span');
+    pathSpan.className = 'tool-action-path';
 
-    const inputDiv = createMockElement('div');
-    inputDiv.className = 'msg-tool-call-input';
-
-    root.appendChild(header);
-    root.appendChild(inputDiv);
+    root.appendChild(icon);
+    root.appendChild(labelSpan);
+    root.appendChild(pathSpan);
 
     return root;
 }

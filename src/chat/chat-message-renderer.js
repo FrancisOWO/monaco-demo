@@ -232,11 +232,11 @@ function createThinkingNode(part) {
  */
 function createToolCallNode(part) {
     const frag = cloneTemplate('tmpl-tool-call');
-    const toolName = part.toolName || 'unknown';
-    const summary = part.summary || toolName;
+    const displayAction = part.displayAction || formatActionName(part.toolName || 'unknown');
+    const filePath = part.filePath || extractPathFromSummary(part.summary || '');
 
-    frag.querySelector('.tool-name').textContent = toolName;
-    frag.querySelector('.msg-tool-call-input').textContent = summary;
+    frag.querySelector('.tool-action-label').textContent = displayAction;
+    frag.querySelector('.tool-action-path').textContent = filePath;
 
     if (part.output) {
         const outputText = typeof part.output === 'string' ? part.output : JSON.stringify(part.output);
@@ -249,6 +249,18 @@ function createToolCallNode(part) {
     }
 
     return frag;
+}
+
+/** 将 tool_name (如 edit_file) 格式化为显示名称 (如 Edit) */
+function formatActionName(toolName) {
+    const map = { read_file: 'Read', write_file: 'Write', edit_file: 'Edit' };
+    return map[toolName] || toolName;
+}
+
+/** 从 summary 中提取文件路径（fallback：当 displayAction/filePath 未提供时） */
+function extractPathFromSummary(summary) {
+    const match = summary.match(/文件\s+(.+)$/);
+    return match ? match[1] : '';
 }
 
 /**

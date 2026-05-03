@@ -112,6 +112,8 @@ function handleSSEEvent(event, data, messageId) {
             chatStore.appendMessagePart(messageId, {
                 type: 'tool-call',
                 toolName: data.toolName || 'unknown',
+                displayAction: data.displayAction || '',
+                filePath: data.filePath || '',
                 summary: data.summary || '',
                 output: null,
             });
