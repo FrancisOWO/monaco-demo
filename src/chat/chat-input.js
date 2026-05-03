@@ -26,8 +26,8 @@ export function setupChatInput(editor) {
 
     // 自动调整文本框高度
     function autoResize() {
-        input.style.height = 'auto';
-        input.style.height = Math.min(input.scrollHeight, 300) + 'px';
+        input.style.height = '36px';
+        input.style.height = Math.max(36, Math.min(input.scrollHeight, 300)) + 'px';
     }
 
     // 监听输入事件以调整高度
@@ -301,7 +301,7 @@ function showMentionPopup(query, cursorPos) {
         `<div class="mention-item ${i === 0 ? 'active' : ''}" data-index="${i}">
             <span class="mention-category-badge mention-category-${f.category}">${f.category.toUpperCase()}</span>
             <span class="mention-item-name">${f.name}</span>
-            <span class="mention-item-path">${f.path}</span>
+            <span class="mention-item-path">${f.path.replace(/^\//, '')}</span>
         </div>`
     ).join('');
 
