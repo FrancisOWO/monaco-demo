@@ -22,8 +22,8 @@ import {
     type ISpeculativeRequestCache,
     type IAsyncCompletionsManager,
     type ITelemetryEmitter,
-} from '../types.js';
-import { debounceCancellable } from '../cache/debounce.js';
+} from './types.js';
+import { debounceCancellable } from './cache/debounce.js';
 
 /**
  * 完整版 Ghost Text 控制器配置

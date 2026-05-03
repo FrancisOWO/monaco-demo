@@ -54,7 +54,7 @@ export class SimpleGhostTextController implements IGhostTextController {
                 prompt,
                 context.strategy,
                 context,
-            );
+            ) ?? [];
         } catch (e) {
             if (e instanceof DOMException && e.name === 'AbortError') {
                 return [];

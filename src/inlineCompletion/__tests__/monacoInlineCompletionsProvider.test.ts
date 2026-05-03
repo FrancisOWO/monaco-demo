@@ -203,7 +203,7 @@ describe('MonacoInlineCompletionsProvider', () => {
                     requestMultiline: false,
                     blockMode: 'server',
                     stopTokens: ['\n'],
-                    maxTokens: 20,
+                    maxTokens: 64,
                 },
             });
             expect(callArg.requestId).toMatch(/^req-\d+-\d+$/);

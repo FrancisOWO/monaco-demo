@@ -1,6 +1,6 @@
 /**
  * Inline Completion 初始化入口
- * 设置并注册所有组件，包括 Monaco Provider、快捷键和自动触发
+ * 设置并注册所有组件，支持 simple 和 full 两种管线模式
  */
 
 import type * as monaco from 'monaco-editor';
@@ -13,26 +13,61 @@ import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
 import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
 import { registerAICompletionHotkeys } from './registerHotkeys.js';
-import { aiCompletionConfig, setClientMode } from './aiCompletionConfig.js';
+import { aiCompletionConfig, setClientMode, setPipelineMode } from './aiCompletionConfig.js';
 import { getLogger } from '../utils/logger.js';
+
+// 完整版组件
+import { CascadingPromptFactory } from './prompt/cascadingPromptFactory.js';
+import { ContextProviderRegistry } from './context/contextProviderRegistry.js';
+import { FullPostProcessor } from './postProcess/fullPostProcessor.js';
+import { FullGhostTextController } from './fullGhostTextController.js';
+import { StrategyManager, DefaultMultilineModel } from './strategy/strategyManager.js';
+import { BlockTrimmerRegistry } from './trim/blockTrimmerRegistry.js';
+import { MultilineModel } from './trim/multilineModel.js';
+import { LRURadixTrieCache } from './cache/completionsCache.js';
+import { CurrentGhostText } from './cache/currentGhostText.js';
+import { SpeculativeRequestCache } from './cache/speculativeRequestCache.js';
+import { AsyncCompletionsManager } from './cache/asyncCompletionsManager.js';
+import { FullTelemetryEmitter } from './telemetry/fullTelemetryEmitter.js';
+import { createFimAdapter } from './prompt/fimAdapter.js';
+import { DefaultModelSelector } from './llm/modelSelector.js';
 
 const logger = getLogger('InlineCompletion');
 
+/** 资源清理回调集合 */
+let disposeCallbacks: (() => void)[] = [];
+
 /**
  * 设置并注册 Inline Completion 功能
- * 配置从 aiCompletionConfig.ts 内部读取，不再需要外部传入
+ * 根据 aiCompletionConfig.pipelineMode 选择简易或完整管线
  */
 export function setupInlineCompletion(
     monacoInstance: typeof monaco,
     editor: monaco.editor.ICodeEditor,
 ): void {
-    // 创建组件
+    // 先清理之前的资源
+    dispose();
+
+    if (aiCompletionConfig.pipelineMode === 'full') {
+        setupFullPipeline(monacoInstance, editor);
+    } else {
+        setupSimplePipeline(monacoInstance, editor);
+    }
+}
+
+/**
+ * 简易版管线设置
+ */
+function setupSimplePipeline(
+    monacoInstance: typeof monaco,
+    editor: monaco.editor.ICodeEditor,
+): void {
     const telemetryEmitter = new ConsoleTelemetryEmitter();
     const promptBuilder = new SimplePromptBuilder(editor);
 
-    // 根据 aiCompletionConfig 创建 AI 补全客户端
     const aiCompletionClient = createClientFromConfig();
     const postProcessor = new SimplePostProcessor();
+
     const controller = new SimpleGhostTextController(
         promptBuilder,
         aiCompletionClient,
@@ -40,61 +75,154 @@ export function setupInlineCompletion(
         telemetryEmitter,
         editor,
     );
+
     const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
-    // 注册 Monaco Inline Completions Provider
     monacoInstance.languages.registerInlineCompletionsProvider(
         { pattern: '**/*' },
         provider,
     );
 
-    // 用户编辑时取消进行中的请求
     editor.onDidChangeModelContent(() => {
         controller.cancelCurrentRequest();
     });
 
-    // 注册快捷键（Alt+Enter 单行触发, Ctrl+Alt+Enter 多行补全）
     registerAICompletionHotkeys(monacoInstance, editor, controller);
 
-    // 注册自动触发（debounce + 触发词检测）
     if (aiCompletionConfig.autoTrigger.enabled) {
         setupAutoTrigger(editor);
     }
 
-    const modeLabel = {
-        mock: 'MockAICompletionClient',
-        simple: 'SimpleAICompletionClient',
-        standard: 'StandardAICompletionClient',
-    }[aiCompletionConfig.clientMode] ?? 'StandardAICompletionClient';
+    logger.info('Simple pipeline setup complete');
+    logger.info(`AI completion client: ${getClientLabel()}`);
+    logger.info(`Auto-trigger: ${aiCompletionConfig.autoTrigger.enabled ? 'Enabled' : 'Disabled'}`);
+}
 
-    logger.info('Setup complete');
-    logger.info(`AI completion client: ${modeLabel}`);
+/**
+ * 完整版管线设置
+ * 接入：CascadingPromptFactory + FIM Adapter + Model Selector
+ *       + FullPostProcessor + StrategyManager + 缓存层
+ *       + FullGhostTextController + FullTelemetryEmitter
+ */
+function setupFullPipeline(
+    monacoInstance: typeof monaco,
+    editor: monaco.editor.ICodeEditor,
+): void {
+    // 1. 遥测
+    const telemetryEmitter = new FullTelemetryEmitter();
+
+    // 2. 模型选择器 + FIM 适配器
+    const modelSelector = new DefaultModelSelector();
+    const defaultModel = modelSelector.selectModel({
+        requestId: 'setup',
+        uri: '',
+        languageId: '',
+        position: { lineNumber: 1, column: 1 },
+        triggerKind: 0,
+        strategy: { requestMultiline: false, blockMode: 'server' as any, stopTokens: ['\n'], maxTokens: 64 },
+        prompt: { prefix: '', suffix: '', context: [], isFimEnabled: false },
+        versionId: 1,
+    });
+    const fimAdapter = createFimAdapter(defaultModel.fimFormat);
+
+    // 3. AI 客户端（带 FIM 适配器和模型选择器）
+    const aiCompletionClient = createClientFromConfig(fimAdapter, modelSelector);
+
+    // 4. Prompt 工厂（级联预算）
+    const contextProviderRegistry = new ContextProviderRegistry();
+    const promptFactory = new CascadingPromptFactory(editor, contextProviderRegistry);
+
+    // 根据 model 配置设置 maxPromptLength
+    promptFactory.setMaxPromptLength(defaultModel.maxPromptTokens);
+
+    // 5. 后处理器
+    const blockTrimmerRegistry = new BlockTrimmerRegistry();
+    const postProcessor = new FullPostProcessor(blockTrimmerRegistry);
+
+    // 6. 策略管理器
+    const multilineModel = new MultilineModel();
+    const strategyManager = new StrategyManager(
+        blockTrimmerRegistry,
+        multilineModel,
+        editor,
+    );
+
+    // 7. 缓存层
+    const completionsCache = new LRURadixTrieCache();
+    const currentGhostText = new CurrentGhostText();
+    const speculativeCache = new SpeculativeRequestCache();
+    const asyncManager = new AsyncCompletionsManager();
+
+    // 8. 控制器
+    const controller = new FullGhostTextController(
+        promptFactory,
+        aiCompletionClient,
+        postProcessor,
+        strategyManager,
+        completionsCache,
+        currentGhostText,
+        speculativeCache,
+        asyncManager,
+        telemetryEmitter,
+        editor,
+    );
+
+    // 9. Monaco Provider
+    const provider = new MonacoInlineCompletionsProvider(controller, editor);
+
+    monacoInstance.languages.registerInlineCompletionsProvider(
+        { pattern: '**/*' },
+        provider,
+    );
+
+    editor.onDidChangeModelContent(() => {
+        controller.cancelCurrentRequest();
+    });
+
+    registerAICompletionHotkeys(monacoInstance, editor, controller);
+
+    if (aiCompletionConfig.autoTrigger.enabled) {
+        setupAutoTrigger(editor);
+    }
+
+    // 注册清理回调
+    disposeCallbacks.push(() => controller.dispose());
+    disposeCallbacks.push(() => completionsCache.clear());
+    disposeCallbacks.push(() => currentGhostText.clear());
+    disposeCallbacks.push(() => speculativeCache.clear());
+
+    logger.info('Full pipeline setup complete');
+    logger.info(`AI completion client: ${getClientLabel()}`);
+    logger.info(`Default model: ${defaultModel.modelId} (FIM: ${defaultModel.fimFormat})`);
+    logger.info(`Max prompt tokens: ${defaultModel.maxPromptTokens}`);
     logger.info(`Auto-trigger: ${aiCompletionConfig.autoTrigger.enabled ? 'Enabled' : 'Disabled'}`);
 }
 
 /**
  * 根据统一配置创建 AI 补全客户端
+ * 支持注入 FIM 适配器和模型选择器
  */
-function createClientFromConfig() {
+function createClientFromConfig(
+    fimAdapter?: any,
+    modelSelector?: any,
+) {
     const { clientMode, mock } = aiCompletionConfig;
     if (clientMode === 'mock') {
         return new MockAICompletionClient(mock);
     }
     if (clientMode === 'simple') {
-        return new SimpleAICompletionClient();
+        return new SimpleAICompletionClient(fimAdapter, modelSelector);
     }
-    return new StandardAICompletionClient();
+    return new StandardAICompletionClient(fimAdapter, modelSelector);
 }
 
 /**
  * 设置自动触发补全
- * 基于 debounce + 触发词检测，满足条件时触发 Monaco inline suggestion
  */
 function setupAutoTrigger(editor: monaco.editor.ICodeEditor) {
     const { debounceMs, cooldownMs, triggerPatterns } = aiCompletionConfig.autoTrigger;
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let lastTriggerTime = 0;
-    const promptBuilder = new SimplePromptBuilder(editor);
 
     editor.onDidChangeModelContent(() => {
         if (!aiCompletionConfig.autoTrigger.enabled) return;
@@ -105,7 +233,6 @@ function setupAutoTrigger(editor: monaco.editor.ICodeEditor) {
             const position = editor.getPosition();
             if (!model || !position) return;
 
-            // 构建 prefix 以检测触发词
             const prefix = model.getValueInRange({
                 startLineNumber: 1,
                 startColumn: 1,
@@ -138,9 +265,43 @@ function setupAutoTrigger(editor: monaco.editor.ICodeEditor) {
 }
 
 /**
+ * 获取当前客户端标签
+ */
+function getClientLabel(): string {
+    return {
+        mock: 'MockAICompletionClient',
+        simple: 'SimpleAICompletionClient',
+        standard: 'StandardAICompletionClient',
+    }[aiCompletionConfig.clientMode] ?? 'StandardAICompletionClient';
+}
+
+/**
  * 切换客户端模式（运行时动态切换）
  */
 export function switchClientMode(mode: 'mock' | 'simple' | 'standard') {
     setClientMode(mode);
-    logger.info(`Client mode switched to: ${mode} (will take effect on next completion request)`);
+    logger.info(`Client mode switched to: ${mode}`);
+}
+
+/**
+ * 切换管线模式（运行时动态切换）
+ * 切换后需要重新调用 setupInlineCompletion 才生效
+ */
+export function switchPipelineMode(mode: 'simple' | 'full') {
+    setPipelineMode(mode);
+    logger.info(`Pipeline mode switched to: ${mode} (will take effect on next setup)`);
+}
+
+/**
+ * 清理所有资源
+ */
+export function dispose(): void {
+    for (const cb of disposeCallbacks) {
+        try {
+            cb();
+        } catch (e) {
+            logger.warn('Dispose error:', e);
+        }
+    }
+    disposeCallbacks = [];
 }

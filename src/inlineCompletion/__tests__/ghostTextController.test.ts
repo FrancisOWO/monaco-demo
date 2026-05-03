@@ -82,7 +82,7 @@ describe('SimpleGhostTextController', () => {
 
         it('should return empty array when prefix is too short', async () => {
             mockPromptBuilder.buildPrompt.mockReturnValue({
-                prefix: 'short',
+                prefix: '',
                 suffix: '',
                 context: [],
                 isFimEnabled: false,

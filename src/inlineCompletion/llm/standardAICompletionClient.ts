@@ -2,6 +2,7 @@
  * StandardAICompletionClient
  * 流式补全客户端，通过后端代理 SSE 调用 AI API（Copilot 模式）
  * 前端不持有 apiKey，只发 HTTP 请求到后端
+ * 接入 FIM 适配器，将 PromptInfo 格式化为模型特定格式
  */
 
 import {
@@ -14,21 +15,30 @@ import type {
     PromptInfo,
     CompletionRequestContext,
     CompletionStrategy,
+    IFimAdapter,
+    IModelSelector,
+    FimModelConfig,
 } from '../types.js';
-
-/** AI 补全客户端配置（只需要后端地址，不需要 apiKey） */
-export interface AICompletionClientConfig {
-    endpoint: string;
-    model: string;
-    apiKey: string;
-}
+import { aiCompletionConfig } from '../aiCompletionConfig.js';
+import { createFimAdapter } from '../prompt/fimAdapter.js';
 
 /**
- * 流式补全客户端 — fetch POST /ai/completion/stream + SSE 解析
+ * 流式补全客户端 — fetch POST + SSE 解析
  * 等待第一个 token 就返回，后台继续缓存
  */
 export class StandardAICompletionClient implements IAICompletionClient {
     private abortController: AbortController | null = null;
+    private fimAdapter: IFimAdapter;
+    private modelSelector: IModelSelector;
+
+    constructor(
+        fimAdapter?: IFimAdapter,
+        modelSelector?: IModelSelector,
+    ) {
+        // 默认使用 Codex 格式适配器
+        this.fimAdapter = fimAdapter ?? createFimAdapter(aiCompletionConfig.models[0]?.fimFormat ?? 'codex' as any);
+        this.modelSelector = modelSelector ?? new DefaultModelSelectorFallback();
+    }
 
     /**
      * 标准请求（兼容接口）
@@ -60,16 +70,32 @@ export class StandardAICompletionClient implements IAICompletionClient {
     ): Promise<{ firstResult: CompletionResult; backgroundCache: Promise<CompletionResult[]> }> {
         this.abortController = new AbortController();
 
-        const response = await fetch('/ai/completion/stream', {
+        // 选择模型
+        const modelConfig = this.modelSelector.selectModel(context);
+
+        // 切换 FIM 适配器（如果模型格式与当前适配器不同）
+        if (modelConfig.fimFormat !== this.fimAdapter.formatType) {
+            this.fimAdapter = createFimAdapter(modelConfig.fimFormat);
+        }
+
+        // 格式化 Prompt 为模型特定的 FIM 格式
+        const formattedPrompt = this.fimAdapter.format(prompt, strategy);
+
+        const response = await fetch(modelConfig.endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                prompt: formattedPrompt,
+                // 也发送原始信息供后端参考
                 prefix: prompt.prefix,
                 suffix: prompt.suffix,
+                context: prompt.context,
                 language: context.languageId,
+                model: modelConfig.modelId,
+                fimFormat: modelConfig.fimFormat,
                 strategy: {
                     requestMultiline: strategy.requestMultiline,
-                    maxTokens: strategy.maxTokens,
+                    maxTokens: strategy.maxTokens ?? modelConfig.maxCompletionTokens,
                     stopTokens: strategy.stopTokens,
                 },
                 position: context.position,
@@ -113,7 +139,7 @@ export class StandardAICompletionClient implements IAICompletionClient {
 
                 buffer += decoder.decode(value, { stream: true });
 
-                // SSE 解析（与 chat-stream-client.js 相同模式）
+                // SSE 解析
                 const lines = buffer.split('\n');
                 buffer = lines.pop() || '';
 
@@ -133,7 +159,6 @@ export class StandardAICompletionClient implements IAICompletionClient {
                                     firstTokenResolve?.();
                                 }
                             } else if (currentEvent === 'done') {
-                                // 流结束
                                 firstTokenResolve?.();
                             }
                         } catch {
@@ -189,5 +214,44 @@ export class StandardAICompletionClient implements IAICompletionClient {
     cancelRequest(_requestId: string): void {
         this.abortController?.abort();
         this.abortController = null;
+    }
+}
+
+/** 回退模型选择器（不依赖 modelSelector.ts，避免循环） */
+class DefaultModelSelectorFallback implements IModelSelector {
+    selectModel(context: CompletionRequestContext): FimModelConfig {
+        const models = aiCompletionConfig.models;
+        const languageId = context.languageId;
+
+        // 查语言优先映射
+        const preferredList = aiCompletionConfig.languageModelMap[languageId];
+        if (preferredList && preferredList.length > 0) {
+            for (const modelId of preferredList) {
+                const model = models.find(m => m.modelId === modelId);
+                if (model) return model;
+            }
+        }
+
+        // 查支持该语言的最低优先级模型
+        const sorted = models
+            .filter(m => m.supportedLanguages.length === 0 || m.supportedLanguages.includes(languageId))
+            .sort((a, b) => a.priority - b.priority);
+
+        return sorted[0] ?? models[0];
+    }
+
+    getAvailableModels(): FimModelConfig[] {
+        return [...aiCompletionConfig.models];
+    }
+
+    addModel(config: FimModelConfig): void {
+        aiCompletionConfig.models.push(config);
+    }
+
+    removeModel(modelId: string): void {
+        const idx = aiCompletionConfig.models.findIndex(m => m.modelId === modelId);
+        if (idx >= 0) {
+            aiCompletionConfig.models.splice(idx, 1);
+        }
     }
 }

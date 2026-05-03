@@ -122,6 +122,58 @@ export enum NeighboringFileType {
     WorkspaceSmallestPathDist = 'workspacesmallestpathdist',
 }
 
+/** FIM 格式类型 */
+export enum FimFormat {
+    /** OpenAI Codex 格式: <|fim_prefix|>...<|fim_suffix|>...<|fim_middle|> */
+    Codex = 'codex',
+    /** Meta CodeLlama 格式: <PRE>...<SUF>...<MID> */
+    CodeLlama = 'codellama',
+    /** DeepSeek 格式: <|fim_prefix|>...<|fim_suffix|>...<|fim_middle|>（与 Codex 类似但细节不同） */
+    DeepSeek = 'deepseek',
+    /** StarCoder 格式: <fim_prefix>...<fim_suffix>...<fim_middle> */
+    StarCoder = 'starcoder',
+    /** Qwen 格式: <|fim_prefix|>...<|fim_suffix|>...<fim_middle|> */
+    Qwen = 'qwen',
+}
+
+/** 补全模型配置 */
+export interface FimModelConfig {
+    /** 模型标识 */
+    modelId: string;
+    /** FIM 格式 */
+    fimFormat: FimFormat;
+    /** 后端端点路径 */
+    endpoint: string;
+    /** 最大 prompt token 数 */
+    maxPromptTokens: number;
+    /** 最大生成 token 数 */
+    maxCompletionTokens: number;
+    /** 适用语言列表（空数组表示适用所有语言） */
+    supportedLanguages: string[];
+    /** 优先级（数值越低优先级越高） */
+    priority: number;
+}
+
+/** FIM 适配器接口 */
+export interface IFimAdapter {
+    /** 将 PromptInfo 格式化为模型特定的 FIM prompt 字符串 */
+    format(prompt: PromptInfo, strategy: CompletionStrategy): string;
+    /** 该适配器对应的 FIM 格式 */
+    readonly formatType: FimFormat;
+}
+
+/** 补全模型选择器接口 */
+export interface IModelSelector {
+    /** 根据上下文选择最佳补全模型配置 */
+    selectModel(context: CompletionRequestContext): FimModelConfig;
+    /** 获取所有可用模型配置 */
+    getAvailableModels(): FimModelConfig[];
+    /** 添加模型配置 */
+    addModel(config: FimModelConfig): void;
+    /** 移除模型配置 */
+    removeModel(modelId: string): void;
+}
+
 /** Token 预算分配 */
 export interface PromptAllocation {
     /** prefix 预算百分比，默认 35% */
@@ -324,7 +376,12 @@ export interface IAsyncCompletionsManager {
     ): Promise<CompletionResult[] | undefined>;
 
     /** 注册进行中的请求 */
-    registerRequest(requestId: string, promise: Promise<CompletionResult[]>): void;
+    registerRequest(
+        requestId: string,
+        prefix: string,
+        prompt: PromptInfo,
+        promise: Promise<CompletionResult[]>,
+    ): void;
 
     /** 取消请求 */
     cancelRequest(requestId: string): void;
