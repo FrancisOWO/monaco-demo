@@ -331,13 +331,14 @@ function createCodeNode(part) {
  */
 async function renderCodeBlocksAsync(container) {
     const codeElements = container.querySelectorAll('.msg-code-content[data-lang]');
+    const isDark = document.body.dataset.theme === 'dark';
+    const monacoTheme = isDark ? 'vs-dark' : 'vs';
     for (const el of codeElements) {
         const lang = el.dataset.lang;
         const code = el.dataset.code;
         if (code && lang) {
             try {
-                // 代码块背景是深色，始终使用 vs-dark 主题配色
-                const highlighted = await monaco.editor.colorize(code, lang, { theme: 'vs-dark' });
+                const highlighted = await monaco.editor.colorize(code, lang, { theme: monacoTheme });
                 el.innerHTML = highlighted;
             } catch (e) {
                 // colorize 失败时保留 <pre> 原始显示

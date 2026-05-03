@@ -1298,7 +1298,7 @@
 .msg-code-block {
     border-radius: 6px;
     border: 1px solid #e0e0e0;
-    background: #1e1e1e;
+    background: #f6f8fa;
     margin: 8px 0;
     overflow: hidden;
 }
@@ -1308,14 +1308,14 @@
     align-items: center;
     justify-content: space-between;
     padding: 6px 12px;
-    background: #2d2d2d;
-    color: #ccc;
+    background: #e8ecf0;
+    color: #555;
     font-size: 11px;
 }
 
 .msg-code-lang {
     font-weight: 600;
-    color: #aaa;
+    color: #333;
 }
 
 /* === Code Block Copy Button === */
@@ -1323,7 +1323,7 @@
 .msg-code-copy {
     border: none;
     background: none;
-    color: #aaa;
+    color: #555;
     cursor: pointer;
     padding: 2px 8px;
     border-radius: 3px;
@@ -1339,8 +1339,8 @@
 }
 
 .msg-code-copy:hover {
-    background: #444;
-    color: #fff;
+    background: #ccc;
+    color: #333;
 }
 
 .msg-code-content {
@@ -1349,12 +1349,12 @@
     line-height: 1.5;
     overflow-x: auto;
     font-family: 'Consolas', 'Monaco', monospace;
-    /* Monaco colorize 渲染后自带 vs-dark 主题颜色，此处不设 color 以免覆盖 */
+    /* Monaco colorize 渲染后自带主题颜色，此处不设 color 以免覆盖 */
 }
 
 /* Monaco colorize 未渲染时的 fallback 样式（<pre> 内原始文本） */
 .msg-code-content pre {
-    color: #d4d4d4;
+    color: #333;
     margin: 0;
     background: transparent;
 }
@@ -1363,6 +1363,34 @@
 .msg-code-content .monaco-tokenized-source {
     background: transparent;
     color: inherit;
+}
+
+/* Dark theme: 代码块切换为深色背景 */
+body[data-theme="dark"] .msg-code-block {
+    border-color: #444;
+    background: #1e1e1e;
+}
+
+body[data-theme="dark"] .msg-code-header {
+    background: #2d2d2d;
+    color: #ccc;
+}
+
+body[data-theme="dark"] .msg-code-lang {
+    color: #aaa;
+}
+
+body[data-theme="dark"] .msg-code-copy {
+    color: #aaa;
+}
+
+body[data-theme="dark"] .msg-code-copy:hover {
+    background: #444;
+    color: #fff;
+}
+
+body[data-theme="dark"] .msg-code-content pre {
+    color: #d4d4d4;
 }
 
 /* === Context Bar === */
@@ -1753,15 +1781,6 @@ body[data-theme="dark"] .chat-empty-state {
 }
 
 body[data-theme="dark"] .chat-empty-state-title {
-    color: #aaa;
-}
-
-body[data-theme="dark"] .msg-code-block {
-    border-color: #444;
-}
-
-body[data-theme="dark"] .msg-code-header {
-    background: #333;
     color: #aaa;
 }
 
