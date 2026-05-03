@@ -59,24 +59,24 @@
 #chat-input-area {
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 12px;
+    gap: 4px;
+    padding: 6px 10px;
     background: #ffffff;
     border-radius: 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    margin: 12px;
+    margin: 6px 12px;
     border-top: none;
 }
 
 #chat-input {
     width: 100%;
-    padding: 8px 12px;
+    padding: 8px 4px;
     border: none;
     border-radius: 6px;
     font-size: 13px;
     line-height: 1.5;
     resize: none;
-    min-height: 36px;
+    min-height: 28px;
     max-height: 300px;
     overflow-y: hidden;
     outline: none;
@@ -1512,23 +1512,6 @@
 .mention-item.active {
     background: #e8f4fd;
     color: #007acc;
-}
-
-.mention-item-icon {
-    font-size: 14px;
-}
-
-/* Mention popup 图标 - 使用 CSS 伪元素 */
-.mention-item-icon.context-chip-icon::before {
-    content: "📄";
-}
-
-.mention-item-icon.skill-chip-icon::before {
-    content: "⚡";
-}
-
-.mention-item-icon.mcp-chip-icon::before {
-    content: "🔌";
 }
 
 .mention-item-path {

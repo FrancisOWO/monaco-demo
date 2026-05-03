@@ -299,18 +299,21 @@ function showMentionPopup(query, cursorPos) {
     // 渲染弹窗内容（带分类标签）
     popup.innerHTML = filteredItems.map((f, i) =>
         `<div class="mention-item ${i === 0 ? 'active' : ''}" data-index="${i}">
-            <span class="mention-item-icon ${f.iconClass}"></span>
             <span class="mention-category-badge mention-category-${f.category}">${f.category.toUpperCase()}</span>
             <span class="mention-item-name">${f.name}</span>
             <span class="mention-item-path">${f.path}</span>
         </div>`
     ).join('');
 
-    // 定位弹窗
-    const inputRect = input.getBoundingClientRect();
+    // 定位弹窗：在输入框正上方
+    const inputArea = document.getElementById('chat-input-area');
+    const inputAreaRect = inputArea.getBoundingClientRect();
     const panelRect = document.getElementById('chat-panel').getBoundingClientRect();
-    popup.style.left = (inputRect.left - panelRect.left + 10) + 'px';
-    popup.style.bottom = (panelRect.bottom - inputRect.top + 8) + 'px';
+
+    popup.style.left = (inputAreaRect.left - panelRect.left) + 'px';
+    popup.style.right = (panelRect.right - inputAreaRect.right) + 'px';
+    popup.style.bottom = (panelRect.bottom - inputAreaRect.top + 4) + 'px';
+    popup.style.top = '';
 
     popup.classList.remove('hidden');
 
