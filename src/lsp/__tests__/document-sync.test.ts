@@ -72,7 +72,7 @@ describe('document-sync', () => {
             sendNotification: jest.fn(),
         };
 
-        sync.setupDocumentSync(editor as any, lspClient);
+        sync.setupDocumentSync(editor as any, { python: lspClient });
         await store.openFileFromHandle({ name: 'main.py' } as any, '/main.py', editor as any);
 
         expect(lspClient.didOpenDocument).toHaveBeenCalledWith(
@@ -98,7 +98,7 @@ describe('document-sync', () => {
             sendNotification: jest.fn(),
         };
 
-        sync.setupDocumentSync(editor as any, lspClient);
+        sync.setupDocumentSync(editor as any, { python: lspClient });
         await store.openFileFromHandle({ name: 'main.py' } as any, '/main.py', editor as any);
         const descriptor = store.getActiveFile()!;
         descriptor.model.getValue = jest.fn(() => 'print("changed")');
@@ -135,7 +135,7 @@ describe('document-sync', () => {
             sendNotification: jest.fn(),
         };
 
-        sync.setupDocumentSync(editor as any, lspClient);
+        sync.setupDocumentSync(editor as any, { python: lspClient });
         await store.openFileFromHandle({ name: 'main.js' } as any, '/main.js', editor as any);
 
         expect(lspClient.didOpenDocument).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe('document-sync', () => {
             sendNotification: jest.fn(),
         };
 
-        sync.setupDocumentSync(editor as any, lspClient);
+        sync.setupDocumentSync(editor as any, { python: lspClient });
         await store.openFileFromHandle({ name: 'main.py' } as any, '/main.py', editor as any);
         const descriptor = store.getActiveFile()!;
         descriptor.model.onDidChangeContent.mock.calls[0][0]();

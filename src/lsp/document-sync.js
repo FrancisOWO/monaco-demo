@@ -1,7 +1,7 @@
 /**
  * 文档同步模块
  * 保持 Monaco Editor 模型与 LSP 服务器同步
- * 支持多文档 open/close/change
+ * 支持多文档 open/close/change，多语言客户端路由
  */
 
 import * as monaco from 'monaco-editor';
@@ -13,8 +13,8 @@ const logger = getLogger('Document Sync');
 /** 已同步文档 Map: URI → { version, timeout } */
 const syncedDocuments = new Map();
 
-/** LSP 客户端引用 */
-let lspClient = null;
+/** LSP 客户端 Map: languageId → client */
+let lspClients = null;
 
 /** 编辑器引用 */
 let editor = null;
@@ -22,15 +22,15 @@ let editor = null;
 /**
  * 设置文档同步（初始化）
  * @param {monaco.editor} editorInstance
- * @param {object} client LSP 客户端
+ * @param {object} clientsMap 语言客户端映射 { python: client, cpp: client, go: client }
  */
-export function setupDocumentSync(editorInstance, client) {
+export function setupDocumentSync(editorInstance, clientsMap) {
     editor = editorInstance;
-    lspClient = client;
+    lspClients = clientsMap;
 
-    // 对已打开的 Python 文件补发 didOpen
+    // 对已打开的文件补发 didOpen（只同步 clientsMap 中有客户端的语言）
     for (const [path, descriptor] of openFiles) {
-        if (descriptor.language === 'python' && descriptor.model) {
+        if (lspClients[descriptor.language] && descriptor.model) {
             const uri = descriptor.model.uri.toString();
             if (!syncedDocuments.has(uri)) {
                 syncDocumentOpen(uri, descriptor.model);
@@ -46,7 +46,7 @@ export function setupDocumentSync(editorInstance, client) {
     on('onTabsChanged', () => {
         // 脏状态变化时同步内容
         const descriptor = openFiles.get(activeFilePath);
-        if (descriptor && descriptor.language === 'python') {
+        if (descriptor && lspClients[descriptor.language]) {
             syncDocumentChange(descriptor);
         }
     });
@@ -64,7 +64,8 @@ function listenToModelChanges() {
     monaco.editor.onDidCreateModel((model) => {
         const uri = model.uri.toString();
         const language = model.getLanguageId();
-        if (language === 'python' && lspClient && lspClient.is_connected()) {
+        const client = lspClients[language];
+        if (client && client.is_connected()) {
             syncDocumentOpen(uri, model);
         }
     });
@@ -75,8 +76,9 @@ function listenToModelChanges() {
  */
 function syncActiveDocument() {
     const descriptor = openFiles.get(activeFilePath);
-    if (!descriptor || descriptor.language !== 'python') return;
-    if (!lspClient || !lspClient.is_connected()) return;
+    if (!descriptor) return;
+    const client = lspClients[descriptor.language];
+    if (!client || !client.is_connected()) return;
 
     const uri = descriptor.model.uri.toString();
 
@@ -91,23 +93,27 @@ function syncActiveDocument() {
 function syncDocumentOpen(uri, model) {
     if (syncedDocuments.has(uri)) return;
 
+    const languageId = model.getLanguageId();
+    const client = lspClients[languageId];
+    if (!client || !client.is_connected()) return;
+
     const content = model.getValue();
-    lspClient.didOpenDocument(uri, 'python', content);
+    client.didOpenDocument(uri, languageId, content);
 
     syncedDocuments.set(uri, {
         version: 1,
         timeout: null,
     });
 
-    logger.info('Document opened for sync:', uri);
+    logger.info('Document opened for sync:', uri, 'language:', languageId);
 }
 
 /**
  * 同步文档内容变更
  */
 function syncDocumentChange(descriptor) {
-    if (!lspClient || !lspClient.is_connected()) return;
-    if (descriptor.language !== 'python') return;
+    const client = lspClients[descriptor.language];
+    if (!client || !client.is_connected()) return;
 
     const uri = descriptor.model.uri.toString();
     let syncState = syncedDocuments.get(uri);
@@ -125,7 +131,7 @@ function syncDocumentChange(descriptor) {
     syncState.timeout = setTimeout(() => {
         const content = descriptor.model.getValue();
         syncState.version++;
-        lspClient.didChangeDocument(uri, content, syncState.version);
+        client.didChangeDocument(uri, content, syncState.version);
     }, 300);
 }
 
@@ -141,10 +147,18 @@ export function syncDocumentClose(uri) {
         clearTimeout(syncState.timeout);
     }
 
-    if (lspClient && lspClient.is_connected()) {
-        lspClient.sendNotification('textDocument/didClose', {
-            textDocument: { uri }
-        });
+    // 查找对应的客户端
+    // 从 openFiles 中找到该 URI 的文件 descriptor，获取语言 ID
+    for (const [path, descriptor] of openFiles) {
+        if (descriptor.model && descriptor.model.uri.toString() === uri) {
+            const client = lspClients[descriptor.language];
+            if (client && client.is_connected()) {
+                client.sendNotification('textDocument/didClose', {
+                    textDocument: { uri }
+                });
+            }
+            break;
+        }
     }
 
     syncedDocuments.delete(uri);
