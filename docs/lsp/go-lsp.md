@@ -52,17 +52,58 @@ gopls 直接作为二进制执行，无需 `node` 包裹。需要 gopls 在 PATH
 
 ## 安装要求
 
+### Linux/macOS
+
 ```bash
-# 标准 Go 安装（自带 gopls）
+# 安装 Go SDK（自动包含 gopls）
+# 从 https://go.dev/dl/ 下载并安装
+
+# 或手动安装 gopls
 go install golang.org/x/tools/gopls@latest
 
 # 验证
-gopls --version
+gopls version
+```
+
+### Windows
+
+**方式 1 — Go SDK 安装（推荐）**：
+1. 从 [Go Downloads](https://go.dev/dl/) 下载 Windows MSI 安装包（如 `go1.23.4.windows-amd64.msi`）
+2. 安装后 Go 自动配置 PATH，`%USERPROFILE%\go\bin` 包含 gopls
+3. 安装 gopls：
+```bash
+go install golang.org/x/tools/gopls@latest
+```
+4. 确保 `%USERPROFILE%\go\bin` 在系统 PATH 中（Go 安装程序通常已添加）
+5. 验证：`gopls version`
+
+**方式 2 — Scoop**：
+```bash
+scoop install go
+go install golang.org/x/tools/gopls@latest
+```
+
+**方式 3 — Chocolatey**：
+```bash
+choco install golang
+go install golang.org/x/tools/gopls@latest
+```
+
+**验证**：
+```bash
+gopls version
 ```
 
 ### 自定义路径
 
-环境变量：`GOPLS_PATH=/custom/path/gopls`
+环境变量：
+```bash
+# Windows
+set GOPLS_PATH=C:\Users\你\go\bin\gopls.exe
+
+# Linux/macOS
+export GOPLS_PATH=/custom/path/gopls
+```
 
 API：
 ```bash
@@ -70,6 +111,14 @@ curl -X POST http://localhost:3000/lsp/config \
   -H "Content-Type: application/json" \
   -d '{"languages": {"go": {"path": "/custom/gopls"}}}'
 ```
+
+### 不可用时的行为
+
+若 gopls 未安装或不在 PATH 中：
+- 后端启动时检测到不可用，关闭 WebSocket 并发送错误通知
+- 前端标记该语言为 `unavailable`，状态标签显示红色 "不可用"，开关禁用
+- 状态栏在 Go 文件中显示红色 `LSP: go 不可用`
+- 不会无限重试连接
 
 ## gopls 特殊注意事项
 

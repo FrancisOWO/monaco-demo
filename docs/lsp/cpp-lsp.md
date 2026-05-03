@@ -80,24 +80,46 @@ brew install llvm
 
 ### Windows
 
+**方式 1 — LLVM 安装包（推荐）**：
+1. 从 [LLVM Releases](https://github.com/llvm/llvm-project/releases) 下载 Windows installer（如 `LLVM-19.1.0-win64.exe`）
+2. 安装时勾选 **"Add LLVM to the system PATH for all users"**
+3. 验证：`clangd --version`
+
+**方式 2 — Scoop**：
 ```bash
-# 方式 1：LLVM 安装包
-# 下载 https://github.com/llvm/llvm-project/releases
-# 安装时勾选 "Add to PATH"
-
-# 方式 2：scoop
 scoop install llvm
+```
 
-# 方式 3：choco
+**方式 3 — Chocolatey**：
+```bash
 choco install llvm
+```
 
-# 验证
+**方式 4 — VS Code C/C++ 扩展自带**：
+安装 VS Code 的 [C/C++ 扩展](https://marketplace.visualstudio.com/items?itemName=ms-vscode.cpptools) 后，clangd 位于：
+```
+%USERPROFILE%\.vscode\extensions\ms-vscode.cpptools-*\LLVM\bin\clangd.exe
+```
+需通过环境变量指定：
+```bash
+set CLANGD_PATH=%USERPROFILE%\.vscode\extensions\ms-vscode.cpptools-1.23.2\LLVM\bin\clangd.exe
+```
+
+**验证**：
+```bash
 clangd --version
 ```
 
 ### 自定义路径
 
-环境变量：`CLANGD_PATH=C:\Tools\LLVM\bin\clangd.exe`
+环境变量：
+```bash
+# Windows
+set CLANGD_PATH=C:\Tools\LLVM\bin\clangd.exe
+
+# Linux/macOS
+export CLANGD_PATH=/custom/path/clangd
+```
 
 API：
 ```bash
@@ -105,6 +127,14 @@ curl -X POST http://localhost:3000/lsp/config \
   -H "Content-Type: application/json" \
   -d '{"languages": {"cpp": {"path": "C:\\Tools\\LLVM\\bin\\clangd.exe"}}}'
 ```
+
+### 不可用时的行为
+
+若 clangd 未安装或不在 PATH 中：
+- 后端启动时检测到不可用，关闭 WebSocket 并发送错误通知
+- 前端标记该语言为 `unavailable`，状态标签显示红色 "不可用"，开关禁用
+- 状态栏在 C/C++ 文件中显示红色 `LSP: cpp 不可用`
+- 不会无限重试连接
 
 ## clangd 特殊注意事项
 

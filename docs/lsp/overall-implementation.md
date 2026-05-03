@@ -4,6 +4,51 @@
 
 本项目采用 **WebSocket 代理模式** 实现多语言 LSP 支持，让 Monaco Editor（浏览器端）通过中间层连接到本地语言服务器进程。当前支持 Python (Pyright)、C++ (clangd)、Go (gopls) 三种语言，每种语言可独立开关控制。
 
+## 前置条件与安装
+
+### Python (Pyright) — 无需额外安装
+
+Pyright 作为 npm 依赖已内置在项目中（`node_modules/pyright`），启动后端即可使用。
+
+### C++ (clangd) — 需额外安装
+
+clangd 不随项目自带，需要在系统 PATH 中可用。安装方式见 [cpp-lsp.md](cpp-lsp.md#安装要求)。
+
+**快速验证**：
+```bash
+clangd --version
+```
+
+如不可用，可通过环境变量指定路径：
+```bash
+set CLANGD_PATH=C:\path\to\clangd.exe   # Windows
+export CLANGD_PATH=/usr/local/bin/clangd  # Linux/macOS
+```
+
+### Go (gopls) — 需额外安装
+
+gopls 不随项目自带，需要在系统 PATH 中可用。安装方式见 [go-lsp.md](go-lsp.md#安装要求)。
+
+**快速验证**：
+```bash
+gopls version
+```
+
+如不可用，可通过环境变量指定路径：
+```bash
+set GOPLS_PATH=C:\Users\你\go\bin\gopls.exe   # Windows
+export GOPLS_PATH=/home/你/go/bin/gopls        # Linux/macOS
+```
+
+### 不可用时的行为
+
+后端在 WebSocket 连接时检测命令可用性（`isCommandAvailable()`）。不可用时：
+- 发送 LSP 错误响应 `{error: {code: -32603, message: "... not found in PATH"}}` 并关闭 WebSocket
+- 前端 `lsp-client.js` 的 `onclose` 拒绝 connect Promise，错误消息携带 close reason
+- `lsp-manager.js` 检测 "not available"/"not found"/"ENOENT" 后将语言标记为 `unavailableLanguages`，不再重试
+- 语言设置弹窗中该语言：开关禁用（灰色半透明），状态标签显示红色 "不可用"
+- 状态栏在当前文件为不可用语言时显示红色 `LSP: cpp 不可用`
+
 ## 整体架构
 
 ```
