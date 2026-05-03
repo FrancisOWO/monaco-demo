@@ -7,6 +7,7 @@ import type * as monaco from 'monaco-editor';
 import { ConsoleTelemetryEmitter } from './telemetryEmitter.js';
 import { SimplePromptBuilder } from './promptBuilder.js';
 import { SimpleAICompletionClient, type AICompletionClientConfig } from './llm/simpleAICompletionClient.js';
+import { StandardAICompletionClient } from './llm/standardAICompletionClient.js';
 import { DummyAICompletionClient, type DummyAICompletionClientConfig } from './llm/dummyAICompletionClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
@@ -16,11 +17,11 @@ import { getLogger } from '../utils/logger.js';
 const logger = getLogger('InlineCompletion');
 
 export interface InlineCompletionConfig {
-    /** 使用虚拟客户端（无需 API Key，用于测试） */
-    useDummy?: boolean;
-    /** 真实 LLM 配置 */
+    /** 客户端模式：'dummy' 伪模型 | 'simple' 非流式 | 'standard' 流式，默认 'standard' */
+    clientMode?: 'dummy' | 'simple' | 'standard';
+    /** 真实 LLM 配置（simple / standard 模式使用） */
     llm?: AICompletionClientConfig;
-    /** 虚拟客户端配置 */
+    /** 虚拟客户端配置（dummy 模式使用） */
     dummy?: DummyAICompletionClientConfig;
 }
 
@@ -38,10 +39,13 @@ export function setupInlineCompletion(
     // 创建组件
     const telemetryEmitter = new ConsoleTelemetryEmitter();
     const promptBuilder = new SimplePromptBuilder(editor);
-    // 创建 LLM 客户端
-    const aiCompletionClient = config.useDummy
+    // 创建 AI 补全客户端
+    const clientMode = config.clientMode ?? 'standard';
+    const aiCompletionClient = clientMode === 'dummy'
         ? new DummyAICompletionClient(config.dummy)
-        : new SimpleAICompletionClient(config.llm ?? { endpoint: '', model: '', apiKey: '' });
+        : clientMode === 'simple'
+            ? new SimpleAICompletionClient(config.llm ?? { endpoint: '', model: '', apiKey: '' })
+            : new StandardAICompletionClient(config.llm ?? { endpoint: '', model: '', apiKey: '' });
     const postProcessor = new SimplePostProcessor();
     const controller = new SimpleGhostTextController(
         promptBuilder,

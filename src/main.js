@@ -12,6 +12,7 @@ import './styles/diff-viewer.css';
 
 import { registerBasicCompletions } from './basic-completion.js';
 import { registerAICompletionProvider } from './ai-completion.js';
+import { aiCompletionConfig } from './ai-completion-config.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';
 import { setupInlineCompletion } from './inlineCompletion/setup.js';
@@ -486,29 +487,12 @@ loadEnvironmentInfo();
 registerAICompletionProvider(monaco, editor);
 
 // 注册 Inline Completion（Ghost Text）
-const useDummyClient = true;
-
-if (useDummyClient) {
-    logger.info('Using Dummy LLM Client for testing');
-    setupInlineCompletion(monaco, editor, {
-        useDummy: true,
-        dummy: {
-            delayMs: 500,
-            randomEmpty: true,
-            emptyProbability: 0.3,
-        },
-    });
-} else {
-    const aiServerUrl = 'http://localhost:3000/ai';
-    setupInlineCompletion(monaco, editor, {
-        useDummy: false,
-        llm: {
-            endpoint: `${aiServerUrl}/completion`,
-            model: 'default',
-            apiKey: '',
-        },
-    });
-}
+// 客户端选择统一从 ai-completion-config.js 读取
+setupInlineCompletion(monaco, editor, {
+    clientMode: aiCompletionConfig.clientMode,
+    llm: aiCompletionConfig.server,
+    dummy: aiCompletionConfig.dummy,
+});
 
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();

@@ -2,11 +2,13 @@
  * AI 智能补全功能
  * 支持单行补全、多行补全、自动触发和快捷键触发
  * 底层统一使用 IAICompletionClient 接口，单行/多行通过不同的 CompletionStrategy 区分
- * 默认使用 DummyAICompletionClient（伪模型），有真实 AI 服务时切换到 StandardAICompletionClient
+ * 客户端选择和配置统一在 ai-completion-config.js 中管理
  */
 import * as monaco from 'monaco-editor';
 import { getLogger } from './utils/logger.js';
+import { aiCompletionConfig, setClientMode } from './ai-completion-config.js';
 import { StandardAICompletionClient } from './inlineCompletion/llm/standardAICompletionClient.js';
+import { SimpleAICompletionClient } from './inlineCompletion/llm/simpleAICompletionClient.js';
 import { DummyAICompletionClient } from './inlineCompletion/llm/dummyAICompletionClient.js';
 import { SimplePromptBuilder } from './inlineCompletion/promptBuilder.js';
 import { SimplePostProcessor } from './inlineCompletion/postProcessor.js';
@@ -22,65 +24,84 @@ const aiCompletionState = {
     loading: false,
     inlineDecoration: null,
     triggerEnabled: true,
-    useDummy: true, // 默认使用伪模型
 };
 
-// LLM 客户端实例（延迟初始化）
+// 客户端实例（延迟初始化，配置变更时重置为 null）
 let aiCompletionClient = null;
 let promptBuilder = null;
 let postProcessor = null;
 
-// 真实 AI 服务器配置
-const AI_SERVER_CONFIG = {
-    endpoint: 'http://localhost:3000/v1',
-    model: 'default',
-    apiKey: 'sk-placeholder',
-};
+/**
+ * 根据统一配置创建 AI 补全客户端
+ */
+function createClientFromConfig() {
+    switch (aiCompletionConfig.clientMode) {
+        case 'dummy':
+            return new DummyAICompletionClient(aiCompletionConfig.dummy);
+        case 'simple':
+            return new SimpleAICompletionClient(aiCompletionConfig.server);
+        case 'standard':
+        default:
+            return new StandardAICompletionClient(aiCompletionConfig.server);
+    }
+}
 
 /**
- * 初始化 LLM 客户端（如果尚未初始化）
- * 根据 useDummy 标志选择 DummyAICompletionClient 或 StandardAICompletionClient
+ * 初始化 AI 补全客户端（如果尚未初始化）
  */
 function ensureAICompletionClient(editor) {
     if (!aiCompletionClient) {
         promptBuilder = new SimplePromptBuilder(editor);
         postProcessor = new SimplePostProcessor();
+        aiCompletionClient = createClientFromConfig();
 
-        if (aiCompletionState.useDummy) {
-            aiCompletionClient = new DummyAICompletionClient({
-                delayMs: 500,
-                randomEmpty: true,
-                emptyProbability: 0.3,
-            });
-            logger.info('Using DummyAICompletionClient (no real AI service)');
-        } else {
-            aiCompletionClient = new StandardAICompletionClient(AI_SERVER_CONFIG);
-            logger.info('Using StandardAICompletionClient (real AI service)');
-        }
+        const modeLabel = {
+            dummy: 'DummyAICompletionClient',
+            simple: 'SimpleAICompletionClient',
+            standard: 'StandardAICompletionClient',
+        }[aiCompletionConfig.clientMode] ?? 'StandardAICompletionClient';
+        logger.info(`AI completion client initialized: ${modeLabel}`);
     }
 }
 
 /**
- * 切换到真实 AI 服务
+ * 重置客户端实例（配置变更后调用，下次请求时重建）
+ */
+function resetClient() {
+    aiCompletionClient = null;
+}
+
+/**
+ * 切换客户端模式（dummy / simple / standard）
+ */
+export function switchClientMode(mode) {
+    setClientMode(mode);
+    resetClient();
+    logger.info(`Client mode switched to: ${mode}`);
+}
+
+/**
+ * 切换到真实 AI 服务（默认使用 standard 模式）
  */
 export function switchToRealLLM(config) {
     if (config) {
-        Object.assign(AI_SERVER_CONFIG, config);
+        Object.assign(aiCompletionConfig.server, config);
     }
-    aiCompletionState.useDummy = false;
-    // 重置客户端，下次请求时重新创建
-    aiCompletionClient = null;
-    logger.info('Switched to real AI service');
+    setClientMode('standard');
+    resetClient();
+    logger.info('Switched to real AI service (standard)');
 }
 
 /**
  * 切换到伪模型
  */
 export function switchToDummyLLM(config) {
-    aiCompletionState.useDummy = true;
-    // 重置客户端，下次请求时重新创建
-    aiCompletionClient = null;
-    logger.info('Switched to dummy LLM client');
+    if (config) {
+        Object.assign(aiCompletionConfig.dummy, config);
+    }
+    setClientMode('dummy');
+    resetClient();
+    logger.info('Switched to dummy AI completion client');
 }
 
 /**
@@ -139,7 +160,6 @@ function multiLineStrategy() {
 /**
  * 统一的补全请求函数
  * 单行和多行共用此接口，通过 strategy 参数区分
- * 同时兼容 DummyAICompletionClient 和 StandardAICompletionClient
  */
 async function requestCompletion(editor, strategy, triggerKind = InlineCompletionTriggerKind.Invoke) {
     if (aiCompletionState.loading || !aiCompletionState.enabled) {
@@ -157,7 +177,7 @@ async function requestCompletion(editor, strategy, triggerKind = InlineCompletio
         const isMultiline = strategy.requestMultiline;
         logger.info(`Requesting ${isMultiline ? 'multi' : 'single'}-line completion...`);
 
-        // 尝试使用流式请求（DummyAICompletionClient 和 StandardAICompletionClient 都支持）
+        // 尝试使用流式请求
         if (aiCompletionClient.requestCompletionStreaming) {
             const { firstResult, backgroundCache } = await aiCompletionClient.requestCompletionStreaming(
                 context.prompt,
@@ -469,9 +489,13 @@ export function registerAICompletionProvider(monaco, editor) {
         });
     }
 
-    const clientType = aiCompletionState.useDummy ? 'DummyAICompletionClient' : 'StandardAICompletionClient';
+    const modeLabel = {
+        dummy: 'DummyAICompletionClient',
+        simple: 'SimpleAICompletionClient',
+        standard: 'StandardAICompletionClient',
+    }[aiCompletionConfig.clientMode] ?? 'StandardAICompletionClient';
     logger.info('AI completion provider registered');
-    logger.info(`LLM Client: ${clientType}`);
+    logger.info(`AI completion client: ${modeLabel}`);
     logger.info('Hotkeys:');
     logger.info('  Alt+Enter:       Single-line completion');
     logger.info('  Ctrl+Alt+Enter:  Multi-line completion');
