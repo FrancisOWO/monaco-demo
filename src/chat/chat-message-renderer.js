@@ -336,7 +336,8 @@ async function renderCodeBlocksAsync(container) {
         const code = el.dataset.code;
         if (code && lang) {
             try {
-                const highlighted = await monaco.editor.colorize(code, lang, {});
+                // 代码块背景是深色，始终使用 vs-dark 主题配色
+                const highlighted = await monaco.editor.colorize(code, lang, { theme: 'vs-dark' });
                 el.innerHTML = highlighted;
             } catch (e) {
                 // colorize 失败时保留 <pre> 原始显示

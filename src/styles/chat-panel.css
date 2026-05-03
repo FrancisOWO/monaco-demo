@@ -1349,7 +1349,20 @@
     line-height: 1.5;
     overflow-x: auto;
     font-family: 'Consolas', 'Monaco', monospace;
+    /* Monaco colorize 渲染后自带 vs-dark 主题颜色，此处不设 color 以免覆盖 */
+}
+
+/* Monaco colorize 未渲染时的 fallback 样式（<pre> 内原始文本） */
+.msg-code-content pre {
     color: #d4d4d4;
+    margin: 0;
+    background: transparent;
+}
+
+/* Monaco colorize 渲染后的容器 */
+.msg-code-content .monaco-tokenized-source {
+    background: transparent;
+    color: inherit;
 }
 
 /* === Context Bar === */
