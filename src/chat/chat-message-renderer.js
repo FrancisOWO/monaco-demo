@@ -199,6 +199,7 @@ function renderMarkdownLite(text) {
 
     // 步骤 3：处理其余 markdown 语法
     result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
     result = result.replace(/\n\n+/g, '<br>');  // 多换行（段落分隔）压缩为单 <br>
     result = result.replace(/\n/g, '<br>');     // 单换行也变 <br>
 
