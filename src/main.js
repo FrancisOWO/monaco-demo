@@ -10,24 +10,94 @@ import './styles/editor-area.css';
 import './styles/chat-panel.css';
 import './styles/diff-viewer.css';
 
-import { registerBasicCompletions } from './completions/basicCompletion.js';
-import { getLSPManager } from './lsp/lsp-manager.js';
-import { LANGUAGE_CONFIGS } from './lsp/language-configs.js';
-import { setupInlineCompletion } from './inlineCompletion/setup.js';
+// 核心依赖（必须成功，否则编辑器无法工作）
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
-
 import { on, getActiveFile, setWorkspaceUriPrefix, openFiles } from './file-system/file-store.js';
 import { setupToolbar, updateLanguageSelect, handleAction } from './ui/toolbar.js';
 import { updateTabs } from './ui/tab-bar.js';
 import { updateSidebarHighlight } from './ui/sidebar.js';
 import { setupLayoutControls } from './ui/layout-controls.js';
-import { setupChatPanel } from './chat/chat-panel.js';
 import { showToast } from './ui/dialogs.js';
-import { addSelectionContext, openPanel } from './chat/chat-store.js';
-import { setupDiffViewer } from './ui/diff-viewer.js';
-import { setupEditorMcpClient } from './mcp/editor-mcp-client.js';
-import { initializeUI } from './chat/chat-icons.js';
+
+// 可降级依赖：失败时页面仍可用，只损失对应功能
+let registerBasicCompletions = () => {};
+let setupInlineCompletion = () => {};
+let getLSPManager, LANGUAGE_CONFIGS;
+let setupChatPanel = () => {};
+let addSelectionContext = () => {};
+let openPanel = () => {};
+let setupDiffViewer = () => {};
+let setupEditorMcpClient = () => {};
+
+/**
+ * 动态加载可降级模块，失败时打日志并跳过
+ */
+async function loadOptionalModules() {
+    const modules = [
+        {
+            name: 'basicCompletion',
+            importFn: () => import('./completions/basicCompletion.js'),
+            onLoad: (m) => { registerBasicCompletions = m.registerBasicCompletions; },
+        },
+        {
+            name: 'inlineCompletion',
+            importFn: () => import('./inlineCompletion/setup.js'),
+            onLoad: (m) => { setupInlineCompletion = m.setupInlineCompletion; },
+        },
+        {
+            name: 'lsp',
+            importFn: () => import('./lsp/lsp-manager.js'),
+            onLoad: (m) => { getLSPManager = m.getLSPManager; },
+        },
+        {
+            name: 'lspConfigs',
+            importFn: () => import('./lsp/language-configs.js'),
+            onLoad: (m) => { LANGUAGE_CONFIGS = m.LANGUAGE_CONFIGS; },
+        },
+        {
+            name: 'chatPanel',
+            importFn: () => import('./chat/chat-panel.js'),
+            onLoad: (m) => { setupChatPanel = m.setupChatPanel; },
+        },
+        {
+            name: 'chatStore',
+            importFn: () => import('./chat/chat-store.js'),
+            onLoad: (m) => { addSelectionContext = m.addSelectionContext; openPanel = m.openPanel; },
+        },
+        {
+            name: 'diffViewer',
+            importFn: () => import('./ui/diff-viewer.js'),
+            onLoad: (m) => { setupDiffViewer = m.setupDiffViewer; },
+        },
+        {
+            name: 'editorMcpClient',
+            importFn: () => import('./mcp/editor-mcp-client.js'),
+            onLoad: (m) => { setupEditorMcpClient = m.setupEditorMcpClient; },
+        },
+    ];
+
+    // 并行加载，各自独立 try/catch
+    const results = await Promise.allSettled(
+        modules.map(async (mod) => {
+            try {
+                const m = await mod.importFn();
+                mod.onLoad(m);
+                return { name: mod.name, success: true };
+            } catch (e) {
+                logger.warn(`Optional module "${mod.name}" failed to load, degraded:`, e?.message || e);
+                return { name: mod.name, success: false };
+            }
+        }),
+    );
+
+    // 汇总加载状态
+    for (const r of results) {
+        if (r.status === 'fulfilled' && !r.value.success) {
+            logger.warn(`Module "${r.value.name}" degraded`);
+        }
+    }
+}
 
 const logger = getLogger('Main');
 
@@ -46,14 +116,10 @@ window.addEventListener('unhandledrejection', (event) => {
     showApp();
 });
 
-// 初始化 UI 符号和文本
-// initializeUI();
-
 // 初始化日志控制面板
 initLogPanel();
 
 // 启动时获取服务端工作区路径，确保文件 model 使用正确的 URI
-// Pyright 要求 rootUri 指向真实存在的目录，虚拟路径会导致 "does not exist" 错误
 try {
     const wsResp = await fetch('http://localhost:3000/workspace-root');
     const wsData = await wsResp.json();
@@ -64,7 +130,7 @@ try {
     // 服务端未启动时使用默认值
 }
 
-// 创建编辑器（无初始模型，等待文件打开）
+// 创建编辑器（无初始模型，等待文件打开）— 这是核心，必须成功
 const editor = monaco.editor.create(document.getElementById('editor-container'), {
     theme: 'vs',
     automaticLayout: true,
@@ -73,6 +139,12 @@ const editor = monaco.editor.create(document.getElementById('editor-container'),
     lineNumbers: 'on',
     scrollBeyondLastLine: false,
 });
+
+// 立刻显示页面，不依赖可选模块
+showApp();
+
+// 异步加载可降级模块，失败不影响页面
+await loadOptionalModules();
 
 // 注册事件回调
 on('onTabsChanged', () => {
@@ -254,7 +326,7 @@ setupDiffViewer();
 // Setup MCP editor control bridge
 setupEditorMcpClient(editor);
 
-// LSP 状态显示（状态栏）
+// ==================== LSP 状态显示 ====================
 const lspStatusEl = document.getElementById('lsp-status');
 const lspTogglePopup = document.getElementById('lsp-toggle-popup');
 const lspToggleSwitch = document.getElementById('lsp-toggle-switch');
@@ -263,82 +335,91 @@ const lspTogglePython = document.getElementById('lsp-toggle-python');
 const lspToggleCpp = document.getElementById('lsp-toggle-cpp');
 const lspToggleGo = document.getElementById('lsp-toggle-go');
 
-const lspManager = getLSPManager();
-lspManager.setEditor(editor);
+let lspManager = null;
 
-lspManager.setOnStatusChange((status) => {
-    // 更新全局开关
-    lspToggleSwitch.className = 'lsp-toggle-switch ' + (status.globalEnabled ? 'on' : 'off');
-    lspLanguageToggles.classList.toggle('hidden', !status.globalEnabled);
+if (getLSPManager) {
+    lspManager = getLSPManager();
+    lspManager.setEditor(editor);
 
-    // 更新各语言子开关
-    for (const lang of status.languages) {
-        const toggleEl = document.getElementById(`lsp-toggle-${lang.languageId}`);
-        if (toggleEl) {
-            toggleEl.className = 'lsp-toggle-switch ' + (lang.enabled ? 'on' : 'off');
-            const config = LANGUAGE_CONFIGS[lang.languageId];
-            if (config) {
-                const labelEl = toggleEl.parentElement.querySelector('.lsp-toggle-label');
-                if (labelEl) {
-                    const statusText = lang.connected ? ' ✓' : '';
-                    labelEl.textContent = `${config.languageId} (${lang.connected ? '已连接' : '未连接'})${statusText}`;
+    lspManager.setOnStatusChange((status) => {
+        // 更新全局开关
+        lspToggleSwitch.className = 'lsp-toggle-switch ' + (status.globalEnabled ? 'on' : 'off');
+        lspLanguageToggles.classList.toggle('hidden', !status.globalEnabled);
+
+        // 更新各语言子开关
+        for (const lang of status.languages) {
+            const toggleEl = document.getElementById(`lsp-toggle-${lang.languageId}`);
+            if (toggleEl) {
+                toggleEl.className = 'lsp-toggle-switch ' + (lang.enabled ? 'on' : 'off');
+                const config = LANGUAGE_CONFIGS?.[lang.languageId];
+                if (config) {
+                    const labelEl = toggleEl.parentElement.querySelector('.lsp-toggle-label');
+                    if (labelEl) {
+                        const statusText = lang.connected ? ' ✓' : '';
+                        labelEl.textContent = `${config.languageId} (${lang.connected ? '已连接' : '未连接'})${statusText}`;
+                    }
                 }
             }
         }
-    }
 
-    // 更新状态栏文本
-    const connectedLangs = status.languages.filter(l => l.connected);
-    if (!status.globalEnabled) {
-        lspStatusEl.className = 'lsp-status disabled';
-        lspStatusEl.textContent = 'LSP: 已关闭';
-    } else if (connectedLangs.length === 0) {
-        lspStatusEl.className = 'lsp-status disconnected';
-        lspStatusEl.textContent = 'LSP: 未连接';
-    } else {
-        lspStatusEl.className = 'lsp-status connected';
-        lspStatusEl.textContent = `LSP: ${connectedLangs.map(l => l.languageId).join(', ')}`;
-    }
-});
+        // 更新状态栏文本
+        const connectedLangs = status.languages.filter(l => l.connected);
+        if (!status.globalEnabled) {
+            lspStatusEl.className = 'lsp-status disabled';
+            lspStatusEl.textContent = 'LSP: 已关闭';
+        } else if (connectedLangs.length === 0) {
+            lspStatusEl.className = 'lsp-status disconnected';
+            lspStatusEl.textContent = 'LSP: 未连接';
+        } else {
+            lspStatusEl.className = 'lsp-status connected';
+            lspStatusEl.textContent = `LSP: ${connectedLangs.map(l => l.languageId).join(', ')}`;
+        }
+    });
 
-// 点击 LSP 状态弹出切换面板
-lspStatusEl.addEventListener('click', (e) => {
-    e.stopPropagation();
-    lspTogglePopup.classList.toggle('hidden');
-});
+    // 点击 LSP 状态弹出切换面板
+    lspStatusEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lspTogglePopup.classList.toggle('hidden');
+    });
 
-// 点击全局开关
-lspToggleSwitch.addEventListener('click', (e) => {
-    e.stopPropagation();
-    lspManager.setGlobalEnabled(!lspManager.globalEnabled);
-});
+    // 点击全局开关
+    lspToggleSwitch.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lspManager.setGlobalEnabled(!lspManager.globalEnabled);
+    });
 
-// 点击各语言子开关
-lspTogglePython.addEventListener('click', (e) => {
-    e.stopPropagation();
-    lspManager.setLanguageEnabled('python', !lspManager.languageToggles.python);
-});
-lspToggleCpp.addEventListener('click', (e) => {
-    e.stopPropagation();
-    lspManager.setLanguageEnabled('cpp', !lspManager.languageToggles.cpp);
-});
-lspToggleGo.addEventListener('click', (e) => {
-    e.stopPropagation();
-    lspManager.setLanguageEnabled('go', !lspManager.languageToggles.go);
-});
+    // 点击各语言子开关
+    lspTogglePython.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lspManager.setLanguageEnabled('python', !lspManager.languageToggles.python);
+    });
+    lspToggleCpp.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lspManager.setLanguageEnabled('cpp', !lspManager.languageToggles.cpp);
+    });
+    lspToggleGo.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lspManager.setLanguageEnabled('go', !lspManager.languageToggles.go);
+    });
 
-// 点击其他区域关闭弹出框
-document.addEventListener('click', () => {
-    lspTogglePopup.classList.add('hidden');
-});
+    // 点击其他区域关闭弹出框
+    document.addEventListener('click', () => {
+        lspTogglePopup.classList.add('hidden');
+    });
 
-lspTogglePopup.addEventListener('click', (e) => {
-    e.stopPropagation();
-});
+    lspTogglePopup.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+} else {
+    // LSP 模块未加载，显示降级提示
+    lspStatusEl.className = 'lsp-status disabled';
+    lspStatusEl.textContent = 'LSP: 不可用';
+    lspToggleSwitch.className = 'lsp-toggle-switch off';
+}
 
 // 初始化 LSP 状态显示
 lspStatusEl.className = 'lsp-status disabled';
-lspStatusEl.textContent = 'LSP: 已关闭';
+lspStatusEl.textContent = lspManager ? 'LSP: 已关闭' : 'LSP: 不可用';
 lspToggleSwitch.className = 'lsp-toggle-switch off';
 
 // ==================== Conda 环境指示器 ====================
@@ -414,9 +495,8 @@ async function switchEnvironment(envName) {
         envPopup.classList.add('hidden');
 
         // 重启 LSP 以使用新的 Python 路径
-        if (lspManager.globalEnabled && lspManager.getClient('python')) {
+        if (lspManager && lspManager.globalEnabled && lspManager.getClient('python')) {
             try {
-                // 重连 Python LSP 客户端
                 const pythonClient = lspManager.getClient('python');
                 if (pythonClient) {
                     await pythonClient.reconnect();
@@ -462,7 +542,6 @@ envPopup.addEventListener('click', (e) => {
 loadEnvironmentInfo();
 
 // 注册 AI 行内补全（Monaco Provider + 快捷键 + 自动触发）
-// apiKey 由后端代理处理，前端不持有
 setupInlineCompletion(monaco, editor);
 
 // 注册基础代码补全（作为 LSP 的后备）
@@ -493,6 +572,3 @@ editor.addAction({
         openPanel();
     },
 });
-
-// 所有初始化完成后，显示页面（防止 FOUC）
-showApp();
