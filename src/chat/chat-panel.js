@@ -40,13 +40,7 @@ export function setupChatPanel(editor) {
     // 新建对话按钮
     const newBtn = document.getElementById('chat-new-btn');
     newBtn.addEventListener('click', () => {
-        if (chatStore.hasActiveConversation()) {
-            if (confirm('确定要开始新对话吗？当前对话将被保存到历史记录中。')) {
-                chatStore.startNewChat();
-            }
-        } else {
-            chatStore.startNewChat();
-        }
+        chatStore.startNewChat();
     });
 
     setupSettingsPanel();
@@ -487,8 +481,8 @@ function setupHistoryPanel() {
         const action = btn.dataset.action;
 
         if (action === 'load') {
-            // 如果有活跃的新对话（非历史加载），先保存
-            if (chatStore.hasActiveConversation() && !chatStore.getState().loadedFromHistory) {
+            // 保存当前对话（新对话会新增，历史加载的会更新）
+            if (chatStore.hasActiveConversation()) {
                 chatStore.addConversationToHistory();
             }
             // 加载历史对话

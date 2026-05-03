@@ -17,7 +17,7 @@ const chatState = {
     thinkingPhase: '',
     panelVisible: false,
     abortController: null,
-    loadedFromHistory: false, // 当前对话是否从历史加载（避免重复保存）
+    loadedFromHistoryId: null, // 当前对话对应的历史条目 ID（null 表示新对话）
     skillRegistry: [],       // SkillDescriptor[]
     mcpRegistry: [],         // McpToolDescriptor[]
     foldState: {
@@ -765,10 +765,16 @@ function saveCurrentConversationToHistory() {
         return;
     }
 
-    // 从历史加载的对话不需要重复保存
-    if (chatState.loadedFromHistory) {
-        chatState.loadedFromHistory = false;
-        return;
+    // 如果当前对话是从历史加载的，更新历史中对应条目
+    if (chatState.loadedFromHistoryId) {
+        const existingItem = chatState.conversationHistory.find(h => h.id === chatState.loadedFromHistoryId);
+        if (existingItem) {
+            existingItem.messages = JSON.parse(JSON.stringify(chatState.messages));
+            existingItem.contextItems = JSON.parse(JSON.stringify(chatState.contextItems));
+            return;
+        }
+        // 历史条目已被删除，当作新对话处理
+        chatState.loadedFromHistoryId = null;
     }
 
     const historyItem = {
@@ -791,11 +797,13 @@ function saveCurrentConversationToHistory() {
  * 保存当前对话到历史，然后清空当前状态
  */
 export function startNewChat() {
-    // 保存当前对话到历史
+    // 保存当前对话到历史（历史加载的会更新而非新增）
     saveCurrentConversationToHistory();
+    saveConversationHistoryToStorage().catch(e => console.warn('[ChatStore] Failed to save history:', e));
 
     // 清空消息
     chatState.messages = [];
+    chatState.loadedFromHistoryId = null; // 新对话，不再关联历史
     emit('onMessagesChanged');
 
     // 清空上下文
@@ -818,10 +826,18 @@ export function addConversationToHistory() {
         return;
     }
 
-    // 从历史加载的对话不需要重复保存
-    if (chatState.loadedFromHistory) {
-        chatState.loadedFromHistory = false;
-        return;
+    // 如果当前对话是从历史加载的，更新历史中对应条目
+    if (chatState.loadedFromHistoryId) {
+        const existingItem = chatState.conversationHistory.find(h => h.id === chatState.loadedFromHistoryId);
+        if (existingItem) {
+            existingItem.messages = JSON.parse(JSON.stringify(chatState.messages));
+            existingItem.contextItems = JSON.parse(JSON.stringify(chatState.contextItems));
+            emit('onHistoryChanged');
+            saveConversationHistoryToStorage().catch(e => console.warn('[ChatStore] Failed to save history:', e));
+            return;
+        }
+        // 历史条目已被删除，当作新对话处理
+        chatState.loadedFromHistoryId = null;
     }
 
     const historyItem = {
@@ -854,7 +870,7 @@ export function loadConversationFromHistory(historyId) {
 
     // 恢复消息
     chatState.messages = JSON.parse(JSON.stringify(historyItem.messages));
-    chatState.loadedFromHistory = true; // 标记为历史加载，避免重复保存
+    chatState.loadedFromHistoryId = historyId; // 记录来源历史 ID，后续更新而非新增
     emit('onMessagesChanged');
 
     // 恢复上下文
