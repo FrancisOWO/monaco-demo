@@ -256,7 +256,7 @@ function setupSettingsPanel() {
         if (config.isBuiltIn) {
             // Mock 配置：禁用表单，显示提示
             formSection.classList.add('disabled');
-            mockInfo.classList.add('visible');
+            mockInfo?.classList.add('visible');
             deleteConfigBtn.disabled = true;
 
             // 清空表单
@@ -266,7 +266,7 @@ function setupSettingsPanel() {
         } else {
             // 自定义配置：启用表单
             formSection.classList.remove('disabled');
-            mockInfo.classList.remove('visible');
+            mockInfo?.classList.remove('visible');
             deleteConfigBtn.disabled = false;
 
             // 填充表单

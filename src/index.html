@@ -276,36 +276,34 @@
                             </div>
                             <div class="custom-dropdown-list"></div>
                         </div>
-                        <button class="chat-config-btn" id="chat-config-add" title="添加配置">+</button>
+                        <button class="chat-config-btn" id="chat-config-add" title="添加配置">＋</button>
                         <button class="chat-config-btn chat-config-btn-danger" id="chat-config-delete" title="删除当前配置">删除</button>
                     </div>
                 </div>
-
+                <!-- Mock 配置说明 -->
+                <!-- <div class="chat-settings-section chat-settings-info" id="chat-mock-info">
+                    <div class="chat-settings-info-icon">ℹ</div>
+                    <div class="chat-settings-info-text">
+                        Mock 配置用于本地测试，无需填写配置信息。
+                    </div>
+                </div> -->
                 <!-- 配置详情表单 -->
                 <div class="chat-settings-section" id="chat-config-form-section">
                     <div class="chat-settings-section-title">配置详情</div>
-                    <div class="chat-settings-form" id="chat-config-form">
+                    <form class="chat-settings-form" id="chat-config-form" autocomplete="off">
                         <div class="chat-settings-field">
                             <label for="chat-config-name">配置名称</label>
-                            <input type="text" id="chat-config-name" placeholder="例如: OpenAI" />
+                            <input type="text" id="chat-config-name" placeholder="例如: OpenAI" autocomplete="off" />
                         </div>
                         <div class="chat-settings-field">
                             <label for="chat-config-baseurl">Base URL</label>
-                            <input type="url" id="chat-config-baseurl" placeholder="https://api.example.com/v1" />
+                            <input type="url" id="chat-config-baseurl" placeholder="https://api.example.com/v1" autocomplete="off" />
                         </div>
                         <div class="chat-settings-field">
                             <label for="chat-config-apikey">API Key</label>
-                            <input type="password" id="chat-config-apikey" placeholder="sk-..." />
+                            <input type="password" id="chat-config-apikey" placeholder="sk-..." autocomplete="new-password" />
                         </div>
-                    </div>
-                </div>
-
-                <!-- Mock 配置说明 -->
-                <div class="chat-settings-section chat-settings-info" id="chat-mock-info">
-                    <div class="chat-settings-info-icon">ℹ</div>
-                    <div class="chat-settings-info-text">
-                        Mock 配置使用本地模拟响应进行测试，无需填写 API 信息。
-                    </div>
+                    </form>
                 </div>
             </div>
             <div class="chat-modal-footer">

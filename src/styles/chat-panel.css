@@ -376,6 +376,10 @@
     border-color: #007acc;
 }
 
+.chat-settings-field input::placeholder {
+    color: #b0b0b0;
+}
+
 .chat-modal-btn {
     padding: 8px 16px;
     border-radius: 6px;
@@ -1934,6 +1938,10 @@ body[data-theme="dark"] .chat-settings-field input {
 
 body[data-theme="dark"] .chat-settings-field input:focus {
     border-color: #007acc;
+}
+
+body[data-theme="dark"] .chat-settings-field input::placeholder {
+    color: #666;
 }
 
 body[data-theme="dark"] .chat-modal-btn-secondary {
