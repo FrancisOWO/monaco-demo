@@ -127,6 +127,6 @@ export const goCompletions = [
     }
 ];
 
-export function registerGoCompletions() {
-    registerCompletionItem('go', goCompletions);
+export function registerGoCompletions(custom=false) {
+    registerCompletionItem('go', goCompletions, custom);
 }

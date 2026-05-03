@@ -60,16 +60,28 @@ export function registerDefaultCompletionItem(languageId) {
 }
 
 /**
+ * 注册自定义补全
+ */
+export function registerCustomCompletionItem(languageId, completions) {
+    monaco.languages.registerCompletionItemProvider(languageId, {
+        provideCompletionItems(model, position) {
+            return { suggestions: getCustomSuggestions(completions, model, position) };
+        }
+    });
+}
+
+/**
  * 注册语言补全 provider（自定义补全 + Monaco 内置词频补全）
  */
 
 
-export function registerCompletionItem(languageId, completions) {
+export function registerCompletionItem(languageId, completions, custom=false) {
     monaco.languages.registerCompletionItemProvider(languageId, {
         async provideCompletionItems(model, position) {
-            const allSuggestions = getCustomSuggestions(completions, model, position);
-            const defaultSuggestions = await getDefaultSuggestions(model, position);
-            allSuggestions.push(...defaultSuggestions);
+            const allSuggestions = await getDefaultSuggestions(model, position);
+            if (custom && completions.length > 0) {
+                allSuggestions.push(...getCustomSuggestions(completions, model, position));
+            }
             return { suggestions: allSuggestions };
         }
     });

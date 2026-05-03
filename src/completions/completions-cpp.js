@@ -103,6 +103,6 @@ export const cppCompletions = [
     }
 ];
 
-export function registerCppCompletions() {
-    registerCompletionItem('cpp', cppCompletions);
+export function registerCppCompletions(custom=false) {
+    registerCompletionItem('cpp', cppCompletions, custom);
 }

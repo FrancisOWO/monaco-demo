@@ -435,10 +435,7 @@ if (getLSPManager) {
                 lspStatusEl.textContent = `LSP: ${currentLanguageId} 不可用`;
             } else if (currentLang.connected) {
                 lspStatusEl.className = 'lsp-status connected';
-                // 当前语言已连接 + 其他已连接语言
-                const otherConnected = connectedLangs.filter(l => l.languageId !== currentLanguageId);
-                const suffix = otherConnected.length > 0 ? ` +${otherConnected.length}` : '';
-                lspStatusEl.textContent = `LSP: ${currentLanguageId}${suffix}`;
+                lspStatusEl.textContent = `LSP: ${currentLanguageId}`;
             } else {
                 lspStatusEl.className = 'lsp-status connecting';
                 lspStatusEl.textContent = `LSP: ${currentLanguageId} 连接中`;
