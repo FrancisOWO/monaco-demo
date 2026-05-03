@@ -489,7 +489,7 @@ function setupHistoryPanel() {
             chatStore.loadConversationFromHistory(historyId);
             closePanel();
         } else if (action === 'delete') {
-            if (confirm('确定要删除这条历史记录吗？')) {
+            if (confirm('确定要删除这条记录吗？7 天后才会永久删除。')) {
                 chatStore.deleteConversationFromHistory(historyId);
             }
         }

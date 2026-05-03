@@ -887,7 +887,8 @@ export function deleteConversationFromHistory(historyId) {
     if (index >= 0) {
         chatState.conversationHistory.splice(index, 1);
         emit('onHistoryChanged');
-        saveConversationHistoryToStorage().catch(e => console.warn('[ChatStore] Failed to save history:', e));
+        // 软删除：服务端标记 7 天后才永久删除
+        configService.conversationHistory.deleteItem(historyId).catch(e => console.warn('[ChatStore] Failed to soft-delete history item:', e));
     }
 }
 

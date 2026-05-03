@@ -15,7 +15,7 @@ import * as os from 'os';
 const CONFIG_DIR_NAME = '.monaco-demo';
 
 // 配置文件名
-const CONFIG_FILES = {
+export const CONFIG_FILES = {
     apiConfigs: 'api-configs.json',
     conversationHistory: 'conversation-history.json',
     settings: 'settings.json',
@@ -49,9 +49,14 @@ export function ensureConfigDir(): string {
     // 首次创建目录时，写入默认配置文件模板
     if (isNew) {
         writeConfigFile(CONFIG_FILES.apiConfigs, getDefaultApiConfigs());
-        writeConfigFile(CONFIG_FILES.conversationHistory, { history: [] });
+        writeConfigFile(CONFIG_FILES.conversationHistory, { history: [], deletedItems: [] });
         writeConfigFile(CONFIG_FILES.settings, {});
         console.log('[Config] Created default config files');
+    }
+
+    // 启动时清理超过 7 天的软删除条目
+    if (!isNew) {
+        cleanupSoftDeletedHistory();
     }
 
     return configDir;
@@ -178,6 +183,11 @@ export function writeApiConfigs(data: ApiConfigsData): boolean {
 
 // ==================== 对话历史 ====================
 
+export interface DeletedItem {
+    id: string;
+    deletedAt: number; // 删除时间戳（ms）
+}
+
 export interface HistoryItem {
     id: string;
     timestamp: number;
@@ -187,13 +197,39 @@ export interface HistoryItem {
 
 export interface ConversationHistoryData {
     history: HistoryItem[];
+    deletedItems?: DeletedItem[];
+}
+
+const SOFT_DELETE_RETENTION_MS = 7 * 24 * 60 * 60 * 1000; // 7 天
+
+/**
+ * 清理超过 7 天的标记删除条目（从 history 和 deletedItems 中移除）
+ */
+function purgeExpiredDeletedItems(data: ConversationHistoryData): ConversationHistoryData {
+    const now = Date.now();
+    const deletedItems = data.deletedItems || [];
+    const expiredIds = deletedItems
+        .filter(item => now - item.deletedAt > SOFT_DELETE_RETENTION_MS)
+        .map(item => item.id);
+
+    if (expiredIds.length === 0) return data;
+
+    console.log(`[Config] Purging ${expiredIds.length} expired soft-deleted history items`);
+
+    const remainingDeleted = deletedItems.filter(item => !expiredIds.includes(item.id));
+    const remainingHistory = data.history.filter(item => !expiredIds.includes(item.id));
+
+    return { history: remainingHistory, deletedItems: remainingDeleted };
 }
 
 /**
- * 读取对话历史
+ * 读取对话历史（过滤掉已标记删除的项）
  */
 export function readConversationHistory(): ConversationHistoryData {
-    return readConfigFile<ConversationHistoryData>(CONFIG_FILES.conversationHistory, { history: [] });
+    const raw = readConfigFile<ConversationHistoryData>(CONFIG_FILES.conversationHistory, { history: [], deletedItems: [] });
+    const deletedIds = new Set((raw.deletedItems || []).map(item => item.id));
+    const visibleHistory = raw.history.filter(item => !deletedIds.has(item.id));
+    return { history: visibleHistory, deletedItems: raw.deletedItems || [] };
 }
 
 /**
@@ -201,6 +237,17 @@ export function readConversationHistory(): ConversationHistoryData {
  */
 export function writeConversationHistory(data: ConversationHistoryData): boolean {
     return writeConfigFile(CONFIG_FILES.conversationHistory, data);
+}
+
+/**
+ * 启动时清理过期软删除条目
+ */
+export function cleanupSoftDeletedHistory(): void {
+    const raw = readConfigFile<ConversationHistoryData>(CONFIG_FILES.conversationHistory, { history: [], deletedItems: [] });
+    const cleaned = purgeExpiredDeletedItems(raw);
+    if (cleaned.history.length !== raw.history.length || (cleaned.deletedItems?.length || 0) !== (raw.deletedItems?.length || 0)) {
+        writeConfigFile(CONFIG_FILES.conversationHistory, cleaned);
+    }
 }
 
 // ==================== 通用设置 ====================
@@ -240,6 +287,7 @@ export const configManager = {
     conversationHistory: {
         read: readConversationHistory,
         write: writeConversationHistory,
+        cleanupSoftDeleted: cleanupSoftDeletedHistory,
     },
     settings: {
         read: readSettings,

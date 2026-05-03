@@ -9,6 +9,7 @@ import {
     ApiConfigsData,
     ConversationHistoryData,
     SettingsData,
+    CONFIG_FILES,
 } from './config-manager';
 
 const router: express.Router = express.Router();
@@ -76,6 +77,40 @@ router.post('/conversation-history', (req, res) => {
         }
     } catch (error) {
         console.error('[Config API] Error saving conversation history:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// DELETE /config/conversation-history/item?id=xxx - 软删除单条历史记录
+router.delete('/conversation-history/item', (req, res) => {
+    try {
+        const historyId = req.query.id as string;
+        if (!historyId) {
+            res.status(400).json({ success: false, error: 'Missing id parameter' });
+            return;
+        }
+
+        // 读取原始数据（包含已标记删除的项）
+        const raw = configManager.readConfigFile<ConversationHistoryData>(CONFIG_FILES.conversationHistory, { history: [], deletedItems: [] });
+        const deletedItems = raw.deletedItems || [];
+
+        // 检查是否已标记删除
+        if (deletedItems.some(item => item.id === historyId)) {
+            res.json({ success: true, message: 'Already soft-deleted' });
+            return;
+        }
+
+        // 添加软删除标记
+        deletedItems.push({ id: historyId, deletedAt: Date.now() });
+        configManager.conversationHistory.write({ history: raw.history, deletedItems });
+
+        console.log(`[Config API] Soft-deleted history item: ${historyId}`);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('[Config API] Error soft-deleting history item:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',

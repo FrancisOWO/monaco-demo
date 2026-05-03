@@ -96,6 +96,18 @@ export async function clearConversationHistory() {
     }
 }
 
+/**
+ * 软删除单条对话历史（7 天后真正删除）
+ */
+export async function deleteConversationHistoryItem(historyId) {
+    const result = await fetchJson(`${API_BASE}/conversation-history/item?id=${encodeURIComponent(historyId)}`, {
+        method: 'DELETE',
+    });
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to delete history item');
+    }
+}
+
 // ==================== 通用设置 ====================
 
 /**
@@ -135,6 +147,7 @@ export const configService = {
         get: getConversationHistory,
         save: saveConversationHistory,
         clear: clearConversationHistory,
+        deleteItem: deleteConversationHistoryItem,
     },
     settings: {
         get: getSettings,
