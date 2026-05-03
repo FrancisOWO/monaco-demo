@@ -41,6 +41,43 @@ export function toggleSecondarySidebar() {
     updateLayoutButtons();
 }
 
+/**
+ * 侧边栏拖拽调整宽度
+ */
+function setupSidebarResize() {
+    const handle = document.getElementById('sidebar-resize-handle');
+    const sidebar = document.getElementById('sidebar');
+
+    let isResizing = false;
+    let startX = 0;
+    let startWidth = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = sidebar.offsetWidth;
+        handle.classList.add('active');
+        document.body.style.cursor = 'col-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const delta = e.clientX - startX; // 向右拖拽 = 宽度增大
+        const newWidth = Math.max(140, Math.min(500, startWidth + delta));
+        sidebar.style.width = newWidth + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (!isResizing) return;
+        isResizing = false;
+        handle.classList.remove('active');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+    });
+}
+
 export function setupLayoutControls() {
     const primaryButton = document.getElementById('layout-primary-toggle');
     const panelButton = document.getElementById('layout-panel-toggle');
@@ -49,6 +86,8 @@ export function setupLayoutControls() {
     primaryButton?.addEventListener('click', togglePrimarySidebar);
     panelButton?.addEventListener('click', toggleBottomPanel);
     secondaryButton?.addEventListener('click', toggleSecondarySidebar);
+
+    setupSidebarResize();
 
     chatStore.on('onPanelVisibilityChanged', updateLayoutButtons);
     updateLayoutButtons();

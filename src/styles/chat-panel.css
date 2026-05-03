@@ -12,6 +12,7 @@
     background: #ffffff;
     transition: width 0.05s ease;
     flex-shrink: 0;
+    position: relative;
 }
 
 #chat-panel.chat-hidden {
@@ -21,11 +22,11 @@
 /* === Resize Handle === */
 
 #chat-resize-handle {
-    width: 4px;
+    width: 3px;
     cursor: col-resize;
     background: transparent;
     position: absolute;
-    left: 0;
+    left: -1px;
     top: 0;
     bottom: 0;
     z-index: 5;
