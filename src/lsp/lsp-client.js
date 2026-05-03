@@ -72,6 +72,7 @@ export function createLSPClient(monaco, editor, languageConfig) {
          */
         connect() {
             return new Promise((resolve, reject) => {
+                let settled = false;
                 logger.info('Connecting to', LSP_SERVER_URL);
 
                 webSocket = new WebSocket(LSP_SERVER_URL);
@@ -84,19 +85,33 @@ export function createLSPClient(monaco, editor, languageConfig) {
                     this.fetchWorkspaceRoot().then(() => {
                         return this.initialize();
                     }).then(() => {
+                        settled = true;
                         resolve(true);
-                    }).catch(reject);
+                    }).catch((err) => {
+                        if (!settled) {
+                            settled = true;
+                            reject(err);
+                        }
+                    });
                 };
 
                 webSocket.onclose = (event) => {
                     logger.info('WebSocket closed:', event.code, event.reason);
                     isConnected = false;
+                    // 如果 Promise 还没解决，用 close reason 拒绝
+                    if (!settled) {
+                        settled = true;
+                        reject(new Error(event.reason || `WebSocket closed (code ${event.code})`));
+                    }
                 };
 
                 webSocket.onerror = (error) => {
                     logger.error('WebSocket error:', error);
                     isConnected = false;
-                    reject(error);
+                    if (!settled) {
+                        settled = true;
+                        reject(error);
+                    }
                 };
 
                 webSocket.onmessage = (event) => {

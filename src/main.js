@@ -156,6 +156,8 @@ on('onActiveFileChanged', () => {
     updateLanguageSelect();
     updateSidebarHighlight();
     updateWelcomeVisibility();
+    // 切换文件时更新 LSP 状态栏（语言可能变了）
+    if (lspManager) lspManager.notifyStatusChange();
 });
 
 // ==================== Welcome Page ====================
@@ -416,13 +418,31 @@ if (getLSPManager) {
             }
         }
 
-        // 更新状态栏文本
+        // 更新状态栏文本 — 优先显示当前文件语言的 LSP 状态
         const availableLangs = status.languages.filter(l => !l.unavailable);
         const connectedLangs = availableLangs.filter(l => l.connected);
         const unavailableLangs = status.languages.filter(l => l.unavailable);
+        const currentLanguageId = editor.getModel()?.getLanguageId() ?? '';
+        const currentLang = status.languages.find(l => l.languageId === currentLanguageId);
+
         if (!status.globalEnabled) {
             lspStatusEl.className = 'lsp-status disabled';
             lspStatusEl.textContent = 'LSP: 已关闭';
+        } else if (currentLang) {
+            // 当前文件语言有对应的 LSP 配置
+            if (currentLang.unavailable) {
+                lspStatusEl.className = 'lsp-status error';
+                lspStatusEl.textContent = `LSP: ${currentLanguageId} 不可用`;
+            } else if (currentLang.connected) {
+                lspStatusEl.className = 'lsp-status connected';
+                // 当前语言已连接 + 其他已连接语言
+                const otherConnected = connectedLangs.filter(l => l.languageId !== currentLanguageId);
+                const suffix = otherConnected.length > 0 ? ` +${otherConnected.length}` : '';
+                lspStatusEl.textContent = `LSP: ${currentLanguageId}${suffix}`;
+            } else {
+                lspStatusEl.className = 'lsp-status connecting';
+                lspStatusEl.textContent = `LSP: ${currentLanguageId} 连接中`;
+            }
         } else if (connectedLangs.length === 0 && unavailableLangs.length > 0) {
             lspStatusEl.className = 'lsp-status error';
             lspStatusEl.textContent = `LSP: ${unavailableLangs.map(l => l.languageId).join(', ')} 不可用`;
