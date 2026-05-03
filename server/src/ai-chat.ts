@@ -195,7 +195,42 @@ function getToolsForMode(mode: string): OpenAI.ChatCompletionTool[] {
     return [READ_FILE_TOOL];
 }
 
-/** 给文件内容加行号前缀 */
+/** 去掉路径开头的斜杠，显示为相对路径 */
+function displayPath(p: string): string {
+    return p.startsWith('/') ? p.substring(1) : p;
+}
+
+/** 生成工具调用的简短描述 */
+function toolCallSummary(name: string, input: Record<string, unknown>): string {
+    switch (name) {
+        case 'read_file':
+            return `读取文件 ${displayPath(String(input.path || ''))}`;
+        case 'write_file':
+            return `写入文件 ${displayPath(String(input.path || ''))}`;
+        case 'edit_file':
+            return `编辑文件 ${displayPath(String(input.path || ''))}`;
+        default:
+            return name;
+    }
+}
+
+/** 生成工具结果的简短描述 */
+function toolResultSummary(name: string, result: string): string {
+    if (result.startsWith('Error:')) {
+        return result.substring(0, 80);
+    }
+    switch (name) {
+        case 'read_file':
+            const lines = result.split('\n').length;
+            return `读取成功，${lines} 行`;
+        case 'write_file':
+            return '写入成功';
+        case 'edit_file':
+            return '编辑成功';
+        default:
+            return result.substring(0, 60);
+    }
+}
 function addLineNumbers(content: string): string {
     const lines = content.split('\n');
     const width = String(lines.length).length;
@@ -394,23 +429,23 @@ async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?
                     toolInput = {};
                 }
 
-                // ReAct: 发出思考过程事件
-                writeSSE(res, 'thinking', { text: `执行 ${toolName}...` });
+                // 详细日志输出到服务端
+                console.log(`[AI Chat] Tool call: ${toolName}`, JSON.stringify(toolInput));
 
+                // SSE: 发出缩略描述
                 writeSSE(res, 'tool-call', {
                     toolName,
-                    input: toolInput,
+                    summary: toolCallSummary(toolName, toolInput),
                 });
 
                 const result = await executeTool(toolName, toolInput);
 
-                // ReAct: 发出观察结果事件
-                const resultPreview = result.substring(0, 100).replace(/\n/g, ' ');
-                writeSSE(res, 'thinking', { text: `${toolName} 返回: ${result.length > 100 ? resultPreview + '...' : resultPreview}` });
+                // 详细结果输出到服务端日志
+                console.log(`[AI Chat] Tool result: ${toolName} (${result.length} chars)`, result.substring(0, 300));
 
                 writeSSE(res, 'tool-result', {
                     toolName,
-                    output: { content: result.substring(0, 4000) },
+                    summary: toolResultSummary(toolName, result),
                 });
 
                 roundMessages.push({

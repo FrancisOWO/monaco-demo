@@ -112,7 +112,7 @@ function handleSSEEvent(event, data, messageId) {
             chatStore.appendMessagePart(messageId, {
                 type: 'tool-call',
                 toolName: data.toolName || 'unknown',
-                input: data.input || {},
+                summary: data.summary || '',
                 output: null,
             });
             break;
@@ -124,7 +124,7 @@ function handleSSEEvent(event, data, messageId) {
             if (msg) {
                 const lastToolCall = msg.parts.findLastIndex(p => p.type === 'tool-call');
                 if (lastToolCall >= 0) {
-                    msg.parts[lastToolCall].output = data.output || {};
+                    msg.parts[lastToolCall].output = data.summary || '';
                 }
             }
             chatStore.setThinkingPhase('');

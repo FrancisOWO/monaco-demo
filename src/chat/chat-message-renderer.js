@@ -54,7 +54,7 @@ function renderAllMessages() {
     }
 
     renderCodeBlocksAsync(container);
-    autoScroll(container);
+    // 不自动滚动：用户浏览历史消息时不应被新内容打断
     bindThinkingCollapse(container);
     bindCopyButtons(container);
     bindAssistantActionButtons(container);
@@ -233,18 +233,18 @@ function createThinkingNode(part) {
 function createToolCallNode(part) {
     const frag = cloneTemplate('tmpl-tool-call');
     const toolName = part.toolName || 'unknown';
-    const input = part.input || {};
-    const inputStr = typeof input === 'object' ? JSON.stringify(input) : String(input);
+    const summary = part.summary || toolName;
 
     frag.querySelector('.tool-name').textContent = toolName;
-    frag.querySelector('.msg-tool-call-input').textContent = inputStr.substring(0, 200);
+    frag.querySelector('.msg-tool-call-input').textContent = summary;
 
     if (part.output) {
-        const outputStr = typeof part.output === 'object' ? JSON.stringify(part.output) : String(part.output);
-        const statusClass = part.output.error ? 'tool-status-error' : 'tool-status-success';
+        const outputText = typeof part.output === 'string' ? part.output : JSON.stringify(part.output);
+        const isError = outputText.startsWith('Error:');
+        const statusClass = isError ? 'tool-status-error' : 'tool-status-success';
         const outputDiv = document.createElement('div');
         outputDiv.className = `msg-tool-call-output ${statusClass}`;
-        outputDiv.textContent = outputStr.substring(0, 300);
+        outputDiv.textContent = outputText;
         frag.querySelector('.msg-tool-call').appendChild(outputDiv);
     }
 
