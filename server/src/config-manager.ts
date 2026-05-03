@@ -54,11 +54,6 @@ export function ensureConfigDir(): string {
         console.log('[Config] Created default config files');
     }
 
-    // 启动时清理超过 7 天的软删除条目
-    if (!isNew) {
-        cleanupSoftDeletedHistory();
-    }
-
     return configDir;
 }
 
@@ -241,12 +236,21 @@ export function writeConversationHistory(data: ConversationHistoryData): boolean
 
 /**
  * 启动时清理过期软删除条目
+ * 直接读取文件，避免触发 ensureConfigDir → readConfigFile 递归
  */
 export function cleanupSoftDeletedHistory(): void {
-    const raw = readConfigFile<ConversationHistoryData>(CONFIG_FILES.conversationHistory, { history: [], deletedItems: [] });
-    const cleaned = purgeExpiredDeletedItems(raw);
-    if (cleaned.history.length !== raw.history.length || (cleaned.deletedItems?.length || 0) !== (raw.deletedItems?.length || 0)) {
-        writeConfigFile(CONFIG_FILES.conversationHistory, cleaned);
+    const filePath = path.join(getConfigDir(), CONFIG_FILES.conversationHistory);
+    try {
+        if (!fs.existsSync(filePath)) return;
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const raw: ConversationHistoryData = JSON.parse(content);
+        const cleaned = purgeExpiredDeletedItems(raw);
+        if (cleaned.history.length !== raw.history.length || (cleaned.deletedItems?.length || 0) !== (raw.deletedItems?.length || 0)) {
+            fs.writeFileSync(filePath, JSON.stringify(cleaned, null, 2), 'utf-8');
+            console.log('[Config] Purged expired soft-deleted history items');
+        }
+    } catch {
+        // 文件不存在或解析失败时忽略
     }
 }
 

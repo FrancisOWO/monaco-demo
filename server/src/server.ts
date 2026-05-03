@@ -10,6 +10,7 @@ import { LANGUAGE_SERVERS, launchLanguageServer } from './language-servers';
 import { createLspProxy } from './lsp-proxy';
 import lspApiRouter from './lsp-api';
 import { config } from './config';
+import { configManager } from './config-manager';
 import aiCompletionRouter from './ai-completion';
 import aiChatRouter from './ai-chat';
 import configRouter from './config-api';
@@ -112,6 +113,10 @@ for (const serverConfig of LANGUAGE_SERVERS) {
 
 // 启动服务器
 export function startServer(): void {
+    // 确保配置目录存在，然后清理过期软删除条目
+    configManager.ensureConfigDir();
+    configManager.conversationHistory.cleanupSoftDeleted();
+
     app.listen(config.port, () => {
         console.log(`[Server] LSP Server running at http://localhost:${config.port}`);
         for (const serverConfig of LANGUAGE_SERVERS) {
