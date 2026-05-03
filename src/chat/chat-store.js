@@ -826,6 +826,7 @@ export function addConversationToHistory() {
     }
 
     emit('onHistoryChanged');
+    saveConversationHistoryToStorage().catch(e => console.warn('[ChatStore] Failed to save history:', e));
 }
 
 /**
@@ -856,6 +857,7 @@ export function deleteConversationFromHistory(historyId) {
     if (index >= 0) {
         chatState.conversationHistory.splice(index, 1);
         emit('onHistoryChanged');
+        saveConversationHistoryToStorage().catch(e => console.warn('[ChatStore] Failed to save history:', e));
     }
 }
 
@@ -865,6 +867,7 @@ export function deleteConversationFromHistory(historyId) {
 export function clearHistory() {
     chatState.conversationHistory = [];
     emit('onHistoryChanged');
+    saveConversationHistoryToStorage().catch(e => console.warn('[ChatStore] Failed to save history:', e));
 }
 
 /**

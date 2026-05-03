@@ -199,9 +199,8 @@ function renderMarkdownLite(text) {
 
     // 步骤 3：处理其余 markdown 语法
     result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    result = result.replace(/^\d+\.\s/gm, '<br>$&');
-    result = result.replace(/^-\s/gm, '<br>&bull; ');
-    result = result.replace(/\n/g, '<br>');
+    result = result.replace(/\n\n+/g, '<br>');  // 多换行（段落分隔）压缩为单 <br>
+    result = result.replace(/\n/g, '<br>');     // 单换行也变 <br>
 
     // 步骤 4：还原行内代码
     result = result.replace(/\x00INLINE(\d+)\x00/g, (_, idx) => {
@@ -212,7 +211,7 @@ function renderMarkdownLite(text) {
     // 步骤 5：还原代码块
     result = result.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, idx) => {
         const block = codeBlocks[parseInt(idx)];
-        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${block.lang}</span><button class="msg-code-copy" data-code="${escapeAttr(block.code)}">${LABEL.COPY}</button></div><div class="msg-code-content" data-lang="${block.lang}" data-code="${escapeAttr(block.code)}"><pre>${escapeHtml(block.code)}</pre></div></div>`;
+        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${block.lang}</span><button class="msg-code-copy" data-code="${escapeAttr(block.code)}"></button></div><div class="msg-code-content" data-lang="${block.lang}" data-code="${escapeAttr(block.code)}"><pre>${escapeHtml(block.code)}</pre></div></div>`;
     });
 
     return result;

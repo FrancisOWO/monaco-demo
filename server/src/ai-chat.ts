@@ -394,12 +394,19 @@ async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?
                     toolInput = {};
                 }
 
+                // ReAct: 发出思考过程事件
+                writeSSE(res, 'thinking', { text: `执行 ${toolName}...` });
+
                 writeSSE(res, 'tool-call', {
                     toolName,
                     input: toolInput,
                 });
 
                 const result = await executeTool(toolName, toolInput);
+
+                // ReAct: 发出观察结果事件
+                const resultPreview = result.substring(0, 100).replace(/\n/g, ' ');
+                writeSSE(res, 'thinking', { text: `${toolName} 返回: ${result.length > 100 ? resultPreview + '...' : resultPreview}` });
 
                 writeSSE(res, 'tool-result', {
                     toolName,
