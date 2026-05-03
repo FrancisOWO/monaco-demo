@@ -195,6 +195,16 @@ function getToolsForMode(mode: string): OpenAI.ChatCompletionTool[] {
     return [READ_FILE_TOOL];
 }
 
+/** 给文件内容加行号前缀 */
+function addLineNumbers(content: string): string {
+    const lines = content.split('\n');
+    const width = String(lines.length).length;
+    return lines.map((line, i) => {
+        const num = String(i + 1).padStart(width, ' ');
+        return `${num} | ${line}`;
+    }).join('\n');
+}
+
 /** 通过编辑器控制通道获取文件内容，支持路径模糊匹配 */
 async function readFileFromEditor(filePath: string): Promise<{ content: string; path: string; name: string } | null> {
     if (!editorControlHub.isEditorConnected()) return null;
@@ -230,7 +240,7 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
     switch (name) {
         case 'read_file': {
             const file = await readFileFromEditor(filePath);
-            if (file) return file.content;
+            if (file) return addLineNumbers(file.content);
             return `Error: 文件 "${filePath}" 未在编辑器中打开`;
         }
 

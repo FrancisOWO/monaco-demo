@@ -181,25 +181,41 @@ function createOutputNode(part) {
  * 简单的 markdown-lite 渲染（返回 HTML 字符串）
  */
 function renderMarkdownLite(text) {
-    // 代码块 (```)
-    text = text.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
-        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${lang || 'text'}</span><button class="msg-code-copy" data-code="${escapeAttr(code)}">${LABEL.COPY}</button></div><div class="msg-code-content" data-lang="${lang || 'text'}" data-code="${escapeAttr(code)}"><pre>${escapeHtml(code)}</pre></div></div>`;
+    // 步骤 1：提取所有代码块（含未闭合的），用占位符替换，防止内容被后续规则破坏
+    const codeBlocks = [];
+    let result = text.replace(/```(\w+)?\n([\s\S]*?)(?:```|$)/g, (_, lang, code) => {
+        const idx = codeBlocks.length;
+        codeBlocks.push({ lang: lang || 'text', code });
+        return `\x00CODEBLOCK${idx}\x00`;
     });
 
-    // 行内代码
-    text = text.replace(/`([^`]+)`/g, '<code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;font-size:12px;">$1</code>');
+    // 步骤 2：处理行内代码（也要保护起来）
+    const inlineCodes = [];
+    result = result.replace(/`([^`]+)`/g, (_, code) => {
+        const idx = inlineCodes.length;
+        inlineCodes.push(code);
+        return `\x00INLINE${idx}\x00`;
+    });
 
-    // 加粗
-    text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // 步骤 3：处理其余 markdown 语法
+    result = result.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    result = result.replace(/^\d+\.\s/gm, '<br>$&');
+    result = result.replace(/^-\s/gm, '<br>&bull; ');
+    result = result.replace(/\n/g, '<br>');
 
-    // 列表项
-    text = text.replace(/^\d+\.\s/gm, '<br>$&');
-    text = text.replace(/^-\s/gm, '<br>&bull; ');
+    // 步骤 4：还原行内代码
+    result = result.replace(/\x00INLINE(\d+)\x00/g, (_, idx) => {
+        const code = inlineCodes[parseInt(idx)];
+        return `<code style="background:#f0f0f0;padding:2px 4px;border-radius:3px;font-size:12px;">${escapeHtml(code)}</code>`;
+    });
 
-    // 段落换行
-    text = text.replace(/\n/g, '<br>');
+    // 步骤 5：还原代码块
+    result = result.replace(/\x00CODEBLOCK(\d+)\x00/g, (_, idx) => {
+        const block = codeBlocks[parseInt(idx)];
+        return `<div class="msg-code-block"><div class="msg-code-header"><span class="msg-code-lang">${block.lang}</span><button class="msg-code-copy" data-code="${escapeAttr(block.code)}">${LABEL.COPY}</button></div><div class="msg-code-content" data-lang="${block.lang}" data-code="${escapeAttr(block.code)}"><pre>${escapeHtml(block.code)}</pre></div></div>`;
+    });
 
-    return text;
+    return result;
 }
 
 /**
