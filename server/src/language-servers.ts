@@ -86,8 +86,6 @@ function isCommandAvailable(command: string): boolean {
     const isWin = process.platform === 'win32';
     const lookupCmd = isWin ? 'where' : 'which';
     try {
-        const result = spawn(lookupCmd, [command], { stdio: 'pipe', timeout: 5000 });
-        // 同步等待结果 — spawnSync 更可靠
         const { spawnSync } = require('child_process');
         const syncResult = spawnSync(lookupCmd, [command], { timeout: 5000 });
         return syncResult.status === 0;
