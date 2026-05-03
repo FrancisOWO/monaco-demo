@@ -1,5 +1,5 @@
 /**
- * DummyLLMClient
+ * DummyAICompletionClient
  * 用于测试的虚拟 LLM 客户端
  * 不需要真实的 API Key，返回预定义的补全结果
  */
@@ -9,7 +9,7 @@ import {
     InlineCompletionTriggerKind,
 } from './types.js';
 import type {
-    ILLMClient,
+    IAICompletionClient,
     CompletionResult,
     PromptInfo,
     CompletionRequestContext,
@@ -18,7 +18,7 @@ import type {
 import { getTemplatesForLanguage } from './templates/index.js';
 
 /** 虚拟 LLM 客户端配置 */
-export interface DummyLLMClientConfig {
+export interface DummyAICompletionClientConfig {
     /** 延迟时间（ms），模拟网络延迟 */
     delayMs?: number;
     /** 是否随机返回空结果（模拟无补全场景） */
@@ -31,10 +31,10 @@ export interface DummyLLMClientConfig {
  * 虚拟 LLM 客户端
  * 用于测试，无需真实的 API Key
  */
-export class DummyLLMClient implements ILLMClient {
-    private config: Required<DummyLLMClientConfig>;
+export class DummyAICompletionClient implements IAICompletionClient {
+    private config: Required<DummyAICompletionClientConfig>;
 
-    constructor(config?: DummyLLMClientConfig) {
+    constructor(config?: DummyAICompletionClientConfig) {
         this.config = {
             delayMs: 300,
             randomEmpty: true,

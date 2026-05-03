@@ -1,5 +1,5 @@
 /**
- * StreamedLLMClient
+ * StreamedAICompletionClient
  * 流式 LLM 客户端
  * 等待第一个 token 就返回，后台继续缓存
  */
@@ -12,7 +12,7 @@ import {
     type PromptInfo,
     type CompletionRequestContext,
     type CompletionStrategy,
-    type ILLMClient,
+    type IAICompletionClient,
 } from '../types.js';
 
 /** 流式响应回调 */
@@ -30,7 +30,7 @@ export interface StreamingCallbacks {
 /**
  * 流式 LLM 客户端
  */
-export class StreamedLLMClient implements ILLMClient {
+export class StreamedAICompletionClient implements IAICompletionClient {
     private client: OpenAI;
     private config: {
         endpoint: string;

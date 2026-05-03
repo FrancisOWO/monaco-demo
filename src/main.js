@@ -10,7 +10,7 @@ import './styles/editor-area.css';
 import './styles/chat-panel.css';
 import './styles/diff-viewer.css';
 
-import { registerBasicCompletions } from './completions.js';
+import { registerBasicCompletions } from './basic-completion.js';
 import { registerAICompletionProvider } from './ai-completion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';

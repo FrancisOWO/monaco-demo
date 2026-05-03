@@ -303,12 +303,12 @@ Predict the next edit. Return the replacement text for the code area around <|cu
 }
 ```
 
-### 4. NESLLMClient — 调用大模型（Chat 模式）
+### 4. NESAICompletionClient — 调用大模型（Chat 模式）
 
 ```typescript
 // === nesLlmClient.ts ===
 
-export interface INESLLMClient {
+export interface INESAICompletionClient {
   /**
    * 向 LLM 发送 NES Chat 请求
    * 简易版：同步等待完整响应
@@ -322,7 +322,7 @@ export interface INESLLMClient {
   cancelRequest(requestId: string): void;
 }
 
-export class SimpleNESLLMClient implements INESLLMClient {
+export class SimpleNESAICompletionClient implements INESAICompletionClient {
   private abortController: AbortController | null = null;
 
   constructor(private config: { endpoint: string; model: string; apiKey: string }) {}
@@ -487,7 +487,7 @@ export class SimpleNESController implements INESController {
 
   constructor(
     private promptBuilder: INESPromptBuilder,
-    private llmClient: INESLLMClient,
+    private aiCompletionClient: INESAICompletionClient,
     private triggerer: IInlineEditTriggerer,
     private telemetryEmitter: INesTelemetryEmitter,
     private editor: monaco.editor.ICodeEditor,
@@ -509,7 +509,7 @@ export class SimpleNESController implements INESController {
 
     let result: NextEditResult | undefined;
     try {
-      result = await this.llmClient.requestNextEdit(prompt, context);
+      result = await this.aiCompletionClient.requestNextEdit(prompt, context);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return undefined;
       this.telemetryEmitter.emit({
@@ -553,7 +553,7 @@ export class SimpleNESController implements INESController {
   }
 
   cancelCurrentRequest(): void {
-    this.llmClient.cancelRequest(this.currentRequestId);
+    this.aiCompletionClient.cancelRequest(this.currentRequestId);
   }
 }
 ```
@@ -644,10 +644,10 @@ export function setupNES(
 ) {
   const telemetryEmitter = new ConsoleNesTelemetryEmitter();
   const promptBuilder = new SimpleNESPromptBuilder(editor);
-  const llmClient = new SimpleNESLLMClient(llmConfig);
+  const aiCompletionClient = new SimpleNESAICompletionClient(llmConfig);
   const triggerer = new SimpleInlineEditTriggerer();
   const controller = new SimpleNESController(
-    promptBuilder, llmClient, triggerer, telemetryEmitter, editor,
+    promptBuilder, aiCompletionClient, triggerer, telemetryEmitter, editor,
   );
   const provider = new NESMonacoInlineCompletionsProvider(controller, triggerer, editor);
 
@@ -690,7 +690,7 @@ export function setupNES(
 - user prompt 包含：当前文件片段（光标前后 15 行）+ `<|cursor|>` 标记
 - 简易版使用 `NesResponseFormat.RawText`
 
-### Step 4：实现 NESLLMClient
+### Step 4：实现 NESAICompletionClient
 
 - 使用 Chat API 格式（`messages` 数组）而非 Completion API
 - 解析 LLM 返回的文本为 `LineReplacement`
@@ -729,7 +729,7 @@ src/
     types.ts                         核心类型定义
     trigger.ts                       IInlineEditTriggerer + SimpleInlineEditTriggerer
     nesPromptBuilder.ts              INESPromptBuilder + SimpleNESPromptBuilder
-    nesLlmClient.ts                  INESLLMClient + SimpleNESLLMClient
+    nesLlmClient.ts                  INESAICompletionClient + SimpleNESAICompletionClient
     toInlineSuggestion.ts            toInlineSuggestion() 转换函数 + isSubword
     nesController.ts                 INESController + SimpleNESController
     nesMonacoAdapter.ts              NESMonacoInlineCompletionsProvider

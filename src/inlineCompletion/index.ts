@@ -8,8 +8,8 @@ export * from './types.js';
 // 基础组件
 export * from './telemetryEmitter.js';
 export * from './promptBuilder.js';
-export * from './llmClient.js';
-export * from './dummyLLMClient.js';
+export * from './aiCompletionClient.js';
+export * from './DummyAICompletionClient.js';
 export * from './postProcessor.js';
 export * from './ghostTextController.js';
 export * from './monacoInlineCompletionsProvider.js';
@@ -32,7 +32,7 @@ export * from './cache/debounce.js';
 export * from './cache/asyncCompletionsManager.js';
 
 // 完整版 - LLM
-export * from './llm/streamedLLMClient.js';
+export * from './llm/streamedAICompletionClient.js';
 
 // 完整版 - PostProcess
 export * from './postProcess/fullPostProcessor.js';

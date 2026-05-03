@@ -722,12 +722,12 @@ export class DiagnosticsNextEditProviderImpl implements IDiagnosticsNextEditProv
 }
 ```
 
-### 10. NESLLMClient — 流式 LLM 调用
+### 10. NESAICompletionClient — 流式 LLM 调用
 
 ```typescript
 // === nesLlmClient.ts ===（扩展 Plan C）
 
-export interface INESLLMClient {
+export interface INESAICompletionClient {
   requestNextEdit(prompt: NESPrompt, context: NESRequestContext): Promise<NextEditResult | undefined>;
   /** ★ 新增：流式请求 */
   requestNextEditStreaming(
@@ -737,7 +737,7 @@ export interface INESLLMClient {
   cancelRequest(requestId: string): void;
 }
 
-export class StreamedNESLLMClient implements INESLLMClient {
+export class StreamedNESAICompletionClient implements INESAICompletionClient {
   // Chat API 流式实现
   // 等待第一个 SSE chunk 解析出 <EDIT> 或 <NO_CHANGE>
   // 后续 chunks 在后台处理
@@ -793,7 +793,7 @@ export class FullNESController implements INESController {
 
   constructor(
     private promptBuilder: INESPromptBuilder,
-    private llmClient: INESLLMClient,
+    private aiCompletionClient: INESAICompletionClient,
     private responseParser: INESResponseParser,
     private triggerer: IInlineEditTriggerer,
     private cache: INextEditCache,
@@ -850,7 +850,7 @@ export class FullNESController implements INESController {
     documentContent: string,
   ): Promise<[NextEditResult | undefined, DiagnosticsNextEditResult | undefined]> {
     const prompt = this.promptBuilder.buildPrompt(context);
-    const llmPromise = this.llmClient.requestNextEdit(prompt, context);
+    const llmPromise = this.aiCompletionClient.requestNextEdit(prompt, context);
     const diagPromise = this.diagnosticsProvider.runUntilNextEdit(
       context.uri, context.languageId, 50, undefined,
     );
@@ -924,7 +924,7 @@ export class FullNESMonacoInlineCompletionsProvider implements monaco.languages.
 | 简易触发器（拒绝冷却） | 完整版触发器（防抖+同行冷却+文档切换+连续计数器） | 05-nes |
 | `SimpleNESPromptBuilder` → 基础 Chat prompt | `FullNESPromptBuilder` → Tagged 格式+编辑历史+上下文 | S01 |
 | `NesResponseFormat.RawText` | `NesResponseFormat.Tagged` + `TaggedResponseParser` | 05-nes |
-| `SimpleNESLLMClient` → 同步 Chat | `StreamedNESLLMClient` → 流式 SSE | S02 |
+| `SimpleNESAICompletionClient` → 同步 Chat | `StreamedNESAICompletionClient` → 流式 SSE | S02 |
 | 无缓存 | `NextEditCacheImpl` → per-doc + shared LRU(50) | 07-caching |
 | 无 Rebase | `EditRebaseImpl` → tryRebase + agreementIndexOf | 07-caching |
 | 无投机请求 | `SpeculativeRequestManager` → 显示时预计算 | 07-caching |
@@ -941,7 +941,7 @@ export class FullNESMonacoInlineCompletionsProvider implements monaco.languages.
 2. **升级 Triggerer** — 添加防抖、同行冷却、连续变更计数器、文档切换触发
 3. **升级 NESPromptBuilder** — 支持 Tagged 格式、编辑历史、多文档上下文
 4. **实现 TaggedResponseParser** — 解析 `<EDIT>/<INSERT>/<NO_CHANGE>` 标签
-5. **升级 NESLLMClient** — Chat API 流式返回
+5. **升级 NESAICompletionClient** — Chat API 流式返回
 
 ### Phase 2：缓存与速度优化
 
@@ -984,7 +984,7 @@ src/
     response/
       taggedResponseParser.ts             INESResponseParser + TaggedResponseParser
     llm/
-      nesLlmClient.ts                     INESLLMClient + StreamedNESLLMClient
+      nesLlmClient.ts                     INESAICompletionClient + StreamedNESAICompletionClient
     cache/
       nextEditCache.ts                    INextEditCache + NextEditCacheImpl
       documentEditCache.ts                DocumentEditCache
@@ -1020,7 +1020,7 @@ src/
 | `NesCooldownConfig` | 只有冷却时间 | 新增 `selectionDebounceMs` |
 | `NesResponseFormat` | 只有 `RawText` | 新增 `Tagged` |
 | `INESPromptBuilder.buildPrompt()` | 简易 Chat prompt | 返回类型兼容，内部扩展 |
-| `INESLLMClient` | `requestNextEdit()` | 新增 `requestNextEditStreaming()` 方法 |
+| `INESAICompletionClient` | `requestNextEdit()` | 新增 `requestNextEditStreaming()` 方法 |
 | `INESController.getNextEdit()` | 简易版编排 | 内部增加缓存/Rebase/投机链（签名不变） |
 | `IInlineEditTriggerer` | 拒绝冷却 | 内部增加防抖+同行冷却（签名不变） |
 

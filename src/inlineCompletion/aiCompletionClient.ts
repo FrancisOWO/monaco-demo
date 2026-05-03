@@ -9,7 +9,7 @@ import {
     InlineCompletionTriggerKind,
 } from './types.js';
 import type {
-    ILLMClient,
+    IAICompletionClient,
     CompletionResult,
     PromptInfo,
     CompletionRequestContext,
@@ -17,18 +17,18 @@ import type {
 } from './types.js';
 
 /** LLM 客户端配置 */
-export interface LLMClientConfig {
+export interface AICompletionClientConfig {
     endpoint: string;
     model: string;
     apiKey: string;
 }
 
 /** 使用 OpenAI SDK 的 FIM 补全客户端 */
-export class SimpleLLMClient implements ILLMClient {
+export class SimpleAICompletionClient implements IAICompletionClient {
     private client: OpenAI;
     private abortController: AbortController | null = null;
 
-    constructor(private config: LLMClientConfig) {
+    constructor(private config: AICompletionClientConfig) {
         this.client = new OpenAI({
             apiKey: config.apiKey,
             baseURL: config.endpoint,

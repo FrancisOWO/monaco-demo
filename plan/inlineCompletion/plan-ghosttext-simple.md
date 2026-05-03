@@ -182,12 +182,12 @@ export class SimplePromptBuilder implements IPromptBuilder {
 }
 ```
 
-### 3. LLMClient — 调用大模型
+### 3. AICompletionClient — 调用大模型
 
 ```typescript
-// === llmClient.ts ===
+// === aiCompletionClient.ts ===
 
-export interface ILLMClient {
+export interface IAICompletionClient {
   /**
    * 向 LLM 发送补全请求
    * 简易版：同步等待完整响应，不流式
@@ -207,7 +207,7 @@ export interface ILLMClient {
   cancelRequest(requestId: string): void;
 }
 
-export class SimpleLLMClient implements ILLMClient {
+export class SimpleAICompletionClient implements IAICompletionClient {
   private abortController: AbortController | null = null;
 
   constructor(private config: { endpoint: string; model: string; apiKey: string }) {}
@@ -327,7 +327,7 @@ export class SimpleGhostTextController implements IGhostTextController {
 
   constructor(
     private promptBuilder: IPromptBuilder,
-    private llmClient: ILLMClient,
+    private aiCompletionClient: IAICompletionClient,
     private postProcessor: IPostProcessor,
     private telemetryEmitter: ITelemetryEmitter,
   ) {}
@@ -359,7 +359,7 @@ export class SimpleGhostTextController implements IGhostTextController {
 
     let results: CompletionResult[];
     try {
-      results = await this.llmClient.requestCompletion(prompt, context.strategy, context);
+      results = await this.aiCompletionClient.requestCompletion(prompt, context.strategy, context);
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') {
         return [];
@@ -401,7 +401,7 @@ export class SimpleGhostTextController implements IGhostTextController {
   }
 
   cancelCurrentRequest(): void {
-    this.llmClient.cancelRequest(this.currentRequestId);
+    this.aiCompletionClient.cancelRequest(this.currentRequestId);
   }
 }
 ```
@@ -508,10 +508,10 @@ export function setupInlineCompletion(
 ) {
   const telemetryEmitter = new ConsoleTelemetryEmitter();
   const promptBuilder = new SimplePromptBuilder(editor);
-  const llmClient = new SimpleLLMClient(llmConfig);
+  const aiCompletionClient = new SimpleAICompletionClient(llmConfig);
   const postProcessor = new SimplePostProcessor();
   const controller = new SimpleGhostTextController(
-    promptBuilder, llmClient, postProcessor, telemetryEmitter,
+    promptBuilder, aiCompletionClient, postProcessor, telemetryEmitter,
   );
   const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
@@ -542,7 +542,7 @@ export function setupInlineCompletion(
 - suffix / context / FIM 全部为空或 false
 - 最小字符数检查（< 10 返回空）
 
-### Step 3：实现 SimpleLLMClient
+### Step 3：实现 SimpleAICompletionClient
 
 - 使用 fetch 调用 OpenAI-compatible completion API
 - 传入 `prompt` + `stop: ['\n']` + `max_tokens: 20`
@@ -585,7 +585,7 @@ src/
   inlineCompletion/
     types.ts                      核心类型定义
     promptBuilder.ts              IPromptBuilder + SimplePromptBuilder
-    llmClient.ts                  ILLMClient + SimpleLLMClient
+    aiCompletionClient.ts                  IAICompletionClient + SimpleAICompletionClient
     postProcessor.ts              IPostProcessor + SimplePostProcessor
     ghostTextController.ts        IGhostTextController + SimpleGhostTextController
     monacoInlineCompletionsProvider.ts  Monaco API 适配

@@ -10,7 +10,7 @@ import type {
     CompletionRequestContext,
     CompletionLifecycleKind,
     IPromptBuilder,
-    ILLMClient,
+    IAICompletionClient,
     IPostProcessor,
     ITelemetryEmitter,
 } from './types.js';
@@ -21,7 +21,7 @@ export class SimpleGhostTextController implements IGhostTextController {
 
     constructor(
         private promptBuilder: IPromptBuilder,
-        private llmClient: ILLMClient,
+        private aiCompletionClient: IAICompletionClient,
         private postProcessor: IPostProcessor,
         private telemetryEmitter: ITelemetryEmitter,
         private editor: monaco.editor.ICodeEditor,
@@ -50,7 +50,7 @@ export class SimpleGhostTextController implements IGhostTextController {
 
         let results: CompletionResult[];
         try {
-            results = await this.llmClient.requestCompletion(
+            results = await this.aiCompletionClient.requestCompletion(
                 prompt,
                 context.strategy,
                 context,
@@ -101,6 +101,6 @@ export class SimpleGhostTextController implements IGhostTextController {
     }
 
     cancelCurrentRequest(): void {
-        this.llmClient.cancelRequest(this.currentRequestId);
+        this.aiCompletionClient.cancelRequest(this.currentRequestId);
     }
 }

@@ -361,12 +361,12 @@ function takeNLines(n: number): FinishedCallback {
 }
 ```
 
-### 5. StreamedLLMClient — 流式 LLM 调用
+### 5. StreamedAICompletionClient — 流式 LLM 调用
 
 ```typescript
-// === llmClient.ts ===（扩展 Plan A）
+// === aiCompletionClient.ts ===（扩展 Plan A）
 
-export interface ILLMClient {
+export interface IAICompletionClient {
   requestCompletion(
     prompt: PromptInfo,
     strategy: CompletionStrategy,
@@ -386,7 +386,7 @@ export interface ILLMClient {
   cancelRequest(requestId: string): void;
 }
 
-export class StreamedLLMClient implements ILLMClient {
+export class StreamedAICompletionClient implements IAICompletionClient {
   // ... 流式实现
   // 等待第一个 SSE chunk 后立即返回
   // 后续 chunks 在后台处理并缓存
@@ -624,7 +624,7 @@ export class FullGhostTextController implements IGhostTextController {
 
   constructor(
     private promptFactory: IPromptFactory,
-    private llmClient: ILLMClient,
+    private aiCompletionClient: IAICompletionClient,
     private postProcessor: IPostProcessor,
     private strategyManager: IStrategyManager,
     private completionsCache: ICompletionsCache,
@@ -673,7 +673,7 @@ export class FullGhostTextController implements IGhostTextController {
 
     // 7. 网络请求（流式）
     const strategyWithContext = { ...strategy, ...context.strategy };
-    const { firstResult, backgroundCache } = await this.llmClient.requestCompletionStreaming(
+    const { firstResult, backgroundCache } = await this.aiCompletionClient.requestCompletionStreaming(
       prompt, strategyWithContext, context,
     );
 
@@ -745,7 +745,7 @@ export class FullMonacoInlineCompletionsProvider implements monaco.languages.Inl
 | `SimplePromptBuilder` → 只取 prefix | `CascadingPromptFactory` → prefix + suffix + context，级联预算 | S01 |
 | `suffix: ''` | FIM suffix（光标后内容，默认 15% 预算） | S01 |
 | `context: []` | SimilarFiles + Diagnostics + CodeSnippets + RecentEdits + Traits + DocumentMarker | S01 |
-| `SimpleLLMClient` → 同步等待 | `StreamedLLMClient` → 流式首个 token，后台缓存 | S02 |
+| `SimpleAICompletionClient` → 同步等待 | `StreamedAICompletionClient` → 流式首个 token，后台缓存 | S02 |
 | 无缓存 | `LRURadixTrieCache` → 100 条前缀匹配缓存 | 07-caching |
 | 无 Typing-as-Suggested | `CurrentGhostText` → 0ms 本地返回 | S02 |
 | 无投机请求 | `SpeculativeRequestCache` → 显示时预计算 | S02 |
@@ -781,7 +781,7 @@ export class FullMonacoInlineCompletionsProvider implements monaco.languages.Inl
 6. **实现 CurrentGhostText** — Typing-as-Suggested
 7. **实现 SpeculativeRequestCache** — 投机请求
 8. **实现 Debounce** — 防抖延迟
-9. **升级 LLMClient** — 流式返回首个 token
+9. **升级 AICompletionClient** — 流式返回首个 token
 10. **实现 AsyncCompletionsManager** — 复用进行中请求
 
 ### Phase 3：上下文增强
@@ -831,7 +831,7 @@ src/
       strategyManager.ts                   多行判定与策略生成
       takeNLines.ts                        接受后固定行数裁剪
     llm/
-      llmClient.ts                         ILLMClient + StreamedLLMClient
+      aiCompletionClient.ts                         IAICompletionClient + StreamedAICompletionClient
     cache/
       completionsCache.ts                  LRU Radix Trie 缓存
       radixTrie.ts                         Radix Trie 数据结构
@@ -874,7 +874,7 @@ src/
 | `BlockMode` | 只有 `Server` | 新增 `Parsing`, `ParsingAndServer`, `MoreMultiline` |
 | `PromptInfo` | `suffix: ''`, `context: []`, `isFimEnabled: false` | 填充 suffix/context，添加 `trailingWs`, `neighborSource` |
 | `IPromptBuilder` | `SimplePromptBuilder` | 替换为 `CascadingPromptFactory`（接口签名兼容） |
-| `ILLMClient` | `SimpleLLMClient.requestCompletion()` | 新增 `requestCompletionStreaming()` 方法 |
+| `IAICompletionClient` | `SimpleAICompletionClient.requestCompletion()` | 新增 `requestCompletionStreaming()` 方法 |
 | `IPostProcessor` | 基础 trimEnd + 下一行匹配 | 扩展 `process()` 内部逻辑（接口签名不变） |
 | `IGhostTextController` | 简单编排 | 扩展 `getCompletions()` 内部加入缓存/防抖/投机（接口签名不变） |
 | `ITelemetryEmitter` | console.log | 新增 `flush()`, `startIdleDetection()` |

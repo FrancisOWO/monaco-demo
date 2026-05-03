@@ -24,7 +24,7 @@ data: [DONE]
 实现健壮的 SSE 解析器：
 
 ```typescript
-export class StreamedLLMClient implements ILLMClient {
+export class StreamedAICompletionClient implements IAICompletionClient {
     private buffer = ''; // 用于存储跨 chunk 的不完整数据
 
     async requestCompletionStreaming(
@@ -275,7 +275,7 @@ const backgroundCache = new Promise<CompletionResult[]>((resolve) => {
                 resolve(results);
             } else {
                 // 其他错误
-                console.error('[StreamedLLMClient] Error:', error);
+                console.error('[StreamedAICompletionClient] Error:', error);
                 resolve(results);
             }
         }
@@ -369,7 +369,7 @@ private processLine(line: string, callback: (text: string) => void): void {
 添加内存限制：
 
 ```typescript
-export class StreamedLLMClient implements ILLMClient {
+export class StreamedAICompletionClient implements IAICompletionClient {
     private maxBufferSize = 10 * 1024 * 1024; // 10MB 限制
 
     async requestCompletionStreaming(
@@ -394,7 +394,7 @@ export class StreamedLLMClient implements ILLMClient {
                     
                     // 检查缓冲区大小
                     if (fullText.length + chunk.length > this.maxBufferSize) {
-                        console.warn('[StreamedLLMClient] Buffer size limit reached');
+                        console.warn('[StreamedAICompletionClient] Buffer size limit reached');
                         // 停止接收
                         this.cancelRequest(context.requestId);
                         resolve(results);

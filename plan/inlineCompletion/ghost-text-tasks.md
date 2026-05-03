@@ -14,7 +14,7 @@
 - [x] 扩展 `PromptInfo` 接口（trailingWs, neighborSource）
 - [x] 扩展 `TelemetryEvent` 接口（measurements）
 - [x] 扩展 `ITelemetryEmitter` 接口（flush, startIdleDetection）
-- [x] 扩展 `ILLMClient` 接口（requestCompletionStreaming）
+- [x] 扩展 `IAICompletionClient` 接口（requestCompletionStreaming）
 
 ### 1.2 实现 CascadingPromptFactory
 - [x] 创建 `IPromptComponent` 接口
@@ -74,7 +74,7 @@
 - [x] 实现请求复用逻辑
 - [x] 实现超时处理
 
-### 2.5 升级 StreamedLLMClient
+### 2.5 升级 StreamedAICompletionClient
 - [x] 实现 `requestCompletionStreaming`
 - [x] 实现首个 token 快速返回
 - [x] 实现后台缓存后续结果

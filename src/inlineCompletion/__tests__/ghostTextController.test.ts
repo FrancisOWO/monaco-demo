@@ -13,7 +13,7 @@ import type {
     CompletionResult,
     CompletionRequestContext,
     IPromptBuilder,
-    ILLMClient,
+    IAICompletionClient,
     IPostProcessor,
     ITelemetryEmitter,
     PromptInfo,
@@ -23,7 +23,7 @@ import type {
 describe('SimpleGhostTextController', () => {
     let controller: SimpleGhostTextController;
     let mockPromptBuilder: jest.Mocked<IPromptBuilder>;
-    let mockLLMClient: jest.Mocked<ILLMClient>;
+    let mockAICompletionClient: jest.Mocked<IAICompletionClient>;
     let mockPostProcessor: jest.Mocked<IPostProcessor>;
     let mockTelemetryEmitter: jest.Mocked<ITelemetryEmitter>;
     let mockEditor: {
@@ -37,7 +37,7 @@ describe('SimpleGhostTextController', () => {
         mockPromptBuilder = {
             buildPrompt: jest.fn(),
         };
-        mockLLMClient = {
+        mockAICompletionClient = {
             requestCompletion: jest.fn(),
             cancelRequest: jest.fn(),
         };
@@ -56,7 +56,7 @@ describe('SimpleGhostTextController', () => {
 
         controller = new SimpleGhostTextController(
             mockPromptBuilder,
-            mockLLMClient,
+            mockAICompletionClient,
             mockPostProcessor,
             mockTelemetryEmitter,
             mockEditor as any,
@@ -91,7 +91,7 @@ describe('SimpleGhostTextController', () => {
             const results = await controller.getCompletions(mockContext);
 
             expect(results).toEqual([]);
-            expect(mockLLMClient.requestCompletion).not.toHaveBeenCalled();
+            expect(mockAICompletionClient.requestCompletion).not.toHaveBeenCalled();
         });
 
         it('should emit completion.issued telemetry event', async () => {
@@ -101,7 +101,7 @@ describe('SimpleGhostTextController', () => {
                 context: [],
                 isFimEnabled: false,
             });
-            mockLLMClient.requestCompletion.mockResolvedValue([]);
+            mockAICompletionClient.requestCompletion.mockResolvedValue([]);
 
             await controller.getCompletions(mockContext);
 
@@ -132,7 +132,7 @@ describe('SimpleGhostTextController', () => {
                 context: [],
                 isFimEnabled: false,
             });
-            mockLLMClient.requestCompletion.mockResolvedValue([mockCompletion]);
+            mockAICompletionClient.requestCompletion.mockResolvedValue([mockCompletion]);
             mockPostProcessor.process.mockReturnValue(mockCompletion);
 
             const results = await controller.getCompletions(mockContext);
@@ -169,7 +169,7 @@ describe('SimpleGhostTextController', () => {
                 context: [],
                 isFimEnabled: false,
             });
-            mockLLMClient.requestCompletion.mockResolvedValue([mockCompletion1, mockCompletion2]);
+            mockAICompletionClient.requestCompletion.mockResolvedValue([mockCompletion1, mockCompletion2]);
             mockPostProcessor.process.mockImplementation((result) => {
                 return result.insertText === 'valid' ? result : undefined;
             });
@@ -195,7 +195,7 @@ describe('SimpleGhostTextController', () => {
                 context: [],
                 isFimEnabled: false,
             });
-            mockLLMClient.requestCompletion.mockResolvedValue([mockCompletion]);
+            mockAICompletionClient.requestCompletion.mockResolvedValue([mockCompletion]);
             mockPostProcessor.process.mockReturnValue(mockCompletion);
 
             await controller.getCompletions(mockContext);
@@ -220,7 +220,7 @@ describe('SimpleGhostTextController', () => {
             });
 
             const abortError = new DOMException('Aborted', 'AbortError');
-            mockLLMClient.requestCompletion.mockRejectedValue(abortError);
+            mockAICompletionClient.requestCompletion.mockRejectedValue(abortError);
 
             const results = await controller.getCompletions(mockContext);
 
@@ -236,7 +236,7 @@ describe('SimpleGhostTextController', () => {
             });
 
             const error = new Error('Network error');
-            mockLLMClient.requestCompletion.mockRejectedValue(error);
+            mockAICompletionClient.requestCompletion.mockRejectedValue(error);
 
             await controller.getCompletions(mockContext);
 
@@ -269,7 +269,7 @@ describe('SimpleGhostTextController', () => {
     describe('cancelCurrentRequest', () => {
         it('should call cancelRequest on LLM client', () => {
             controller.cancelCurrentRequest();
-            expect(mockLLMClient.cancelRequest).toHaveBeenCalled();
+            expect(mockAICompletionClient.cancelRequest).toHaveBeenCalled();
         });
     });
 });

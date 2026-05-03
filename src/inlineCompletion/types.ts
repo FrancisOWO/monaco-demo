@@ -178,7 +178,7 @@ export interface IPromptBuilder {
 }
 
 /** LLM 客户端接口 */
-export interface ILLMClient {
+export interface IAICompletionClient {
     /**
      * 向 LLM 发送补全请求
      */

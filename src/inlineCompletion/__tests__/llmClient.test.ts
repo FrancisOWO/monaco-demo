@@ -8,7 +8,7 @@ import {
     BlockMode,
 } from '../types.js';
 import type {
-    ILLMClient,
+    IAICompletionClient,
     PromptInfo,
     CompletionRequestContext,
     CompletionStrategy,
@@ -17,7 +17,7 @@ import type {
 /** 创建 mock LLM 客户端（使用 OpenAI SDK mock） */
 function createMockClient(
     completionsCreate: jest.Mock,
-): ILLMClient & { openai: { completions: { create: jest.Mock } } } {
+): IAICompletionClient & { openai: { completions: { create: jest.Mock } } } {
     const openai = { completions: { create: completionsCreate } };
     const abortControllers: AbortController[] = [];
 
@@ -64,10 +64,10 @@ function createMockClient(
     };
 }
 
-// 直接测试 SimpleLLMClient 的行为（验证它通过 OpenAI SDK 正确调用 FIM）
+// 直接测试 SimpleAICompletionClient 的行为（验证它通过 OpenAI SDK 正确调用 FIM）
 // 由于 esbuild + jest.mock 对 ESM default export 不兼容，
-// 我们用集成风格测试：验证 SimpleLLMClient 的构造和调用逻辑
-describe('SimpleLLMClient', () => {
+// 我们用集成风格测试：验证 SimpleAICompletionClient 的构造和调用逻辑
+describe('SimpleAICompletionClient', () => {
     let mockCreate: jest.Mock;
     let mockPrompt: PromptInfo;
     let mockContext: CompletionRequestContext;

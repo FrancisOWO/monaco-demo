@@ -14,7 +14,7 @@ import {
     type CompletionStrategy,
     type IGhostTextController,
     type IPromptFactory,
-    type ILLMClient,
+    type IAICompletionClient,
     type IPostProcessor,
     type IStrategyManager,
     type ICompletionsCache,
@@ -46,7 +46,7 @@ export class FullGhostTextController implements IGhostTextController {
 
     constructor(
         private promptFactory: IPromptFactory,
-        private llmClient: ILLMClient,
+        private aiCompletionClient: IAICompletionClient,
         private postProcessor: IPostProcessor,
         private strategyManager: IStrategyManager,
         private completionsCache: ICompletionsCache,
@@ -148,9 +148,9 @@ export class FullGhostTextController implements IGhostTextController {
         }
 
         // 6. 网络请求（流式）
-        if (this.llmClient.requestCompletionStreaming) {
+        if (this.aiCompletionClient.requestCompletionStreaming) {
             const { firstResult, backgroundCache } =
-                await this.llmClient.requestCompletionStreaming(prompt, strategy, context);
+                await this.aiCompletionClient.requestCompletionStreaming(prompt, strategy, context);
 
             // 后台缓存
             backgroundCache.then(choices => {
@@ -174,7 +174,7 @@ export class FullGhostTextController implements IGhostTextController {
             return [processed];
         } else {
             // 回退到标准请求
-            const results = await this.llmClient.requestCompletion(prompt, strategy, context);
+            const results = await this.aiCompletionClient.requestCompletion(prompt, strategy, context);
 
             const model = this.editor.getModel();
             const documentContent = model?.getValue() ?? '';
@@ -271,7 +271,7 @@ export class FullGhostTextController implements IGhostTextController {
      */
     cancelCurrentRequest(): void {
         this.debouncedGetCompletions.cancel();
-        this.llmClient.cancelRequest(this.currentRequestId);
+        this.aiCompletionClient.cancelRequest(this.currentRequestId);
         this.cancelledRequests.add(this.currentRequestId);
         this.currentGhostText.clear();
     }

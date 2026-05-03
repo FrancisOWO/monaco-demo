@@ -70,7 +70,7 @@
 4. LRURadixTrieCache.findAll() → 0ms?
 5. AsyncCompletionsManager.getFirstMatchingRequestWithTimeout() → ≤200ms?
 6. Debounce 75ms
-7. StreamedLLMClient.requestCompletionStreaming() → 首个 token
+7. StreamedAICompletionClient.requestCompletionStreaming() → 首个 token
 8. BackgroundCache → 更新 LRURadixTrieCache
 9. TriggerSpeculativeRequest
 ```
@@ -140,7 +140,7 @@
 
 ### 6. 流式 LLM 客户端
 
-#### StreamedLLMClient
+#### StreamedAICompletionClient
 **职责**: 流式请求处理
 - SSE (Server-Sent Events) 解析
 - 首个 token 快速返回（~50ms）
@@ -201,7 +201,7 @@ FullGhostTextController.getCompletions()
   │
   ├─► Debounce 75ms
   │
-  └─► StreamedLLMClient.requestCompletionStreaming()
+  └─► StreamedAICompletionClient.requestCompletionStreaming()
         │
         ├─► 首个 token ──► 立即返回
         │
@@ -268,7 +268,7 @@ src/inlineCompletion/
 │   └── asyncCompletionsManager.ts    # 异步请求管理
 │
 ├── llm/
-│   └── streamedLLMClient.ts          # 流式 LLM 客户端
+│   └── StreamedAICompletionClient.ts          # 流式 LLM 客户端
 │
 ├── postProcess/
 │   └── fullPostProcessor.ts          # 完整后处理器
@@ -299,7 +299,7 @@ src/inlineCompletion/
 | suffix: '' | suffix: FIM 内容 |
 | context: [] | 多维度上下文 |
 | 固定策略 | StrategyManager |
-| SimpleLLMClient | StreamedLLMClient |
+| SimpleAICompletionClient | StreamedAICompletionClient |
 | 无缓存 | LRURadixTrieCache |
 | 无 Typing-as-Suggested | CurrentGhostText |
 | 无投机请求 | SpeculativeRequestCache |
