@@ -8,6 +8,7 @@ import expressWs from 'express-ws';
 import { WebSocket } from 'ws';
 import { LANGUAGE_SERVERS, launchLanguageServer } from './language-servers';
 import { createLspProxy } from './lsp-proxy';
+import lspApiRouter from './lsp-api';
 import { config } from './config';
 import aiCompletionRouter from './ai-completion';
 import aiChatRouter from './ai-chat';
@@ -45,6 +46,9 @@ app.use('/config', configRouter);
 
 // Conda 环境 API
 app.use('/conda', condaRouter);
+
+// LSP 检测和配置 API
+app.use('/lsp', lspApiRouter);
 
 app.get('/editor-control/status', (_req, res) => {
     res.json({ connected: editorControlHub.isEditorConnected() });
