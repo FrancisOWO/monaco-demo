@@ -487,8 +487,8 @@ function setupHistoryPanel() {
         const action = btn.dataset.action;
 
         if (action === 'load') {
-            // 如果有活跃对话，先保存
-            if (chatStore.hasActiveConversation()) {
+            // 如果有活跃的新对话（非历史加载），先保存
+            if (chatStore.hasActiveConversation() && !chatStore.getState().loadedFromHistory) {
                 chatStore.addConversationToHistory();
             }
             // 加载历史对话

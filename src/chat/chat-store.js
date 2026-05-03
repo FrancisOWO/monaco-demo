@@ -17,6 +17,7 @@ const chatState = {
     thinkingPhase: '',
     panelVisible: false,
     abortController: null,
+    loadedFromHistory: false, // 当前对话是否从历史加载（避免重复保存）
     skillRegistry: [],       // SkillDescriptor[]
     mcpRegistry: [],         // McpToolDescriptor[]
     foldState: {
@@ -764,6 +765,12 @@ function saveCurrentConversationToHistory() {
         return;
     }
 
+    // 从历史加载的对话不需要重复保存
+    if (chatState.loadedFromHistory) {
+        chatState.loadedFromHistory = false;
+        return;
+    }
+
     const historyItem = {
         id: generateId(),
         timestamp: Date.now(),
@@ -811,6 +818,12 @@ export function addConversationToHistory() {
         return;
     }
 
+    // 从历史加载的对话不需要重复保存
+    if (chatState.loadedFromHistory) {
+        chatState.loadedFromHistory = false;
+        return;
+    }
+
     const historyItem = {
         id: generateId(),
         timestamp: Date.now(),
@@ -841,6 +854,7 @@ export function loadConversationFromHistory(historyId) {
 
     // 恢复消息
     chatState.messages = JSON.parse(JSON.stringify(historyItem.messages));
+    chatState.loadedFromHistory = true; // 标记为历史加载，避免重复保存
     emit('onMessagesChanged');
 
     // 恢复上下文
