@@ -11,8 +11,29 @@ import {
 import type {
     IGhostTextController,
     CompletionRequestContext,
+    CompletionStrategy,
     PromptInfo,
 } from './types.js';
+
+/** 单行补全策略（自动触发） */
+function singleLineStrategy(): CompletionStrategy {
+    return {
+        requestMultiline: false,
+        blockMode: BlockMode.Server,
+        stopTokens: ['\n'],
+        maxTokens: 64,
+    };
+}
+
+/** 多行补全策略（手动触发） */
+function multiLineStrategy(): CompletionStrategy {
+    return {
+        requestMultiline: true,
+        blockMode: BlockMode.Parsing,
+        stopTokens: [],
+        maxTokens: 128,
+    };
+}
 
 /** Monaco Inline Completions Provider */
 export class MonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
@@ -44,12 +65,10 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
                 column: position.column,
             },
             triggerKind: this.mapTriggerKind(context.triggerKind),
-            strategy: {
-                requestMultiline: true,
-                blockMode: BlockMode.Server,
-                stopTokens: [],
-                maxTokens: 50,
-            },
+            // 自动触发用单行策略，手动触发用多行策略
+            strategy: this.mapTriggerKind(context.triggerKind) === InlineCompletionTriggerKind.Automatic
+                ? singleLineStrategy()
+                : multiLineStrategy(),
             prompt: {} as PromptInfo, // 会被 promptBuilder 填充
             versionId: model.getVersionId(),
         };

@@ -10,9 +10,7 @@ import './styles/editor-area.css';
 import './styles/chat-panel.css';
 import './styles/diff-viewer.css';
 
-import { registerBasicCompletions } from './basic-completion.js';
-import { registerAICompletionProvider } from './ai-completion.js';
-import { aiCompletionConfig } from './ai-completion-config.js';
+import { registerBasicCompletions } from './completions/basicCompletion.js';
 import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
 import { setupDocumentSync } from './lsp/document-sync.js';
 import { setupInlineCompletion } from './inlineCompletion/setup.js';
@@ -483,16 +481,9 @@ envPopup.addEventListener('click', (e) => {
 // 启动时加载环境信息
 loadEnvironmentInfo();
 
-// 注册 AI 补全提供者
-registerAICompletionProvider(monaco, editor);
-
-// 注册 Inline Completion（Ghost Text）
-// 客户端选择统一从 ai-completion-config.js 读取
-setupInlineCompletion(monaco, editor, {
-    clientMode: aiCompletionConfig.clientMode,
-    llm: aiCompletionConfig.server,
-    dummy: aiCompletionConfig.dummy,
-});
+// 注册 AI 行内补全（Monaco Provider + 快捷键 + 自动触发）
+// 配置统一在 inlineCompletion/aiCompletionConfig.ts 中管理
+setupInlineCompletion(monaco, editor);
 
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();
