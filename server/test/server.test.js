@@ -45,7 +45,7 @@ describe('Python LSP Server', () => {
             }, 15000);
 
             serverProcess.stdout.on('data', (data) => {
-                if (data.toString().includes('Python LSP Server running')) {
+                if (data.toString().includes('LSP Server running')) {
                     clearTimeout(timer);
                     // 服务器启动后连接
                     setTimeout(resolve, 1000);

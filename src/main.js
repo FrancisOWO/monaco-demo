@@ -11,8 +11,8 @@ import './styles/chat-panel.css';
 import './styles/diff-viewer.css';
 
 import { registerBasicCompletions } from './completions/basicCompletion.js';
-import { createPythonLSPClient, registerLSPCompletionProvider, registerLSPHoverProvider } from './lsp/python-client.js';
-import { setupDocumentSync } from './lsp/document-sync.js';
+import { getLSPManager } from './lsp/lsp-manager.js';
+import { LANGUAGE_CONFIGS } from './lsp/language-configs.js';
 import { setupInlineCompletion } from './inlineCompletion/setup.js';
 import { initLogPanel } from './utils/logPanel.js';
 import { getLogger } from './utils/logger.js';
@@ -258,73 +258,48 @@ setupEditorMcpClient(editor);
 const lspStatusEl = document.getElementById('lsp-status');
 const lspTogglePopup = document.getElementById('lsp-toggle-popup');
 const lspToggleSwitch = document.getElementById('lsp-toggle-switch');
-let lspEnabled = false;
-let lspClient = null;
-let lspRetryTimer = null;
-let lspProviderDisposables = [];
+const lspLanguageToggles = document.getElementById('lsp-language-toggles');
+const lspTogglePython = document.getElementById('lsp-toggle-python');
+const lspToggleCpp = document.getElementById('lsp-toggle-cpp');
+const lspToggleGo = document.getElementById('lsp-toggle-go');
 
-function updateLSPStatus(status, message) {
-    lspStatusEl.className = 'lsp-status ' + status;
-    lspStatusEl.textContent = 'LSP: ' + message;
-}
+const lspManager = getLSPManager();
+lspManager.setEditor(editor);
 
-function updateToggleSwitch() {
-    lspToggleSwitch.className = 'lsp-toggle-switch ' + (lspEnabled ? 'on' : 'off');
-}
+lspManager.setOnStatusChange((status) => {
+    // 更新全局开关
+    lspToggleSwitch.className = 'lsp-toggle-switch ' + (status.globalEnabled ? 'on' : 'off');
+    lspLanguageToggles.classList.toggle('hidden', !status.globalEnabled);
 
-async function initLSP() {
-    if (!lspEnabled) {
-        updateLSPStatus('disabled', '已关闭');
-        return;
-    }
-
-    try {
-        updateLSPStatus('connecting', '连接中...');
-
-        lspClient = createPythonLSPClient(monaco, editor);
-        await lspClient.connect();
-
-        const completionDisp = registerLSPCompletionProvider(monaco, lspClient, editor);
-        const hoverDisp = registerLSPHoverProvider(monaco, lspClient);
-        lspProviderDisposables = [completionDisp, hoverDisp].filter(Boolean);
-        setupDocumentSync(editor, lspClient);
-
-        updateLSPStatus('connected', '已连接');
-        logger.info('LSP client initialized successfully');
-
-    } catch (error) {
-        logger.error('LSP initialization failed:', error);
-        updateLSPStatus('error', '连接失败');
-
-        if (lspEnabled) {
-            lspRetryTimer = setTimeout(initLSP, 5000);
+    // 更新各语言子开关
+    for (const lang of status.languages) {
+        const toggleEl = document.getElementById(`lsp-toggle-${lang.languageId}`);
+        if (toggleEl) {
+            toggleEl.className = 'lsp-toggle-switch ' + (lang.enabled ? 'on' : 'off');
+            const config = LANGUAGE_CONFIGS[lang.languageId];
+            if (config) {
+                const labelEl = toggleEl.parentElement.querySelector('.lsp-toggle-label');
+                if (labelEl) {
+                    const statusText = lang.connected ? ' ✓' : '';
+                    labelEl.textContent = `${config.languageId} (${lang.connected ? '已连接' : '未连接'})${statusText}`;
+                }
+            }
         }
     }
-}
 
-function disableLSP() {
-    lspEnabled = false;
-    if (lspRetryTimer) {
-        clearTimeout(lspRetryTimer);
-        lspRetryTimer = null;
+    // 更新状态栏文本
+    const connectedLangs = status.languages.filter(l => l.connected);
+    if (!status.globalEnabled) {
+        lspStatusEl.className = 'lsp-status disabled';
+        lspStatusEl.textContent = 'LSP: 已关闭';
+    } else if (connectedLangs.length === 0) {
+        lspStatusEl.className = 'lsp-status disconnected';
+        lspStatusEl.textContent = 'LSP: 未连接';
+    } else {
+        lspStatusEl.className = 'lsp-status connected';
+        lspStatusEl.textContent = `LSP: ${connectedLangs.map(l => l.languageId).join(', ')}`;
     }
-    for (const d of lspProviderDisposables) {
-        d.dispose();
-    }
-    lspProviderDisposables = [];
-    if (lspClient) {
-        lspClient.disconnect();
-        lspClient = null;
-    }
-    updateLSPStatus('disabled', '已关闭');
-    updateToggleSwitch();
-}
-
-function enableLSP() {
-    lspEnabled = true;
-    updateToggleSwitch();
-    initLSP();
-}
+});
 
 // 点击 LSP 状态弹出切换面板
 lspStatusEl.addEventListener('click', (e) => {
@@ -332,14 +307,24 @@ lspStatusEl.addEventListener('click', (e) => {
     lspTogglePopup.classList.toggle('hidden');
 });
 
-// 点击开关切换 LSP
+// 点击全局开关
 lspToggleSwitch.addEventListener('click', (e) => {
     e.stopPropagation();
-    if (lspEnabled) {
-        disableLSP();
-    } else {
-        enableLSP();
-    }
+    lspManager.setGlobalEnabled(!lspManager.globalEnabled);
+});
+
+// 点击各语言子开关
+lspTogglePython.addEventListener('click', (e) => {
+    e.stopPropagation();
+    lspManager.setLanguageEnabled('python', !lspManager.languageToggles.python);
+});
+lspToggleCpp.addEventListener('click', (e) => {
+    e.stopPropagation();
+    lspManager.setLanguageEnabled('cpp', !lspManager.languageToggles.cpp);
+});
+lspToggleGo.addEventListener('click', (e) => {
+    e.stopPropagation();
+    lspManager.setLanguageEnabled('go', !lspManager.languageToggles.go);
 });
 
 // 点击其他区域关闭弹出框
@@ -352,8 +337,9 @@ lspTogglePopup.addEventListener('click', (e) => {
 });
 
 // 初始化 LSP 状态显示
-updateLSPStatus('disabled', '已关闭');
-updateToggleSwitch();
+lspStatusEl.className = 'lsp-status disabled';
+lspStatusEl.textContent = 'LSP: 已关闭';
+lspToggleSwitch.className = 'lsp-toggle-switch off';
 
 // ==================== Conda 环境指示器 ====================
 const envIndicator = document.getElementById('status-python-env');
@@ -428,22 +414,16 @@ async function switchEnvironment(envName) {
         envPopup.classList.add('hidden');
 
         // 重启 LSP 以使用新的 Python 路径
-        if (lspEnabled && lspClient) {
-            updateLSPStatus('connecting', '重启中...');
+        if (lspManager.globalEnabled && lspManager.getClient('python')) {
             try {
-                await lspClient.reconnect();
-                // 重新注册补全和悬停提供者
-                for (const d of lspProviderDisposables) {
-                    d.dispose();
+                // 重连 Python LSP 客户端
+                const pythonClient = lspManager.getClient('python');
+                if (pythonClient) {
+                    await pythonClient.reconnect();
+                    lspManager.reSyncAllDocuments();
                 }
-                const completionDisp = registerLSPCompletionProvider(monaco, lspClient, editor);
-                const hoverDisp = registerLSPHoverProvider(monaco, lspClient);
-                lspProviderDisposables = [completionDisp, hoverDisp].filter(Boolean);
-                setupDocumentSync(editor, lspClient);
-                updateLSPStatus('connected', '已连接');
             } catch (error) {
                 logger.error('LSP reconnect failed:', error);
-                updateLSPStatus('error', '重启失败');
             }
         }
 

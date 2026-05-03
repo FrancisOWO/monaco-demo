@@ -127,6 +127,26 @@ body.panel-visible #workspace {
     color: #333;
 }
 
+/* 语言子开关区域 */
+.lsp-language-toggles {
+    margin-top: 8px;
+    border-top: 1px solid #e0e0e0;
+    padding-top: 8px;
+}
+
+.lsp-language-toggles.hidden {
+    display: none;
+}
+
+.lsp-toggle-sub {
+    margin-top: 6px;
+}
+
+.lsp-toggle-sub .lsp-toggle-label {
+    font-size: 12px;
+    color: #666;
+}
+
 .lsp-toggle-switch {
     position: relative;
     width: 36px;
