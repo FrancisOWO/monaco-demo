@@ -7,14 +7,14 @@ import OpenAI from 'openai';
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
-} from './types.js';
+} from '../types.js';
 import type {
     IAICompletionClient,
     CompletionResult,
     PromptInfo,
     CompletionRequestContext,
     CompletionStrategy,
-} from './types.js';
+} from '../types.js';
 
 /** LLM 客户端配置 */
 export interface AICompletionClientConfig {

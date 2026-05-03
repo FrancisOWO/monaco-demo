@@ -32,7 +32,7 @@ export * from './cache/debounce.js';
 export * from './cache/asyncCompletionsManager.js';
 
 // 完整版 - LLM
-export * from './llm/streamedAICompletionClient.js';
+export * from './llm/standardAICompletionClient.js';
 
 // 完整版 - PostProcess
 export * from './postProcess/fullPostProcessor.js';

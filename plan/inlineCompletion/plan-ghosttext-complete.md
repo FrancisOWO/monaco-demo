@@ -361,7 +361,7 @@ function takeNLines(n: number): FinishedCallback {
 }
 ```
 
-### 5. StreamedAICompletionClient — 流式 LLM 调用
+### 5. StandardAICompletionClient — 流式 LLM 调用
 
 ```typescript
 // === aiCompletionClient.ts ===（扩展 Plan A）
@@ -386,7 +386,7 @@ export interface IAICompletionClient {
   cancelRequest(requestId: string): void;
 }
 
-export class StreamedAICompletionClient implements IAICompletionClient {
+export class StandardAICompletionClient implements IAICompletionClient {
   // ... 流式实现
   // 等待第一个 SSE chunk 后立即返回
   // 后续 chunks 在后台处理并缓存
@@ -745,7 +745,7 @@ export class FullMonacoInlineCompletionsProvider implements monaco.languages.Inl
 | `SimplePromptBuilder` → 只取 prefix | `CascadingPromptFactory` → prefix + suffix + context，级联预算 | S01 |
 | `suffix: ''` | FIM suffix（光标后内容，默认 15% 预算） | S01 |
 | `context: []` | SimilarFiles + Diagnostics + CodeSnippets + RecentEdits + Traits + DocumentMarker | S01 |
-| `SimpleAICompletionClient` → 同步等待 | `StreamedAICompletionClient` → 流式首个 token，后台缓存 | S02 |
+| `SimpleAICompletionClient` → 同步等待 | `StandardAICompletionClient` → 流式首个 token，后台缓存 | S02 |
 | 无缓存 | `LRURadixTrieCache` → 100 条前缀匹配缓存 | 07-caching |
 | 无 Typing-as-Suggested | `CurrentGhostText` → 0ms 本地返回 | S02 |
 | 无投机请求 | `SpeculativeRequestCache` → 显示时预计算 | S02 |
@@ -831,7 +831,7 @@ src/
       strategyManager.ts                   多行判定与策略生成
       takeNLines.ts                        接受后固定行数裁剪
     llm/
-      aiCompletionClient.ts                         IAICompletionClient + StreamedAICompletionClient
+      aiCompletionClient.ts                         IAICompletionClient + StandardAICompletionClient
     cache/
       completionsCache.ts                  LRU Radix Trie 缓存
       radixTrie.ts                         Radix Trie 数据结构

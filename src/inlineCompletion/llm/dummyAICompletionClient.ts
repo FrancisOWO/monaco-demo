@@ -7,15 +7,15 @@
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
-} from './types.js';
+} from '../types.js';
 import type {
     IAICompletionClient,
     CompletionResult,
     PromptInfo,
     CompletionRequestContext,
     CompletionStrategy,
-} from './types.js';
-import { getTemplatesForLanguage } from './templates/index.js';
+} from '../types.js';
+import { getTemplatesForLanguage } from '../templates/index.js';
 
 /** 虚拟 LLM 客户端配置 */
 export interface DummyAICompletionClientConfig {

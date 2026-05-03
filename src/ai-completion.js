@@ -2,12 +2,12 @@
  * AI 智能补全功能
  * 支持单行补全、多行补全、自动触发和快捷键触发
  * 底层统一使用 IAICompletionClient 接口，单行/多行通过不同的 CompletionStrategy 区分
- * 默认使用 DummyAICompletionClient（伪模型），有真实 AI 服务时切换到 StreamedAICompletionClient
+ * 默认使用 DummyAICompletionClient（伪模型），有真实 AI 服务时切换到 StandardAICompletionClient
  */
 import * as monaco from 'monaco-editor';
 import { getLogger } from './utils/logger.js';
-import { StreamedAICompletionClient } from './inlineCompletion/llm/streamedAICompletionClient.js';
-import { DummyAICompletionClient } from './inlineCompletion/dummyAICompletionClient.js';
+import { StandardAICompletionClient } from './inlineCompletion/llm/standardAICompletionClient.js';
+import { DummyAICompletionClient } from './inlineCompletion/llm/dummyAICompletionClient.js';
 import { SimplePromptBuilder } from './inlineCompletion/promptBuilder.js';
 import { SimplePostProcessor } from './inlineCompletion/postProcessor.js';
 import { InlineCompletionTriggerKind, BlockMode } from './inlineCompletion/types.js';
@@ -39,7 +39,7 @@ const AI_SERVER_CONFIG = {
 
 /**
  * 初始化 LLM 客户端（如果尚未初始化）
- * 根据 useDummy 标志选择 DummyAICompletionClient 或 StreamedAICompletionClient
+ * 根据 useDummy 标志选择 DummyAICompletionClient 或 StandardAICompletionClient
  */
 function ensureAICompletionClient(editor) {
     if (!aiCompletionClient) {
@@ -54,8 +54,8 @@ function ensureAICompletionClient(editor) {
             });
             logger.info('Using DummyAICompletionClient (no real AI service)');
         } else {
-            aiCompletionClient = new StreamedAICompletionClient(AI_SERVER_CONFIG);
-            logger.info('Using StreamedAICompletionClient (real AI service)');
+            aiCompletionClient = new StandardAICompletionClient(AI_SERVER_CONFIG);
+            logger.info('Using StandardAICompletionClient (real AI service)');
         }
     }
 }
@@ -139,7 +139,7 @@ function multiLineStrategy() {
 /**
  * 统一的补全请求函数
  * 单行和多行共用此接口，通过 strategy 参数区分
- * 同时兼容 DummyAICompletionClient 和 StreamedAICompletionClient
+ * 同时兼容 DummyAICompletionClient 和 StandardAICompletionClient
  */
 async function requestCompletion(editor, strategy, triggerKind = InlineCompletionTriggerKind.Invoke) {
     if (aiCompletionState.loading || !aiCompletionState.enabled) {
@@ -157,7 +157,7 @@ async function requestCompletion(editor, strategy, triggerKind = InlineCompletio
         const isMultiline = strategy.requestMultiline;
         logger.info(`Requesting ${isMultiline ? 'multi' : 'single'}-line completion...`);
 
-        // 尝试使用流式请求（DummyAICompletionClient 和 StreamedAICompletionClient 都支持）
+        // 尝试使用流式请求（DummyAICompletionClient 和 StandardAICompletionClient 都支持）
         if (aiCompletionClient.requestCompletionStreaming) {
             const { firstResult, backgroundCache } = await aiCompletionClient.requestCompletionStreaming(
                 context.prompt,
@@ -469,7 +469,7 @@ export function registerAICompletionProvider(monaco, editor) {
         });
     }
 
-    const clientType = aiCompletionState.useDummy ? 'DummyAICompletionClient' : 'StreamedAICompletionClient';
+    const clientType = aiCompletionState.useDummy ? 'DummyAICompletionClient' : 'StandardAICompletionClient';
     logger.info('AI completion provider registered');
     logger.info(`LLM Client: ${clientType}`);
     logger.info('Hotkeys:');

@@ -1,5 +1,5 @@
 /**
- * StreamedAICompletionClient
+ * StandardAICompletionClient
  * 流式 LLM 客户端
  * 等待第一个 token 就返回，后台继续缓存
  */
@@ -30,7 +30,7 @@ export interface StreamingCallbacks {
 /**
  * 流式 LLM 客户端
  */
-export class StreamedAICompletionClient implements IAICompletionClient {
+export class StandardAICompletionClient implements IAICompletionClient {
     private client: OpenAI;
     private config: {
         endpoint: string;

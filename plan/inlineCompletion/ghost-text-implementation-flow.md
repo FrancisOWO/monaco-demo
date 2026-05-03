@@ -168,7 +168,7 @@ async getFirstMatchingRequestWithTimeout(
 }
 ```
 
-#### Step 6: 升级 StreamedAICompletionClient
+#### Step 6: 升级 StandardAICompletionClient
 
 **目标**: 流式返回首个 token。
 
@@ -283,7 +283,7 @@ FullGhostTextController
 ├── CurrentGhostText
 ├── SpeculativeRequestCache
 ├── AsyncCompletionsManager
-├── StreamedAICompletionClient
+├── StandardAICompletionClient
 ├── FullPostProcessor
 │   └── BlockTrimmerRegistry
 └── FullTelemetryEmitter

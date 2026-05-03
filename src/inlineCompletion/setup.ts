@@ -6,8 +6,8 @@
 import type * as monaco from 'monaco-editor';
 import { ConsoleTelemetryEmitter } from './telemetryEmitter.js';
 import { SimplePromptBuilder } from './promptBuilder.js';
-import { SimpleAICompletionClient, type AICompletionClientConfig } from './aiCompletionClient.js';
-import { DummyAICompletionClient, type DummyAICompletionClientConfig } from './dummyAICompletionClient.js';
+import { SimpleAICompletionClient, type AICompletionClientConfig } from './llm/simpleAICompletionClient.js';
+import { DummyAICompletionClient, type DummyAICompletionClientConfig } from './llm/dummyAICompletionClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
 import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
