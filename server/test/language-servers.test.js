@@ -2,15 +2,16 @@
  * 语言服务器注册表和启动器测试
  */
 
-const { spawn } = require('child_process');
-const path = require('path');
-
 describe('language-servers', () => {
     let languageServersModule;
+    let mockSpawn;
 
-    beforeAll(() => {
+    beforeEach(() => {
+        jest.resetModules();
+        jest.clearAllMocks();
+
         // Mock config
-        jest.doMock('./config', () => ({
+        jest.doMock('../src/config', () => ({
             config: {
                 port: 3000,
                 pyrightPath: '/pyright',
@@ -30,17 +31,20 @@ describe('language-servers', () => {
                 },
             },
         }));
+
+        // Mock child_process
+        mockSpawn = jest.fn().mockReturnValue({
+            stdin: { write: jest.fn() },
+            stdout: { on: jest.fn() },
+            stderr: { on: jest.fn() },
+            on: jest.fn(),
+            kill: jest.fn(),
+        });
         jest.doMock('child_process', () => ({
-            spawn: jest.fn().mockReturnValue({
-                stdin: { write: jest.fn() },
-                stdout: { on: jest.fn() },
-                stderr: { on: jest.fn() },
-                on: jest.fn(),
-                kill: jest.fn(),
-            }),
+            spawn: mockSpawn,
         }));
 
-        languageServersModule = require('./language-servers');
+        languageServersModule = require('../src/language-servers');
     });
 
     it('LANGUAGE_SERVERS contains python, cpp, and go entries', () => {
@@ -77,7 +81,6 @@ describe('language-servers', () => {
     });
 
     it('launchLanguageServer spawns a child process', () => {
-        const mockSpawn = require('child_process').spawn;
         const serverConfig = {
             languageId: 'cpp',
             wsPath: '/clangd',

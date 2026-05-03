@@ -17,6 +17,26 @@ export const config = {
         workspaceRoot: process.cwd(),
     },
 
+    // clangd 语言服务器配置（C++）
+    clangd: {
+        // clangd 可执行文件路径（默认从 PATH 查找，可通过环境变量覆盖）
+        executable: process.env.CLANGD_PATH || 'clangd',
+        // 附加参数
+        args: [] as string[],
+        // 工作区根目录
+        workspaceRoot: process.cwd(),
+    },
+
+    // gopls 语言服务器配置（Go）
+    gopls: {
+        // gopls 可执行文件路径（默认从 PATH 查找，可通过环境变量覆盖）
+        executable: process.env.GOPLS_PATH || 'gopls',
+        // 附加参数
+        args: [] as string[],
+        // 工作区根目录
+        workspaceRoot: process.cwd(),
+    },
+
     // AI 配置
     ai: {
         // OpenAI API Key

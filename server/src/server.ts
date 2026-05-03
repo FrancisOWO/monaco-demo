@@ -1,12 +1,13 @@
 /**
  * WebSocket 服务器
- * 处理 Monaco Editor 与 Pyright 语言服务器之间的通信
+ * 处理 Monaco Editor 与各语言服务器之间的通信
  */
 
 import express from 'express';
 import expressWs from 'express-ws';
 import { WebSocket } from 'ws';
-import { launchPyright } from './pyright-launcher';
+import { LANGUAGE_SERVERS, launchLanguageServer } from './language-servers';
+import { createLspProxy } from './lsp-proxy';
 import { config } from './config';
 import aiCompletionRouter from './ai-completion';
 import aiChatRouter from './ai-chat';
@@ -30,7 +31,7 @@ app.use(express.json());
 
 // 健康检查
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Python LSP Server is running' });
+    res.json({ status: 'ok', message: 'LSP Server is running' });
 });
 
 // AI 补全端点（Copilot 模式：后端代理）
@@ -81,107 +82,32 @@ app.get('/workspace-root', (_req, res) => {
     res.json({ path: workspaceRoot, uri });
 });
 
-// WebSocket 端点 - Pyright 语言服务器
-app.ws(config.pyrightPath, (ws: WebSocket, req: any) => {
-    console.log('[WebSocket] Client connected');
+// 注册所有语言服务器 WebSocket 端点
+for (const serverConfig of LANGUAGE_SERVERS) {
+    app.ws(serverConfig.wsPath, (ws: WebSocket, req: any) => {
+        console.log(`[WebSocket] ${serverConfig.displayName} client connected`);
 
-    // 启动 Pyright 进程
-    const pyright = launchPyright();
-    let closed = false;
+        // 启动语言服务器进程
+        const langProcess = launchLanguageServer(serverConfig);
 
-    if (!pyright.stdin || !pyright.stdout) {
-        console.error('[WebSocket] Pyright stdin/stdout not available');
-        ws.close();
-        return;
-    }
-
-    // 用于存储不完整的消息（字节级操作，避免多字节字符问题）
-    let byteBuffer = Buffer.alloc(0);
-    let contentLength = -1;
-
-    // 处理来自 Monaco 的消息，转发给 Pyright
-    ws.on('message', (data: Buffer) => {
-        if (closed) return;
-        const message = data.toString();
-        console.log('[WebSocket -> Pyright]', message.substring(0, 200));
-
-        try {
-            // 转发给 Pyright
-            pyright.stdin!.write(message);
-        } catch (e) {
-            console.error('[WebSocket] Error writing to Pyright stdin:', e);
+        if (!langProcess.stdin || !langProcess.stdout) {
+            console.error(`[WebSocket] ${serverConfig.displayName} stdin/stdout not available`);
+            ws.close();
+            return;
         }
+
+        // 使用共享的 LSP 代理处理双向消息转发
+        createLspProxy(ws, langProcess, serverConfig.displayName);
     });
-
-    // 处理来自 Pyright 的消息，转发给 Monaco
-    pyright.stdout.on('data', (data: Buffer) => {
-        if (closed) return;
-        byteBuffer = Buffer.concat([byteBuffer, data]);
-        console.log('[Pyright stdout] Received chunk, buffer length:', byteBuffer.length);
-
-        // 解析 LSP 消息格式 (Content-Length 头)
-        while (true) {
-            if (contentLength === -1) {
-                // 查找 \r\n\r\n 分隔符（头部结束标记）
-                const headerEndIndex = byteBuffer.indexOf('\r\n\r\n');
-                if (headerEndIndex === -1) break;
-
-                const header = byteBuffer.subarray(0, headerEndIndex).toString('utf-8');
-                const match = header.match(/Content-Length:\s*(\d+)/i);
-                if (match) {
-                    contentLength = parseInt(match[1], 10);
-                    byteBuffer = byteBuffer.subarray(headerEndIndex + 4);
-                    console.log('[Pyright stdout] Parsed header, contentLength:', contentLength, 'remaining buffer:', byteBuffer.length);
-                } else {
-                    // 没有找到 Content-Length，跳过这个头
-                    console.log('[Pyright stdout] No Content-Length found, skipping');
-                    byteBuffer = byteBuffer.subarray(headerEndIndex + 4);
-                    continue;
-                }
-            }
-
-            if (byteBuffer.length >= contentLength) {
-                const contentBytes = byteBuffer.subarray(0, contentLength);
-                byteBuffer = byteBuffer.subarray(contentLength);
-                contentLength = -1;
-
-                const content = contentBytes.toString('utf-8');
-                const responseByteLength = Buffer.byteLength(content, 'utf-8');
-                const response = `Content-Length: ${responseByteLength}\r\n\r\n${content}`;
-                console.log('[Pyright -> WebSocket]', content.substring(0, 200));
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(response);
-                }
-            } else {
-                console.log('[Pyright stdout] Buffer has', byteBuffer.length, 'bytes, need', contentLength, '- waiting for more');
-                break;
-            }
-        }
-    });
-
-    // 处理 WebSocket 关闭
-    ws.on('close', () => {
-        console.log('[WebSocket] Client disconnected');
-        closed = true;
-        pyright.stdout?.removeAllListeners();
-        pyright.stdin?.removeAllListeners();
-        pyright.stderr?.removeAllListeners();
-        pyright.kill();
-    });
-
-    // 处理 WebSocket 错误
-    ws.on('error', (error) => {
-        console.error('[WebSocket] Error:', error);
-        closed = true;
-        pyright.kill();
-    });
-});
+}
 
 // 启动服务器
 export function startServer(): void {
     app.listen(config.port, () => {
-        console.log(`[Server] Python LSP Server running at http://localhost:${config.port}`);
-        console.log(`[Server] WebSocket endpoint: ws://localhost:${config.port}${config.pyrightPath}`);
+        console.log(`[Server] LSP Server running at http://localhost:${config.port}`);
+        for (const serverConfig of LANGUAGE_SERVERS) {
+            console.log(`[Server] WebSocket endpoint: ws://localhost:${config.port}${serverConfig.wsPath} (${serverConfig.displayName})`);
+        }
     });
 }
 
