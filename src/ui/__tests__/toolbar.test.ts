@@ -182,10 +182,9 @@ describe('toolbar', () => {
         const toolbar = loadToolbar({
             'menu-bar': menuBar,
             'menu-dropdowns': dropdowns,
-            'language-modal': createElement('language-modal'),
-            'language-modal-select': createElement('language-modal-select'),
-            'language-modal-ok': createElement('language-modal-ok'),
-            'language-modal-cancel': createElement('language-modal-cancel'),
+            'lang-env-popup': createElement('lang-env-popup'),
+            'lang-env-env-list': createElement('lang-env-env-list'),
+            'lang-env-lang-list': createElement('lang-env-lang-list'),
             'status-language': createElement('status-language'),
         });
         menuBar.querySelectorAll = jest.fn(() => []);
@@ -249,19 +248,21 @@ describe('toolbar', () => {
         expect(dialogs.showToast).toHaveBeenCalledWith('此功能需要 Chrome/Edge 浏览器', 'warning');
     });
 
-    it('opens language modal from menu only when a file is active', async () => {
-        const modal = createElement('language-modal');
-        const select = createElement('language-modal-select');
+    it('opens language/env popup from menu only when a file is active', async () => {
+        const popup = createElement('lang-env-popup');
+        const overlay = createElement('lang-env-overlay');
+        const langList = createElement('lang-env-lang-list');
         fileStore.getActiveFile.mockReturnValue({ language: 'typescript' });
         const toolbar = loadToolbar({
-            'language-modal': modal,
-            'language-modal-select': select,
+            'lang-env-popup': popup,
+            'lang-env-overlay': overlay,
+            'lang-env-lang-list': langList,
         });
 
         await toolbar.handleAction('language-select', {});
 
-        expect(select.value).toBe('typescript');
-        expect(modal.classList.remove).toHaveBeenCalledWith('hidden');
+        expect(popup.classList.remove).toHaveBeenCalledWith('hidden');
+        expect(overlay.classList.remove).toHaveBeenCalledWith('hidden');
         expect(dialogs.showToast).not.toHaveBeenCalled();
     });
 
@@ -317,20 +318,22 @@ describe('toolbar', () => {
         fileStore.getActiveFile.mockReturnValue(null);
         const toolbar = loadToolbar();
 
-        toolbar.openLanguageModal();
+        toolbar.openLangEnvPopup();
 
         expect(dialogs.showToast).toHaveBeenCalledWith('没有打开的文件', 'warning');
     });
 
     it('turns the status language item into a keyboard-accessible language picker', () => {
         const statusLanguage = createElement('status-language');
-        const modal = createElement('language-modal');
-        const select = createElement('language-modal-select');
+        const popup = createElement('lang-env-popup');
+        const overlay = createElement('lang-env-overlay');
+        const langList = createElement('lang-env-lang-list');
         fileStore.getActiveFile.mockReturnValue({ language: 'python' });
         const toolbar = loadToolbar({
             'status-language': statusLanguage,
-            'language-modal': modal,
-            'language-modal-select': select,
+            'lang-env-popup': popup,
+            'lang-env-overlay': overlay,
+            'lang-env-lang-list': langList,
         });
 
         toolbar.setupStatusLanguagePicker();
@@ -340,9 +343,8 @@ describe('toolbar', () => {
 
         expect(statusLanguage.setAttribute).toHaveBeenCalledWith('role', 'button');
         expect(statusLanguage.setAttribute).toHaveBeenCalledWith('tabindex', '0');
-        expect(statusLanguage.title).toBe('选择语言模式');
-        expect(select.value).toBe('python');
-        expect(modal.classList.remove).toHaveBeenCalledWith('hidden');
+        expect(statusLanguage.title).toBe('选择语言模式 / 解释器');
+        expect(popup.classList.remove).toHaveBeenCalledWith('hidden');
         expect(preventDefault).toHaveBeenCalled();
     });
 

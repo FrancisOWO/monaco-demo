@@ -100,8 +100,7 @@ export function setupToolbar(editor) {
         });
     });
 
-    // 语言选择弹窗
-    setupLanguageModal(editor);
+    // 语言 & 环境选择弹出面板
     setupStatusLanguagePicker(editor);
     setupGlobalShortcuts(editor);
 
@@ -337,7 +336,7 @@ export async function handleAction(action, editor) {
             break;
         }
         case 'language-select': {
-            openLanguageModal();
+            openLangEnvPopup();
             break;
         }
         case 'about': {
@@ -389,69 +388,111 @@ export function getShortcutAction(event) {
     return match ? match.action : null;
 }
 
-export function openLanguageModal() {
+const SUPPORTED_LANGUAGES = [
+    { id: 'python', name: 'Python' },
+    { id: 'cpp', name: 'C++' },
+    { id: 'go', name: 'Go' },
+    { id: 'javascript', name: 'JavaScript' },
+    { id: 'typescript', name: 'TypeScript' },
+    { id: 'json', name: 'JSON' },
+    { id: 'html', name: 'HTML' },
+    { id: 'css', name: 'CSS' },
+    { id: 'markdown', name: 'Markdown' },
+    { id: 'plaintext', name: '纯文本' },
+];
+
+// 每种语言的解释器/工具链名称（用于面板标题和环境区显示）
+const LANGUAGE_ENV_LABELS = {
+    python: 'Python 解释器',
+    cpp: 'C++ 编译器',
+    go: 'Go 工具链',
+};
+
+let langEnvEditor = null;
+
+function closeLangEnvPopup() {
+    const popup = document.getElementById('lang-env-popup');
+    const overlay = document.getElementById('lang-env-overlay');
+    if (popup) popup.classList.add('hidden');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+export function openLangEnvPopup() {
     const descriptor = getActiveFile();
     if (!descriptor) {
         showToast('没有打开的文件', 'warning');
         return;
     }
 
-    const modal = document.getElementById('language-modal');
-    const select = document.getElementById('language-modal-select');
-    if (!modal || !select) return;
+    const popup = document.getElementById('lang-env-popup');
+    const overlay = document.getElementById('lang-env-overlay');
+    if (!popup) return;
 
-    select.value = descriptor.language;
-    modal.classList.remove('hidden');
+    renderLanguageList(descriptor.language);
+    popup.classList.remove('hidden');
+    if (overlay) overlay.classList.remove('hidden');
+
+    // 触发环境信息加载（由 main.js 监听）
+    popup.dispatchEvent(new CustomEvent('langenv-opened', { detail: { language: descriptor.language } }));
 }
 
-/**
- * 语言选择弹窗
- */
-function setupLanguageModal(editor) {
-    const modal = document.getElementById('language-modal');
-    const select = document.getElementById('language-modal-select');
-    const okBtn = document.getElementById('language-modal-ok');
-    const cancelBtn = document.getElementById('language-modal-cancel');
+function renderLanguageList(currentLanguage) {
+    const langListEl = document.getElementById('lang-env-lang-list');
+    if (!langListEl) return;
 
-    okBtn.addEventListener('click', () => {
-        const language = select.value;
-        setActiveFileLanguage(language);
-        updateStatusBar(editor);
-        modal.classList.add('hidden');
-    });
-
-    cancelBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
-    });
-
-    // 点击弹窗背景关闭
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.add('hidden');
-        }
-    });
+    langListEl.innerHTML = '';
+    for (const lang of SUPPORTED_LANGUAGES) {
+        const item = document.createElement('div');
+        item.className = 'lang-env-item' + (lang.id === currentLanguage ? ' active' : '');
+        item.innerHTML = `<span class="lang-env-item-name">${lang.name}</span>`;
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (lang.id !== currentLanguage) {
+                setActiveFileLanguage(lang.id);
+                updateStatusBar(langEnvEditor);
+                renderLanguageList(lang.id);
+                // 通知 main.js 根据新语言刷新环境区
+                const popup = document.getElementById('lang-env-popup');
+                popup.dispatchEvent(new CustomEvent('langenv-language-changed', { detail: { language: lang.id } }));
+            }
+        });
+        langListEl.appendChild(item);
+    }
 }
 
-export function setupStatusLanguagePicker() {
+function setupLangEnvPopup(editor) {
+    langEnvEditor = editor;
+    const overlay = document.getElementById('lang-env-overlay');
+    if (overlay) {
+        overlay.addEventListener('click', () => closeLangEnvPopup());
+    }
+}
+
+export function setupStatusLanguagePicker(editor) {
     const langEl = document.getElementById('status-language');
     if (!langEl) return;
 
     langEl.setAttribute('role', 'button');
     langEl.setAttribute('tabindex', '0');
-    langEl.title = '选择语言模式';
+    langEl.title = '选择语言模式 / 解释器';
 
-    const open = () => openLanguageModal();
+    const open = (e) => {
+        e.stopPropagation();
+        openLangEnvPopup();
+    };
     langEl.addEventListener('click', open);
     langEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            open();
+            openLangEnvPopup();
         }
     });
+
+    setupLangEnvPopup(editor);
 }
 
 /**
- * 更新状态栏语言显示
+ * 更新状态栏语言/环境显示
  */
 function updateStatusBar(editor) {
     const descriptor = getActiveFile();
@@ -459,20 +500,27 @@ function updateStatusBar(editor) {
     if (!langEl) return;
 
     if (descriptor) {
-        langEl.textContent = descriptor.language.toUpperCase();
+        const langName = SUPPORTED_LANGUAGES.find(l => l.id === descriptor.language)?.name || descriptor.language;
+        langEl.textContent = langName;
     } else {
         langEl.textContent = '语言';
     }
 }
 
 /**
- * 更新语言下拉框到活跃文件的语言
+ * 更新状态栏环境显示（由 main.js 调用）
+ */
+export function updateStatusEnvDisplay(text) {
+    const langEl = document.getElementById('status-language');
+    if (!langEl) return;
+    if (text) {
+        langEl.textContent = text;
+    }
+}
+
+/**
+ * 更新语言显示到活跃文件的语言
  */
 export function updateLanguageSelect() {
-    const descriptor = getActiveFile();
-    const select = document.getElementById('language-modal-select');
-    if (descriptor && select) {
-        select.value = descriptor.language;
-    }
     updateStatusBar(null);
 }

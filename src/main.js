@@ -503,16 +503,54 @@ lspStatusEl.className = 'lsp-status disabled';
 lspStatusEl.textContent = lspManager ? 'LSP: 已关闭' : 'LSP: 不可用';
 lspToggleSwitch.className = 'lsp-toggle-switch off';
 
-// ==================== Conda 环境指示器 ====================
-const envIndicator = document.getElementById('status-python-env');
-const envPopup = document.getElementById('env-switcher-popup');
-const envList = document.getElementById('env-switcher-list');
-const envRefreshBtn = document.getElementById('env-switcher-refresh');
+// ==================== Conda 环境（合并到语言/环境弹出面板） ====================
+const envListEl = document.getElementById('lang-env-env-list');
+const envSectionEl = document.getElementById('lang-env-env-section');
+const envDividerEl = document.getElementById('lang-env-divider');
+const envRefreshBtn = document.getElementById('lang-env-refresh');
+const envTitleEl = document.getElementById('lang-env-env-title');
+const langEnvPopup = document.getElementById('lang-env-popup');
 
 let currentEnvName = null;
 let envListCache = null;
+let currentPopupLanguage = null;
 
 const CONDA_API_URL = 'http://localhost:3000/conda';
+
+// 各语言的默认环境显示（无 Conda 时的 fallback）
+const DEFAULT_ENV_DISPLAY = {
+    python: { name: 'default', path: 'python3' },
+    cpp: { name: 'default', path: 'clangd' },
+    go: { name: 'default', path: 'gopls' },
+};
+
+function updateEnvSectionForLanguage(language) {
+    currentPopupLanguage = language;
+    const label = { python: 'Python 解释器', cpp: 'C++ 编译器', go: 'Go 工具链' }[language];
+    if (envTitleEl) envTitleEl.textContent = label || '解释器';
+
+    if (language === 'python') {
+        loadEnvironmentInfo();
+    } else {
+        renderDefaultEnv(language);
+        showEnvSection();
+    }
+}
+
+function renderDefaultEnv(language) {
+    if (!envListEl) return;
+    const env = DEFAULT_ENV_DISPLAY[language];
+    if (!env) { hideEnvSection(); return; }
+
+    envListEl.innerHTML = '';
+    const item = document.createElement('div');
+    item.className = 'lang-env-item active';
+    item.innerHTML = `
+        <span class="lang-env-item-name">${env.name}</span>
+        <span class="lang-env-item-path" title="${env.path}">${env.path}</span>
+    `;
+    envListEl.appendChild(item);
+}
 
 async function loadEnvironmentInfo() {
     try {
@@ -522,46 +560,63 @@ async function loadEnvironmentInfo() {
 
         const info = result.data;
         if (!info.condaAvailable || info.environments.length === 0) {
-            envIndicator.textContent = 'Python: 未检测到 Conda';
+            renderDefaultEnv('python');
+            showEnvSection();
             return;
         }
 
         currentEnvName = info.currentEnvironment;
-        envIndicator.textContent = `Python: ${currentEnvName}`;
         envListCache = info.environments;
+        showEnvSection();
         renderEnvList(info.environments, info.currentEnvironment);
+        updateStatusLanguageDisplay();
     } catch (error) {
         logger.error('Failed to load conda info:', error);
-        envIndicator.textContent = 'Python: 检测失败';
+        renderDefaultEnv('python');
+        showEnvSection();
     }
 }
 
+function showEnvSection() {
+    if (envSectionEl) envSectionEl.style.display = '';
+    if (envDividerEl) envDividerEl.style.display = '';
+}
+
+function hideEnvSection() {
+    if (envSectionEl) envSectionEl.style.display = 'none';
+    if (envDividerEl) envDividerEl.style.display = 'none';
+}
+
 function renderEnvList(environments, activeName) {
-    envList.innerHTML = '';
+    if (!envListEl) return;
+    envListEl.innerHTML = '';
 
     for (const env of environments) {
         const item = document.createElement('div');
-        item.className = 'env-switcher-item' + (env.name === activeName ? ' active' : '');
+        item.className = 'lang-env-item' + (env.name === activeName ? ' active' : '');
         item.innerHTML = `
-            <span class="env-item-name">${env.name}</span>
-            <span class="env-item-path" title="${env.prefix}">${env.prefix}</span>
+            <span class="lang-env-item-name">${env.name}</span>
+            <span class="lang-env-item-path" title="${env.prefix}">${env.prefix}</span>
         `;
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             switchEnvironment(env.name);
         });
-        envList.appendChild(item);
+        envListEl.appendChild(item);
     }
 }
 
 async function switchEnvironment(envName) {
     if (envName === currentEnvName) {
-        envPopup.classList.add('hidden');
+        closeLangEnvPopup();
         return;
     }
 
     try {
-        envIndicator.textContent = 'Python: 切换中...';
+        if (envListEl) {
+            const switchingItem = envListEl.querySelector('.lang-env-item:not(.active)');
+            if (switchingItem) switchingItem.style.opacity = '0.5';
+        }
 
         const response = await fetch(`${CONDA_API_URL}/switch-environment`, {
             method: 'POST',
@@ -572,8 +627,7 @@ async function switchEnvironment(envName) {
         if (!result.success) throw new Error(result.error);
 
         currentEnvName = envName;
-        envIndicator.textContent = `Python: ${currentEnvName}`;
-        envPopup.classList.add('hidden');
+        closeLangEnvPopup();
 
         // 重启 LSP 以使用新的 Python 路径
         if (lspManager && lspManager.globalEnabled && lspManager.getClient('python')) {
@@ -589,37 +643,58 @@ async function switchEnvironment(envName) {
         }
 
         renderEnvList(envListCache, currentEnvName);
+        updateStatusLanguageDisplay();
     } catch (error) {
         logger.error('Failed to switch environment:', error);
-        envIndicator.textContent = 'Python: 切换失败';
         showToast('切换环境失败: ' + error.message, 'error');
     }
 }
 
-// 点击环境指示器弹出切换面板
-envIndicator.addEventListener('click', (e) => {
-    e.stopPropagation();
-    envPopup.classList.toggle('hidden');
-    if (!envPopup.classList.contains('hidden')) {
-        loadEnvironmentInfo();
+function closeLangEnvPopup() {
+    const popup = document.getElementById('lang-env-popup');
+    const overlay = document.getElementById('lang-env-overlay');
+    if (popup) popup.classList.add('hidden');
+    if (overlay) overlay.classList.add('hidden');
+}
+
+// 更新状态栏的语言/环境显示
+function updateStatusLanguageDisplay() {
+    const langEl = document.getElementById('status-language');
+    if (!langEl) return;
+
+    const descriptor = getActiveFile();
+    if (!descriptor) { langEl.textContent = '语言'; return; }
+
+    const lang = descriptor.language;
+    if (lang === 'python' && currentEnvName) {
+        langEl.textContent = `Python: ${currentEnvName}`;
+    } else {
+        const names = { python: 'Python', cpp: 'C++', go: 'Go', javascript: 'JavaScript', typescript: 'TypeScript', json: 'JSON', html: 'HTML', css: 'CSS', markdown: 'Markdown', plaintext: '纯文本' };
+        langEl.textContent = names[lang] || lang;
     }
-});
+}
 
 // 刷新按钮
-envRefreshBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    loadEnvironmentInfo();
-});
+if (envRefreshBtn) {
+    envRefreshBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loadEnvironmentInfo();
+    });
+}
 
-// 点击其他区域关闭弹出框
-document.addEventListener('click', () => {
-    envPopup.classList.add('hidden');
-});
-envPopup.addEventListener('click', (e) => {
-    e.stopPropagation();
-});
+// 面板打开时根据当前语言加载环境信息
+if (langEnvPopup) {
+    langEnvPopup.addEventListener('langenv-opened', (e) => {
+        const language = e.detail?.language || 'python';
+        updateEnvSectionForLanguage(language);
+    });
+    langEnvPopup.addEventListener('langenv-language-changed', (e) => {
+        const language = e.detail?.language || 'python';
+        updateEnvSectionForLanguage(language);
+    });
+}
 
-// 启动时加载环境信息
+// 初始加载环境信息
 loadEnvironmentInfo();
 
 // 注册 AI 行内补全（Monaco Provider + 快捷键 + 自动触发）

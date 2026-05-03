@@ -121,28 +121,6 @@
         </div>
     </div>
 
-    <!-- Language Select Modal -->
-    <div id="language-modal" class="modal hidden">
-        <div class="modal-content">
-            <div class="modal-title">选择语言模式</div>
-            <select id="language-modal-select">
-                <option value="python">Python</option>
-                <option value="cpp">C++</option>
-                <option value="go">Go</option>
-                <option value="javascript">JavaScript</option>
-                <option value="typescript">TypeScript</option>
-                <option value="json">JSON</option>
-                <option value="html">HTML</option>
-                <option value="css">CSS</option>
-                <option value="markdown">Markdown</option>
-                <option value="plaintext">纯文本</option>
-            </select>
-            <div class="modal-buttons">
-                <button class="btn-primary" id="language-modal-ok">确定</button>
-                <button class="btn-secondary" id="language-modal-cancel">取消</button>
-            </div>
-        </div>
-    </div>
 
     <!-- Workspace: sidebar + editor area + chat panel -->
     <div id="workspace">
@@ -462,17 +440,26 @@
             </div>
         </div>
         <div id="status-right">
-            <span id="status-language">语言</span>
-            <span id="status-python-env" class="status-env-indicator" title="选择 Python 环境">Python: 检测中...</span>
-            <div id="env-switcher-popup" class="env-switcher-popup hidden">
-                <div class="env-switcher-header">
-                    <span>选择解释器</span>
-                    <button id="env-switcher-refresh" class="env-switcher-refresh-btn" title="刷新">&#x21bb;</button>
-                </div>
-                <div id="env-switcher-list" class="env-switcher-list"></div>
-            </div>
+            <span id="status-language" class="status-lang-trigger" title="选择语言模式 / 解释器">语言</span>
             <span id="status-line-col">行 1, 列 1</span>
             <span id="status-encoding" title="文件编码">UTF-8</span>
+        </div>
+    </div>
+
+    <!-- Language & Environment Modal (centered) -->
+    <div id="lang-env-overlay" class="lang-env-overlay hidden"></div>
+    <div id="lang-env-popup" class="lang-env-popup hidden">
+        <div id="lang-env-env-section">
+            <div class="lang-env-header">
+                <span id="lang-env-env-title">解释器</span>
+                <button id="lang-env-refresh" class="lang-env-refresh-btn" title="刷新">&#x21bb;</button>
+            </div>
+            <div id="lang-env-env-list" class="lang-env-list"></div>
+        </div>
+        <div class="lang-env-divider" id="lang-env-divider"></div>
+        <div>
+            <div class="lang-env-header"><span>语言模式</span></div>
+            <div id="lang-env-lang-list" class="lang-env-list"></div>
         </div>
     </div>
 
