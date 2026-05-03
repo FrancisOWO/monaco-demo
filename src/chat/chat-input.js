@@ -382,16 +382,21 @@ function updateMentionHighlight() {
  */
 function buildFileList() {
     const files = [];
-
-    // 从已打开文件
-    for (const [path, descriptor] of openFiles) {
-        files.push({ name: descriptor.name, path: descriptor.path });
-    }
+    const seen = new Set();
 
     // 从文件树（递归扁平化）
     const treeRoot = getFileTreeRoot();
     if (treeRoot) {
         flattenTreeNodes(treeRoot, files);
+        files.forEach(f => seen.add(f.path));
+    }
+
+    // 从已打开文件（补充树中可能没有的）
+    for (const [path, descriptor] of openFiles) {
+        if (!seen.has(descriptor.path)) {
+            files.push({ name: descriptor.name, path: descriptor.path });
+            seen.add(descriptor.path);
+        }
     }
 
     return files;
