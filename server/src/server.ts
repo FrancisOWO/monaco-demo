@@ -91,8 +91,13 @@ for (const serverConfig of LANGUAGE_SERVERS) {
     app.ws(serverConfig.wsPath, (ws: WebSocket, req: any) => {
         console.log(`[WebSocket] ${serverConfig.displayName} client connected`);
 
-        // 启动语言服务器进程
-        const langProcess = launchLanguageServer(serverConfig);
+        // 启动语言服务器进程（传入 ws 用于不可用时通知前端）
+        const langProcess = launchLanguageServer(serverConfig, ws);
+
+        if (!langProcess) {
+            // 命令不可用，launchLanguageServer 已发送错误并安排关闭 ws
+            return;
+        }
 
         if (!langProcess.stdin || !langProcess.stdout) {
             console.error(`[WebSocket] ${serverConfig.displayName} stdin/stdout not available`);

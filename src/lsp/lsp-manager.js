@@ -17,6 +17,8 @@ class LSPManager {
         cpp: true,
         go: true,
     };
+    // 记录因命令不可用而永久失败的语言，不再重试
+    unavailableLanguages = new Set();
     clients = {};
     disposables = {};
     editor = null;
@@ -62,6 +64,8 @@ class LSPManager {
         }
         if (!this.globalEnabled) return;
         if (this.clients[languageId]) return;
+        // 命令不可用的语言不再重试
+        if (this.unavailableLanguages.has(languageId)) return;
 
         try {
             const client = createLSPClient(monaco, this.editor, config);
@@ -76,6 +80,14 @@ class LSPManager {
             this.notifyStatusChange();
             logger.info(`LSP connected for ${languageId}`);
         } catch (error) {
+            const errorMsg = error?.message || String(error);
+            // 检测 "not available" / "not found" / "ENOENT" 错误 → 永久标记不可用
+            if (errorMsg.includes('not available') || errorMsg.includes('not found') || errorMsg.includes('ENOENT')) {
+                this.unavailableLanguages.add(languageId);
+                logger.warn(`LSP for ${languageId} is not available, will not retry: ${errorMsg}`);
+                this.notifyStatusChange();
+                return;
+            }
             logger.error(`LSP connection failed for ${languageId}:`, error);
             if (this.globalEnabled && this.languageToggles[languageId]) {
                 setTimeout(() => this.connectLanguage(languageId), 5000);
@@ -142,6 +154,7 @@ class LSPManager {
                 languageId: id,
                 enabled,
                 connected: this.clients[id]?.is_connected() ?? false,
+                unavailable: this.unavailableLanguages.has(id),
             })),
         };
     }

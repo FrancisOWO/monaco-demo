@@ -333,6 +333,7 @@ const lspToggleSwitch = document.getElementById('lsp-toggle-switch');
 const lspLanguageSettings = document.getElementById('lsp-language-settings');
 const lspLanguagePopup = document.getElementById('lsp-language-popup');
 const lspLanguagePopupList = document.getElementById('lsp-language-popup-list');
+const lspLanguageBack = document.getElementById('lsp-language-back');
 
 let lspManager = null;
 
@@ -340,24 +341,31 @@ if (getLSPManager) {
     lspManager = getLSPManager();
     lspManager.setEditor(editor);
 
-    // 动态生成语言设置弹窗中的开关
+    // 动态生成语言设置弹窗中的开关（三栏：语言名 | 状态标签 | 开关）
     function buildLanguagePopupItems() {
         if (!LANGUAGE_CONFIGS) return;
         lspLanguagePopupList.innerHTML = '';
         for (const [languageId, config] of Object.entries(LANGUAGE_CONFIGS)) {
             const enabled = lspManager.languageToggles[languageId];
+            const unavailable = lspManager.unavailableLanguages?.has(languageId);
             const item = document.createElement('div');
             item.className = 'lsp-language-popup-item';
             item.innerHTML = `
-                <div>
-                    <span class="lsp-toggle-label">${config.languageId} (${config.wsEndpoint.replace('/', '')})</span>
-                    <span class="lsp-language-popup-status" id="lsp-lang-status-${languageId}"></span>
-                </div>
+                <span class="lsp-lang-name">${config.languageId} (${config.wsEndpoint.replace('/', '')})</span>
+                <span class="lsp-lang-status-tag ${unavailable ? 'unavailable' : 'disconnected'}" id="lsp-lang-status-${languageId}">${unavailable ? '不可用' : '未连接'}</span>
                 <button id="lsp-toggle-${languageId}" class="lsp-toggle-switch ${enabled ? 'on' : 'off'}" type="button">
                     <span class="lsp-toggle-knob"></span>
                 </button>
             `;
             lspLanguagePopupList.appendChild(item);
+
+            // 不可用时禁用开关
+            if (unavailable) {
+                const btn = item.querySelector(`#lsp-toggle-${languageId}`);
+                btn.disabled = true;
+                btn.style.opacity = '0.4';
+                btn.style.cursor = 'not-allowed';
+            }
 
             // 语言开关点击
             item.querySelector(`#lsp-toggle-${languageId}`).addEventListener('click', (e) => {
@@ -372,24 +380,52 @@ if (getLSPManager) {
         // 更新全局开关
         lspToggleSwitch.className = 'lsp-toggle-switch ' + (status.globalEnabled ? 'on' : 'off');
 
-        // 更新语言设置弹窗中的开关和状态文字
+        // 更新语言设置弹窗中的开关和状态标签
         for (const lang of status.languages) {
             const toggleEl = document.getElementById(`lsp-toggle-${lang.languageId}`);
             if (toggleEl) {
                 toggleEl.className = 'lsp-toggle-switch ' + (lang.enabled ? 'on' : 'off');
+                // 不可用时禁用开关
+                if (lang.unavailable) {
+                    toggleEl.disabled = true;
+                    toggleEl.style.opacity = '0.4';
+                    toggleEl.style.cursor = 'not-allowed';
+                } else {
+                    toggleEl.disabled = false;
+                    toggleEl.style.opacity = '';
+                    toggleEl.style.cursor = '';
+                }
             }
             const statusEl = document.getElementById(`lsp-lang-status-${lang.languageId}`);
             if (statusEl) {
-                statusEl.textContent = lang.connected ? '已连接 ✓' : '未连接';
+                // 设置状态标签文字和颜色类
+                statusEl.className = 'lsp-lang-status-tag';
+                if (lang.unavailable) {
+                    statusEl.classList.add('unavailable');
+                    statusEl.textContent = '不可用';
+                } else if (lang.connected) {
+                    statusEl.classList.add('connected');
+                    statusEl.textContent = '已连接';
+                } else if (lang.enabled) {
+                    statusEl.classList.add('connecting');
+                    statusEl.textContent = '连接中';
+                } else {
+                    statusEl.classList.add('disconnected');
+                    statusEl.textContent = '未连接';
+                }
             }
         }
 
         // 更新状态栏文本
-        const enabledLangs = status.languages.filter(l => l.enabled);
-        const connectedLangs = status.languages.filter(l => l.connected);
+        const availableLangs = status.languages.filter(l => !l.unavailable);
+        const connectedLangs = availableLangs.filter(l => l.connected);
+        const unavailableLangs = status.languages.filter(l => l.unavailable);
         if (!status.globalEnabled) {
             lspStatusEl.className = 'lsp-status disabled';
             lspStatusEl.textContent = 'LSP: 已关闭';
+        } else if (connectedLangs.length === 0 && unavailableLangs.length > 0) {
+            lspStatusEl.className = 'lsp-status error';
+            lspStatusEl.textContent = `LSP: ${unavailableLangs.map(l => l.languageId).join(', ')} 不可用`;
         } else if (connectedLangs.length === 0) {
             lspStatusEl.className = 'lsp-status disconnected';
             lspStatusEl.textContent = 'LSP: 未连接';
@@ -417,6 +453,13 @@ if (getLSPManager) {
         e.stopPropagation();
         lspTogglePopup.classList.add('hidden');
         lspLanguagePopup.classList.toggle('hidden');
+    });
+
+    // 点击返回箭头 → 关闭语言设置弹窗，打开主弹窗
+    lspLanguageBack.addEventListener('click', (e) => {
+        e.stopPropagation();
+        lspLanguagePopup.classList.add('hidden');
+        lspTogglePopup.classList.remove('hidden');
     });
 
     // 点击其他区域关闭两个弹出框

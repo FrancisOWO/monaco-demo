@@ -156,7 +156,7 @@ body.panel-visible #workspace {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     padding: 10px 14px;
     z-index: 1001;
-    min-width: 180px;
+    min-width: 220px;
 }
 
 .lsp-language-popup.hidden {
@@ -164,31 +164,71 @@ body.panel-visible #workspace {
 }
 
 .lsp-language-popup-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 13px;
     font-weight: 600;
     color: #333;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 6px;
+    padding-bottom: 8px;
 }
 
-.lsp-language-popup-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    margin-top: 6px;
-}
-
-.lsp-language-popup-item .lsp-toggle-label {
+.lsp-language-back-link {
     font-size: 12px;
-    color: #666;
+    color: #0078d4;
+    cursor: pointer;
+    text-decoration: none;
 }
 
-.lsp-language-popup-status {
+.lsp-language-back-link:hover {
+    text-decoration: underline;
+}
+
+/* 语言项：三栏布局（语言名 | 状态标签 | 开关） */
+.lsp-language-popup-item {
+    display: grid;
+    grid-template-columns: 100px 60px 40px;
+    align-items: center;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.lsp-language-popup-item .lsp-lang-name {
+    font-size: 13px;
+    color: #333;
+    white-space: nowrap;
+}
+
+/* 状态标签 — 不同颜色 */
+.lsp-lang-status-tag {
     font-size: 11px;
-    color: #999;
-    margin-top: 2px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    text-align: center;
+    min-width: 52px;
+}
+
+.lsp-lang-status-tag.unavailable {
+    background: #fdecea;
+    color: #dc3545;
+}
+
+.lsp-lang-status-tag.disconnected {
+    background: #f0f0f0;
+    color: #6c757d;
+}
+
+.lsp-lang-status-tag.connecting {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.lsp-lang-status-tag.connected {
+    background: #d4edda;
+    color: #28a745;
 }
 
 .lsp-toggle-switch {
@@ -239,8 +279,28 @@ body[data-theme="dark"] .lsp-language-popup-header {
     color: #ccc;
 }
 
-body[data-theme="dark"] .lsp-language-popup-item .lsp-toggle-label {
+body[data-theme="dark"] .lsp-language-popup-item .lsp-lang-name {
+    color: #ccc;
+}
+
+body[data-theme="dark"] .lsp-lang-status-tag.unavailable {
+    background: #3a1f1f;
+    color: #f87171;
+}
+
+body[data-theme="dark"] .lsp-lang-status-tag.disconnected {
+    background: #333;
     color: #999;
+}
+
+body[data-theme="dark"] .lsp-lang-status-tag.connecting {
+    background: #3a2f1a;
+    color: #fbbf24;
+}
+
+body[data-theme="dark"] .lsp-lang-status-tag.connected {
+    background: #1a3a2a;
+    color: #4ade80;
 }
 
 body[data-theme="dark"] .lsp-language-settings-link {
