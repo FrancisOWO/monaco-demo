@@ -85,7 +85,7 @@ export class StreamedLLMClient implements ILLMClient {
                 model: this.config.model,
                 prompt: prompt.prefix,
                 suffix: prompt.suffix || undefined,
-                max_tokens: strategy.maxTokens ?? 50,
+                max_tokens: strategy.maxTokens ?? 64,
                 stop: strategy.stopTokens.length > 0 ? strategy.stopTokens : undefined,
                 temperature: 0.01,
                 n,
