@@ -82,8 +82,8 @@ export const FILE_ICON_MAP = {
     html: '🌐',
     json: '📋',
     md: '📝',
-    cpp: '⚙️',
-    go: '🦫',
+    cpp: '💎',
+    go: '🚀',
     txt: '📄',
 };
 

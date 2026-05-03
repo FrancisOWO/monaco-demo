@@ -115,11 +115,11 @@
 }
 
 .tree-icon.file-cpp::before {
-    content: "⚙️";
+    content: "💎";
 }
 
 .tree-icon.file-go::before {
-    content: "🦫";
+    content: "🚀";
 }
 
 .tree-icon.file-txt::before {

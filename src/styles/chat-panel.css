@@ -242,12 +242,12 @@
 
 /* 历史按钮图标 */
 #chat-history-btn::before {
-    content: "📜";
+    content: "🕒";
 }
 
 /* 设置按钮图标 */
 #chat-settings-btn::before {
-    content: "⚙";
+    content: "⚙️";
 }
 
 /* 新建对话按钮图标 */
@@ -602,7 +602,8 @@
     gap: 8px;
 }
 
-.chat-history-empty-icon {
+.chat-history-empty-icon::before {
+    content: "🕒";
     font-size: 32px;
 }
 
