@@ -40,10 +40,20 @@ export function getConfigDir(): string {
  */
 export function ensureConfigDir(): string {
     const configDir = getConfigDir();
-    if (!fs.existsSync(configDir)) {
+    const isNew = !fs.existsSync(configDir);
+    if (isNew) {
         fs.mkdirSync(configDir, { recursive: true });
         console.log('[Config] Created config directory:', configDir);
     }
+
+    // 首次创建目录时，写入默认配置文件模板
+    if (isNew) {
+        writeConfigFile(CONFIG_FILES.apiConfigs, getDefaultApiConfigs());
+        writeConfigFile(CONFIG_FILES.conversationHistory, { history: [] });
+        writeConfigFile(CONFIG_FILES.settings, {});
+        console.log('[Config] Created default config files');
+    }
+
     return configDir;
 }
 
