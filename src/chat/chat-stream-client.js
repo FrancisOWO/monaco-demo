@@ -18,6 +18,7 @@ export async function streamChatMessage() {
     const messages = chatStore.getMessages();
     const context = chatStore.getContextItems();
     const mode = chatStore.getMode();
+    const apiConfig = chatStore.getCurrentApiConfig();
 
     const messageId = chatStore.startStreaming();
     const abortController = new AbortController();
@@ -27,7 +28,14 @@ export async function streamChatMessage() {
         const response = await fetch(`${AI_CHAT_URL}/message`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ messages, context, mode }),
+            body: JSON.stringify({
+                messages,
+                context,
+                mode,
+                apiConfig: apiConfig
+                    ? { id: apiConfig.id, baseUrl: apiConfig.baseUrl, apiKey: apiConfig.apiKey }
+                    : undefined,
+            }),
             signal: abortController.signal,
         });
 

@@ -10,11 +10,12 @@ import { config } from './config';
 
 const router: Router = express.Router();
 
-const TEST_MODE = config.ai.testMode;
-
 let openai: OpenAI | null = null;
 
-function getOpenAIClient(): OpenAI {
+function getOpenAIClient(baseUrl?: string, apiKey?: string): OpenAI {
+    if (baseUrl && apiKey) {
+        return new OpenAI({ apiKey, baseURL: baseUrl });
+    }
     if (!openai) {
         openai = new OpenAI({
             apiKey: config.ai.apiKey,
@@ -71,6 +72,11 @@ interface ChatRequest {
         mcpToolName?: string;
     }>;
     mode: 'ask' | 'plan' | 'agent';
+    apiConfig?: {
+        id: string;
+        baseUrl: string;
+        apiKey: string;
+    };
 }
 
 function writeSSE(res: express.Response, event: string, data: object) {
@@ -78,9 +84,9 @@ function writeSSE(res: express.Response, event: string, data: object) {
 }
 
 // 实际调用 AI API 的 SSE 流
-async function realChatSSE(res: express.Response, reqBody: ChatRequest) {
+async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?: string, apiKey?: string) {
     const { messages, mode } = reqBody;
-    const client = getOpenAIClient();
+    const client = getOpenAIClient(baseUrl, apiKey);
 
     // 构造 OpenAI 消息格式
     const systemPrompt = mode === 'agent'
@@ -246,14 +252,15 @@ function mockChatSSE(res: express.Response, reqBody: ChatRequest) {
 
 // POST /ai/chat/message — SSE 流式对话端点
 router.post('/message', async (req, res) => {
-    const { messages, context, mode } = req.body as ChatRequest;
+    const { messages, context, mode, apiConfig } = req.body as ChatRequest;
 
     if (!mode) {
         res.status(400).json({ error: 'Missing mode parameter' });
         return;
     }
 
-    console.log(`[AI Chat] Request: mode=${mode}, messages=${messages?.length}, context=${context?.length}`);
+    const isMock = !apiConfig || !apiConfig.baseUrl || apiConfig.id === 'mock';
+    console.log(`[AI Chat] Request: mode=${mode}, messages=${messages?.length}, context=${context?.length}, mock=${isMock}`);
 
     // 设置 SSE 头
     res.setHeader('Content-Type', 'text/event-stream');
@@ -266,10 +273,10 @@ router.post('/message', async (req, res) => {
         console.log('[AI Chat] Client disconnected');
     });
 
-    if (TEST_MODE) {
+    if (isMock) {
         mockChatSSE(res, { messages: messages || [], context: context || [], mode });
     } else {
-        await realChatSSE(res, { messages: messages || [], context: context || [], mode });
+        await realChatSSE(res, { messages: messages || [], context: context || [], mode }, apiConfig!.baseUrl, apiConfig!.apiKey);
     }
 });
 
@@ -283,7 +290,7 @@ router.get('/context/file', (req, res) => {
     }
 
     // 测试模式：返回模拟文件内容
-    if (TEST_MODE) {
+    if (config.ai.testMode) {
         const mockFiles: Record<string, { name: string; content: string; language: string }> = {
             '/main.py': { name: 'main.py', content: 'def main():\n    print("Hello, World!")\n\nif __name__ == "__main__":\n    main()', language: 'python' },
             '/app.js': { name: 'app.js', content: 'function app() {\n  console.log("App started");\n}\n\napp();', language: 'javascript' },
@@ -305,13 +312,13 @@ router.get('/context/file', (req, res) => {
 
 // GET /ai/chat/registry/skills — 返回 Skill 注册列表
 router.get('/registry/skills', (_req, res) => {
-    res.json(TEST_MODE ? MOCK_SKILLS : []);
+    res.json(config.ai.testMode ? MOCK_SKILLS : []);
 });
 
 // GET /ai/chat/registry/mcp — 返回 MCP 工具注册列表（扁平化）
 router.get('/registry/mcp', (_req, res) => {
     const tools: Array<{ server: string; toolId: string; name: string; description: string }> = [];
-    if (TEST_MODE) {
+    if (config.ai.testMode) {
         for (const mcpServer of MOCK_MCP_SERVERS) {
             for (const tool of mcpServer.tools) {
                 tools.push({
