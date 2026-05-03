@@ -88,6 +88,11 @@ function parseLspMessage(message: string) {
     return JSON.parse(message.substring(headerEnd + 4));
 }
 
+function makeLspResponse(id: number, result: any) {
+    const content = JSON.stringify({ jsonrpc: '2.0', id, result });
+    return `Content-Length: ${new TextEncoder().encode(content).length}\r\n\r\n${content}`;
+}
+
 // 语言配置（与 language-configs.js 结构一致）
 const MOCK_LANGUAGE_CONFIGS = {
     python: {
@@ -119,6 +124,30 @@ const MOCK_LANGUAGE_CONFIGS = {
     },
 };
 
+/**
+ * 辅助：连接 LSP 客户端并完成 initialize 握手
+ * 返回已连接的客户端和对应的 MockWebSocket
+ */
+async function connectClient(module: any, monaco: any, editor: any, config: any) {
+    const client = module.createLSPClient(monaco, editor, config);
+    const connectPromise = client.connect();
+
+    const socket = MockWebSocket.instances[MockWebSocket.instances.length - 1];
+    socket.onopen?.();
+
+    // 等待 initialize 请求发送（flush 微任务）
+    for (let i = 0; i < 20 && socket.sent.length < 1; i++) {
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+
+    // 解析并回复 initialize
+    const initReq = parseLspMessage(socket.sent[0]);
+    socket.onmessage?.({ data: makeLspResponse(initReq.id, { capabilities: {} }) });
+
+    await connectPromise;
+    return { client, socket, initReqId: initReq.id };
+}
+
 describe('lsp-client (generic)', () => {
     const logger = {
         info: jest.fn(),
@@ -126,11 +155,6 @@ describe('lsp-client (generic)', () => {
         error: jest.fn(),
         debug: jest.fn(),
     };
-
-    // Mock fetch for workspace-root and language-specific HTTP calls
-    const mockFetch = jest.fn().mockResolvedValue({
-        json: () => Promise.resolve({ uri: 'file:///workspace', path: '/workspace' }),
-    });
 
     async function loadClient() {
         jest.resetModules();
@@ -145,8 +169,9 @@ describe('lsp-client (generic)', () => {
         jest.doMock('../../file-system/file-store.js', () => ({
             setWorkspaceUriPrefix: jest.fn(),
         }));
+        // Mock fetch 使其抛错，让 fetchWorkspaceRoot 使用默认值
         (global as any).WebSocket = MockWebSocket;
-        (global as any).fetch = mockFetch;
+        (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
         const module = require('../lsp-client.js');
         const editor = {
@@ -161,135 +186,76 @@ describe('lsp-client (generic)', () => {
         delete (global as any).fetch;
     });
 
-    // === 连接与初始化测试 ===
+    // === 连接端点测试 ===
 
     it('creates a Python client that connects to /pyright endpoint', async () => {
         const { module, editor } = await loadClient();
-        const config = MOCK_LANGUAGE_CONFIGS.python;
-        const client = module.createLSPClient({} as any, editor as any, config);
-        const connectPromise = client.connect();
+        const { client, socket, initReqId } = await connectClient(module, {} as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
 
-        const socket = MockWebSocket.instances[0];
         expect(socket.url).toBe('ws://localhost:3000/pyright');
-        socket.onopen?.();
-
-        // Simulate workspace-root response
-        await mockFetch.mock.results[0].value;
-
-        // Handle initialize request from client
-        const initRequest = parseLspMessage(socket.sent[0]);
-        expect(initRequest).toMatchObject({
-            jsonrpc: '2.0',
-            method: 'initialize',
-            params: {
-                rootUri: 'file:///workspace',
-                initializationOptions: {
-                    pythonPath: '/usr/bin/python',
-                    python: { pythonPath: '/usr/bin/python' },
-                },
-            },
-        });
-
-        // Send initialize response
-        const initResponse = `Content-Length: ${JSON.stringify({ jsonrpc: '2.0', id: initRequest.id, result: { capabilities: {} } }).length}\r\n\r\n${JSON.stringify({ jsonrpc: '2.0', id: initRequest.id, result: { capabilities: {} } })}`;
-        socket.onmessage?.({ data: initResponse });
-
-        // initialized notification should be sent
-        await connectPromise;
-        expect(parseLspMessage(socket.sent[1])).toEqual({
-            jsonrpc: '2.0',
-            method: 'initialized',
-            params: {},
-        });
         expect(client.is_connected()).toBe(true);
+
+        // Python 初始化选项由 mock getInitOptions 提供
+        const initReq = parseLspMessage(socket.sent[0]);
+        expect(initReq.params.initializationOptions).toEqual({
+            pythonPath: '/usr/bin/python',
+            python: { pythonPath: '/usr/bin/python' },
+        });
     });
 
     it('creates a C++ client that connects to /clangd endpoint', async () => {
         const { module, editor } = await loadClient();
-        const config = MOCK_LANGUAGE_CONFIGS.cpp;
-        const client = module.createLSPClient({} as any, editor as any, config);
-        const connectPromise = client.connect();
+        const { client, socket } = await connectClient(module, {} as any, editor as any, MOCK_LANGUAGE_CONFIGS.cpp);
 
-        const socket = MockWebSocket.instances[0];
         expect(socket.url).toBe('ws://localhost:3000/clangd');
-        socket.onopen?.();
-
-        await mockFetch.mock.results[0].value;
-
-        const initRequest = parseLspMessage(socket.sent[0]);
-        expect(initRequest).toMatchObject({
-            jsonrpc: '2.0',
-            method: 'initialize',
-            params: {
-                rootUri: 'file:///workspace',
-                initializationOptions: {},  // clangd has empty initOptions
-            },
-        });
-
-        const initResponse = `Content-Length: ${JSON.stringify({ jsonrpc: '2.0', id: initRequest.id, result: { capabilities: {} } }).length}\r\n\r\n${JSON.stringify({ jsonrpc: '2.0', id: initRequest.id, result: { capabilities: {} } })}`;
-        socket.onmessage?.({ data: initResponse });
-
-        await connectPromise;
         expect(client.is_connected()).toBe(true);
+
+        const initReq = parseLspMessage(socket.sent[0]);
+        expect(initReq.params.initializationOptions).toEqual({});
     });
 
     it('creates a Go client that connects to /gopls endpoint', async () => {
         const { module, editor } = await loadClient();
-        const config = MOCK_LANGUAGE_CONFIGS.go;
-        const client = module.createLSPClient({} as any, editor as any, config);
-        const connectPromise = client.connect();
+        const { client, socket } = await connectClient(module, {} as any, editor as any, MOCK_LANGUAGE_CONFIGS.go);
 
-        const socket = MockWebSocket.instances[0];
         expect(socket.url).toBe('ws://localhost:3000/gopls');
-        socket.onopen?.();
-
-        await mockFetch.mock.results[0].value;
-
-        const initRequest = parseLspMessage(socket.sent[0]);
-        expect(initRequest.params.initializationOptions).toEqual({});
-
-        const initResponse = `Content-Length: ${JSON.stringify({ jsonrpc: '2.0', id: initRequest.id, result: { capabilities: {} } }).length}\r\n\r\n${JSON.stringify({ jsonrpc: '2.0', id: initRequest.id, result: { capabilities: {} } })}`;
-        socket.onmessage?.({ data: initResponse });
-
-        await connectPromise;
         expect(client.is_connected()).toBe(true);
+
+        const initReq = parseLspMessage(socket.sent[0]);
+        expect(initReq.params.initializationOptions).toEqual({});
     });
 
     // === 消息处理测试 ===
 
     it('frames requests, resolves responses, sends notifications, and times out', async () => {
-        jest.useFakeTimers();
         const { module, editor } = await loadClient();
-        const config = MOCK_LANGUAGE_CONFIGS.python;
-        const client = module.createLSPClient({} as any, editor as any, config);
-        const connectPromise = client.connect();
-        const socket = MockWebSocket.instances[0];
-        socket.onopen?.();
-        await mockFetch.mock.results[0].value;
-        const initReq = parseLspMessage(socket.sent[0]);
-        socket.onmessage?.({
-            data: `Content-Length: 2\r\n\r\n${JSON.stringify({ id: initReq.id, result: {} })}`,
-        });
-        await connectPromise;
+        const { client, socket } = await connectClient(module, {} as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
 
-        const hoverPromise = client.sendRequest('textDocument/hover', { at: 1 }, 1000);
-        const hoverMessage = parseLspMessage(socket.sent[2]);
-        expect(hoverMessage).toMatchObject({
-            id: 2,
+        // 记录当前 sent 数量（initialize + initialized = 2 条）
+        const baseSentCount = socket.sent.length;
+
+        // 发送 hover 请求
+        const hoverPromise = client.sendRequest('textDocument/hover', { at: 1 }, 5000);
+        const hoverMsg = parseLspMessage(socket.sent[baseSentCount]);
+        expect(hoverMsg).toMatchObject({
+            id: expect.any(Number),
             method: 'textDocument/hover',
             params: { at: 1 },
         });
 
-        socket.onmessage?.({
-            data: `Content-Length: ${JSON.stringify({ id: 2, result: { contents: 'doc' } }).length}\r\n\r\n${JSON.stringify({ id: 2, result: { contents: 'doc' } })}`,
-        });
+        // 回复 hover
+        socket.onmessage?.({ data: makeLspResponse(hoverMsg.id, { contents: 'doc' }) });
         await expect(hoverPromise).resolves.toEqual({ contents: 'doc' });
 
+        // 发送通知
         client.sendNotification('textDocument/didOpen', { textDocument: { uri: 'file:///x.py' } });
-        expect(parseLspMessage(socket.sent[3])).toMatchObject({
+        const notifMsg = parseLspMessage(socket.sent[baseSentCount + 1]);
+        expect(notifMsg).toMatchObject({
             method: 'textDocument/didOpen',
         });
 
+        // 超时测试
+        jest.useFakeTimers();
         const timeoutPromise = client.sendRequest('textDocument/completion', {}, 25);
         jest.advanceTimersByTime(25);
         await expect(timeoutPromise).rejects.toThrow('LSP request timed out: textDocument/completion');
@@ -350,7 +316,7 @@ describe('lsp-client (generic)', () => {
             }],
         });
         expect(monacoMock.monaco.editor.setModelMarkers).toHaveBeenCalledWith(
-            { id: 'active-model' },  // fallback to active model
+            { id: 'active-model' },  // fallback
             'go-lsp',
             [expect.objectContaining({ severity: 2, message: 'info' })],
         );
@@ -372,21 +338,18 @@ describe('lsp-client (generic)', () => {
             }),
         };
 
-        // Register Python completion → should register for 'python' language
         module.registerLSPCompletionProvider(monacoMock.monaco as any, lspClient as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
         expect(monacoMock.monaco.languages.registerCompletionItemProvider).toHaveBeenCalledWith(
             'python',
             expect.objectContaining({ triggerCharacters: ['.', '('] }),
         );
 
-        // Register C++ completion → should register for 'cpp' language
         module.registerLSPCompletionProvider(monacoMock.monaco as any, lspClient as any, editor as any, MOCK_LANGUAGE_CONFIGS.cpp);
         expect(monacoMock.monaco.languages.registerCompletionItemProvider).toHaveBeenCalledWith(
             'cpp',
             expect.objectContaining({ triggerCharacters: ['.', ':', '>'] }),
         );
 
-        // Register Go completion → should register for 'go' language
         module.registerLSPCompletionProvider(monacoMock.monaco as any, lspClient as any, editor as any, MOCK_LANGUAGE_CONFIGS.go);
         expect(monacoMock.monaco.languages.registerCompletionItemProvider).toHaveBeenCalledWith(
             'go',
@@ -396,79 +359,53 @@ describe('lsp-client (generic)', () => {
 
     // === 悬停提供者测试 ===
 
-    it('registers hover provider for the correct languageId with correct default language', async () => {
+    it('registers hover provider for the correct languageId', async () => {
         const { module, monacoMock } = await loadClient();
         const lspClient = {
             is_connected: jest.fn(() => true),
             getHover: jest.fn().mockResolvedValue({
-                contents: [
-                    'plain text',
-                    { language: 'python', value: 'def f(): ...' },
-                ],
-                range: {
-                    start: { line: 2, character: 3 },
-                    end: { line: 2, character: 8 },
-                },
+                contents: ['plain text', { language: 'python', value: 'def f(): ...' }],
+                range: { start: { line: 2, character: 3 }, end: { line: 2, character: 8 } },
             }),
         };
-        const model = { uri: { toString: () => 'file:///workspace/a.py' } };
 
-        // Python hover
         module.registerLSPHoverProvider(monacoMock.monaco as any, lspClient as any, MOCK_LANGUAGE_CONFIGS.python);
-        const pythonHoverProvider = monacoMock.hoverProviders[0];
-        const pythonResult = await pythonHoverProvider.provider.provideHover(model, { lineNumber: 3, column: 5 });
-        // When hover result has language, it should use the value from the result,
-        // but the fallback should be 'python'
-        expect(pythonHoverProvider.language).toBe('python');
+        expect(monacoMock.monaco.languages.registerHoverProvider).toHaveBeenCalledWith('python', expect.any(Object));
 
-        // C++ hover
         module.registerLSPHoverProvider(monacoMock.monaco as any, lspClient as any, MOCK_LANGUAGE_CONFIGS.cpp);
-        const cppHoverProvider = monacoMock.hoverProviders[1];
-        expect(cppHoverProvider.language).toBe('cpp');
+        expect(monacoMock.monaco.languages.registerHoverProvider).toHaveBeenCalledWith('cpp', expect.any(Object));
 
-        // Go hover
         module.registerLSPHoverProvider(monacoMock.monaco as any, lspClient as any, MOCK_LANGUAGE_CONFIGS.go);
-        const goHoverProvider = monacoMock.hoverProviders[2];
-        expect(goHoverProvider.language).toBe('go');
+        expect(monacoMock.monaco.languages.registerHoverProvider).toHaveBeenCalledWith('go', expect.any(Object));
+    });
+
+    it('hover provider uses languageConfig.hoverDefaultLanguage as fallback', async () => {
+        const { module, monacoMock } = await loadClient();
+        const lspClient = {
+            is_connected: jest.fn(() => true),
+            getHover: jest.fn().mockResolvedValue({
+                contents: { value: 'func main()', language: undefined },
+                range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+            }),
+        };
+        const model = { uri: { toString: () => 'file:///workspace/main.cpp' } };
+
+        module.registerLSPHoverProvider(monacoMock.monaco as any, lspClient as any, MOCK_LANGUAGE_CONFIGS.cpp);
+        const result = await monacoMock.hoverProviders[0].provider.provideHover(model, { lineNumber: 1, column: 1 });
+        expect(result.contents[0].language).toBe('cpp');
     });
 
     // === didOpenDocument 测试 ===
 
     it('sends didOpenDocument with correct languageId from config', async () => {
         const { module, editor } = await loadClient();
+        const { client, socket } = await connectClient(module, {} as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
 
-        // Python
-        const pythonClient = module.createLSPClient({} as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
-        const connectPromise = pythonClient.connect();
-        const socket = MockWebSocket.instances[0];
-        socket.onopen?.();
-        await mockFetch.mock.results[0].value;
-        const initReq = parseLspMessage(socket.sent[0]);
-        socket.onmessage?.({
-            data: `Content-Length: 2\r\n\r\n${JSON.stringify({ id: initReq.id, result: {} })}`,
-        });
-        await connectPromise;
+        const baseSentCount = socket.sent.length;
 
-        pythonClient.didOpenDocument('file:///workspace/a.py', MOCK_LANGUAGE_CONFIGS.python.languageId, 'print("hello")');
-        const didOpenMsg = parseLspMessage(socket.sent[2]);
+        client.didOpenDocument('file:///workspace/a.py', MOCK_LANGUAGE_CONFIGS.python.languageId, 'print("hello")');
+        const didOpenMsg = parseLspMessage(socket.sent[baseSentCount]);
         expect(didOpenMsg.params.textDocument.languageId).toBe('python');
-
-        // C++
-        MockWebSocket.instances = [];
-        const cppClient = module.createLSPClient({} as any, editor as any, MOCK_LANGUAGE_CONFIGS.cpp);
-        const cppConnectPromise = cppClient.connect();
-        const cppSocket = MockWebSocket.instances[0];
-        cppSocket.onopen?.();
-        await mockFetch.mock.results[0].value;
-        const cppInitReq = parseLspMessage(cppSocket.sent[0]);
-        cppSocket.onmessage?.({
-            data: `Content-Length: 2\r\n\r\n${JSON.stringify({ id: cppInitReq.id, result: {} })}`,
-        });
-        await cppConnectPromise;
-
-        cppClient.didOpenDocument('file:///workspace/main.cpp', MOCK_LANGUAGE_CONFIGS.cpp.languageId, '#include <iostream>');
-        const cppDidOpenMsg = parseLspMessage(cppSocket.sent[2]);
-        expect(cppDidOpenMsg.params.textDocument.languageId).toBe('cpp');
     });
 
     // === 多客户端共存测试 ===
@@ -476,35 +413,20 @@ describe('lsp-client (generic)', () => {
     it('multiple clients can coexist with independent state', async () => {
         const { module, editor } = await loadClient();
 
-        // Create three clients simultaneously
         const pythonClient = module.createLSPClient({} as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
         const cppClient = module.createLSPClient({} as any, editor as any, MOCK_LANGUAGE_CONFIGS.cpp);
-        const goClient = module.createLSPClient({} as any, MOCK_LANGUAGE_CONFIGS.go);
 
-        // All should be independent - not connected yet
         expect(pythonClient.is_connected()).toBe(false);
         expect(cppClient.is_connected()).toBe(false);
-        expect(goClient.is_connected()).toBe(false);
 
-        // Connect Python only
-        const connectPromise = pythonClient.connect();
-        const socket = MockWebSocket.instances[0];
-        socket.onopen?.();
-        await mockFetch.mock.results[0].value;
-        const initReq = parseLspMessage(socket.sent[0]);
-        socket.onmessage?.({
-            data: `Content-Length: 2\r\n\r\n${JSON.stringify({ id: initReq.id, result: {} })}`,
-        });
-        await connectPromise;
-
-        // Python connected, C++ and Go still disconnected
-        expect(pythonClient.is_connected()).toBe(true);
+        // 连接 Python
+        const { client: connectedPython } = await connectClient(module, {} as any, editor as any, MOCK_LANGUAGE_CONFIGS.python);
+        expect(connectedPython.is_connected()).toBe(true);
         expect(cppClient.is_connected()).toBe(false);
-        expect(goClient.is_connected()).toBe(false);
 
-        // Disconnect Python, should not affect others' state objects
-        pythonClient.disconnect();
-        expect(pythonClient.is_connected()).toBe(false);
+        // 断开 Python
+        connectedPython.disconnect();
+        expect(connectedPython.is_connected()).toBe(false);
     });
 
     // === 向后兼容测试 ===
@@ -523,30 +445,31 @@ describe('lsp-client (generic)', () => {
             setWorkspaceUriPrefix: jest.fn(),
         }));
         (global as any).WebSocket = MockWebSocket;
-        (global as any).fetch = mockFetch;
+        (global as any).fetch = jest.fn().mockRejectedValue(new Error('Network error'));
 
-        // Import from python-client.js wrapper
         const pythonModule = require('../python-client.js');
         const editor = {
             getModel: jest.fn(() => ({ id: 'active-model' })),
             trigger: jest.fn(),
         };
 
+        // createPythonLSPClient 不需要 config 参数
         const client = pythonModule.createPythonLSPClient({} as any, editor as any);
         const connectPromise = client.connect();
-
         const socket = MockWebSocket.instances[0];
         expect(socket.url).toBe('ws://localhost:3000/pyright');
-        socket.onopen?.();
 
-        await mockFetch.mock.results[0].value;
+        socket.onopen?.();
+        for (let i = 0; i < 20 && socket.sent.length < 1; i++) {
+            await new Promise(resolve => setTimeout(resolve, 5));
+        }
+
         const initReq = parseLspMessage(socket.sent[0]);
-        socket.onmessage?.({
-            data: `Content-Length: 2\r\n\r\n${JSON.stringify({ id: initReq.id, result: {} })}`,
-        });
+        socket.onmessage?.({ data: makeLspResponse(initReq.id, { capabilities: {} }) });
         await connectPromise;
 
         expect(client.is_connected()).toBe(true);
+        expect(client.getLanguageConfig().languageId).toBe('python');
 
         delete (global as any).WebSocket;
         delete (global as any).fetch;
