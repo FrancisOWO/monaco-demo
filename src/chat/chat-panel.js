@@ -190,7 +190,7 @@ function setupSettingsPanel() {
     const addConfigBtn = document.getElementById('chat-config-add');
     const deleteConfigBtn = document.getElementById('chat-config-delete');
     const formSection = document.getElementById('chat-config-form-section');
-    const dummyInfo = document.getElementById('chat-dummy-info');
+    const mockInfo = document.getElementById('chat-mock-info');
 
     // 配置表单字段
     const nameInput = document.getElementById('chat-config-name');
@@ -225,9 +225,9 @@ function setupSettingsPanel() {
         editingConfigId = configId;
 
         if (config.isBuiltIn) {
-            // Dummy 配置：禁用表单，显示提示
+            // Mock 配置：禁用表单，显示提示
             formSection.classList.add('disabled');
-            dummyInfo.classList.add('visible');
+            mockInfo.classList.add('visible');
             deleteConfigBtn.disabled = true;
 
             // 清空表单
@@ -237,7 +237,7 @@ function setupSettingsPanel() {
         } else {
             // 自定义配置：启用表单
             formSection.classList.remove('disabled');
-            dummyInfo.classList.remove('visible');
+            mockInfo.classList.remove('visible');
             deleteConfigBtn.disabled = false;
 
             // 填充表单
@@ -308,7 +308,7 @@ function setupSettingsPanel() {
     saveBtn.addEventListener('click', async () => {
         const config = chatStore.getApiConfigById(editingConfigId);
         if (!config || config.isBuiltIn) {
-            // Dummy 配置直接关闭
+            // Mock 配置直接关闭
             closePanel();
             return;
         }

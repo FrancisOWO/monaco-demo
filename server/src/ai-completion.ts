@@ -33,7 +33,7 @@ function getCurrentApiConfig(): ApiConfig | null {
     const data = configManager.apiConfigs.read();
     const current = data.configs.find((c: ApiConfig) => c.id === data.currentConfigId);
     if (!current || current.isBuiltIn) {
-        return null; // dummy 配置，不发请求
+        return null; // mock 配置，不发请求
     }
     return current;
 }
@@ -76,7 +76,7 @@ router.post('/completion', async (req, res) => {
 
         const apiConfig = getCurrentApiConfig();
 
-        // 无真实配置 → 返回空结果（前端用 DummyAICompletionClient）
+        // 无真实配置 → 返回空结果（前端用 MockAICompletionClient）
         if (!apiConfig) {
             res.json({ items: [] });
             return;

@@ -29,14 +29,14 @@ const chatState = {
     historyPanelVisible: false, // 历史面板可见性
     apiConfigs: [
         {
-            id: 'dummy',
-            name: 'Dummy (本地测试)',
+            id: 'mock',
+            name: 'Mock (本地测试)',
             baseUrl: '',
             apiKey: '',
             isBuiltIn: true,
         },
     ], // API 配置列表
-    currentConfigId: 'dummy', // 当前选中的配置 ID
+    currentConfigId: 'mock', // 当前选中的配置 ID
 };
 
 /** 生成唯一 ID */
@@ -550,9 +550,9 @@ export function deleteApiConfig(id) {
     const index = chatState.apiConfigs.findIndex(c => c.id === id);
     if (index >= 0) {
         chatState.apiConfigs.splice(index, 1);
-        // 如果删除的是当前配置，切换到 dummy
+        // 如果删除的是当前配置，切换到 mock
         if (chatState.currentConfigId === id) {
-            chatState.currentConfigId = 'dummy';
+            chatState.currentConfigId = 'mock';
             emit('onCurrentConfigChanged');
         }
         emit('onSettingsChanged');
@@ -659,7 +659,7 @@ export async function saveSettingsToStorage() {
 export async function loadSettingsFromStorage() {
     try {
         const data = await configService.apiConfigs.get();
-        // 合并自定义配置（保留 dummy 内置配置）
+        // 合并自定义配置（保留 mock 内置配置）
         if (data.configs && Array.isArray(data.configs)) {
             chatState.apiConfigs = [
                 chatState.apiConfigs.find(c => c.isBuiltIn),
@@ -689,9 +689,9 @@ export async function loadSettingsFromStorage() {
 export async function clearSettings() {
     // 只保留内置配置
     chatState.apiConfigs = chatState.apiConfigs.filter(c => c.isBuiltIn);
-    chatState.currentConfigId = 'dummy';
+    chatState.currentConfigId = 'mock';
     try {
-        await configService.apiConfigs.save({ configs: [], currentConfigId: 'dummy' });
+        await configService.apiConfigs.save({ configs: [], currentConfigId: 'mock' });
     } catch (error) {
         console.error('[ChatStore] Failed to clear settings:', error);
     }

@@ -13,8 +13,8 @@ jest.mock('../config-service.js', () => ({
     configService: {
         apiConfigs: {
             get: jest.fn(() => Promise.resolve({
-                configs: [{ id: 'dummy', name: 'Dummy (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
-                currentConfigId: 'dummy',
+                configs: [{ id: 'mock', name: 'Mock (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                currentConfigId: 'mock',
             })),
             save: jest.fn(() => Promise.resolve()),
         },
@@ -43,16 +43,16 @@ describe('chatSettings', () => {
     });
 
     describe('设置状态初始值', () => {
-        it('初始包含 Dummy 配置', () => {
+        it('初始包含 Mock 配置', () => {
             const configs = chatStore.getApiConfigs();
             expect(configs.length).toBe(1);
-            expect(configs[0].id).toBe('dummy');
-            expect(configs[0].name).toBe('Dummy (本地测试)');
+            expect(configs[0].id).toBe('mock');
+            expect(configs[0].name).toBe('Mock (本地测试)');
             expect(configs[0].isBuiltIn).toBe(true);
         });
 
-        it('初始当前配置为 Dummy', () => {
-            expect(chatStore.getCurrentConfigId()).toBe('dummy');
+        it('初始当前配置为 Mock', () => {
+            expect(chatStore.getCurrentConfigId()).toBe('mock');
         });
 
         it('初始设置面板不可见', () => {
@@ -120,12 +120,12 @@ describe('chatSettings', () => {
         });
 
         it('deleteApiConfig 不能删除内置配置', () => {
-            chatStore.deleteApiConfig('dummy');
+            chatStore.deleteApiConfig('mock');
             expect(chatStore.getApiConfigs().length).toBe(1);
-            expect(chatStore.getApiConfigById('dummy')).toBeDefined();
+            expect(chatStore.getApiConfigById('mock')).toBeDefined();
         });
 
-        it('deleteApiConfig 删除的是当前配置时，切换到 Dummy', () => {
+        it('deleteApiConfig 删除的是当前配置时，切换到 Mock', () => {
             chatStore.addApiConfig({
                 name: 'OpenAI',
                 baseUrl: 'https://api.openai.com/v1',
@@ -138,7 +138,7 @@ describe('chatSettings', () => {
             expect(chatStore.getCurrentConfigId()).toBe(configId);
 
             chatStore.deleteApiConfig(configId);
-            expect(chatStore.getCurrentConfigId()).toBe('dummy');
+            expect(chatStore.getCurrentConfigId()).toBe('mock');
         });
 
         it('getApiConfigById 获取指定配置', () => {
@@ -147,8 +147,8 @@ describe('chatSettings', () => {
                 baseUrl: 'https://api.openai.com/v1',
                 apiKey: 'sk-test',
             });
-            const config = chatStore.getApiConfigById('dummy');
-            expect(config.name).toBe('Dummy (本地测试)');
+            const config = chatStore.getApiConfigById('mock');
+            expect(config.name).toBe('Mock (本地测试)');
         });
 
         it('getApiConfigById 返回 undefined 当配置不存在', () => {
@@ -179,7 +179,7 @@ describe('chatSettings', () => {
 
         it('setCurrentConfigId 忽略不存在的配置', () => {
             chatStore.setCurrentConfigId('non-existent');
-            expect(chatStore.getCurrentConfigId()).toBe('dummy');
+            expect(chatStore.getCurrentConfigId()).toBe('mock');
         });
 
         it('setCurrentConfigId 触发 onCurrentConfigChanged', () => {
@@ -199,8 +199,8 @@ describe('chatSettings', () => {
 
         it('getCurrentApiConfig 获取当前配置详情', () => {
             const config = chatStore.getCurrentApiConfig();
-            expect(config.id).toBe('dummy');
-            expect(config.name).toBe('Dummy (本地测试)');
+            expect(config.id).toBe('mock');
+            expect(config.name).toBe('Mock (本地测试)');
         });
     });
 
@@ -254,11 +254,11 @@ describe('chatSettings', () => {
             });
             await chatStore.loadSettingsFromStorage();
 
-            expect(chatStore.getApiConfigs().length).toBe(2); // dummy + custom-1
+            expect(chatStore.getApiConfigs().length).toBe(2); // mock + custom-1
             expect(chatStore.getCurrentConfigId()).toBe('custom-1');
         });
 
-        it('loadSettingsFromStorage 确保 Dummy 配置存在', async () => {
+        it('loadSettingsFromStorage 确保 Mock 配置存在', async () => {
             const { configService } = require('../config-service.js');
             configService.apiConfigs.get.mockResolvedValueOnce({
                 configs: [{ id: 'custom-1', name: 'Custom', baseUrl: 'https://custom.com', apiKey: 'sk-custom' }],
@@ -266,7 +266,7 @@ describe('chatSettings', () => {
             });
             await chatStore.loadSettingsFromStorage();
 
-            expect(chatStore.getApiConfigById('dummy')).toBeDefined();
+            expect(chatStore.getApiConfigById('mock')).toBeDefined();
             expect(chatStore.getApiConfigs().length).toBe(2);
         });
 
@@ -274,11 +274,11 @@ describe('chatSettings', () => {
             const { configService } = require('../config-service.js');
             configService.apiConfigs.get.mockResolvedValueOnce({
                 configs: [],
-                currentConfigId: 'dummy',
+                currentConfigId: 'mock',
             });
             await chatStore.loadSettingsFromStorage();
             expect(chatStore.getApiConfigs().length).toBe(1);
-            expect(chatStore.getApiConfigById('dummy')).toBeDefined();
+            expect(chatStore.getApiConfigById('mock')).toBeDefined();
         });
 
         it('loadSettingsFromStorage 处理 API 错误', async () => {
@@ -286,7 +286,7 @@ describe('chatSettings', () => {
             configService.apiConfigs.get.mockRejectedValueOnce(new Error('API Error'));
             await chatStore.loadSettingsFromStorage();
             expect(chatStore.getApiConfigs().length).toBe(1);
-            expect(chatStore.getApiConfigById('dummy')).toBeDefined();
+            expect(chatStore.getApiConfigById('mock')).toBeDefined();
         });
 
         it('loadSettingsFromStorage 触发 onSettingsChanged', async () => {
@@ -301,7 +301,7 @@ describe('chatSettings', () => {
             expect(cb).toHaveBeenCalled();
         });
 
-        it('clearSettings 清空自定义配置并切换到 Dummy', async () => {
+        it('clearSettings 清空自定义配置并切换到 Mock', async () => {
             chatStore.addApiConfig({
                 name: 'OpenAI',
                 baseUrl: 'https://api.openai.com/v1',
@@ -311,8 +311,8 @@ describe('chatSettings', () => {
             await chatStore.clearSettings();
 
             expect(chatStore.getApiConfigs().length).toBe(1);
-            expect(chatStore.getApiConfigById('dummy')).toBeDefined();
-            expect(chatStore.getCurrentConfigId()).toBe('dummy');
+            expect(chatStore.getApiConfigById('mock')).toBeDefined();
+            expect(chatStore.getCurrentConfigId()).toBe('mock');
         });
     });
 

@@ -12,8 +12,8 @@ jest.mock('../config-service.js', () => ({
     configService: {
         apiConfigs: {
             get: jest.fn(() => Promise.resolve({
-                configs: [{ id: 'dummy', name: 'Dummy (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
-                currentConfigId: 'dummy',
+                configs: [{ id: 'mock', name: 'Mock (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                currentConfigId: 'mock',
             })),
             save: jest.fn(() => Promise.resolve()),
         },

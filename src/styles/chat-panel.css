@@ -501,11 +501,11 @@
     pointer-events: none;
 }
 
-#chat-dummy-info {
+#chat-mock-info {
     display: none;
 }
 
-#chat-dummy-info.visible {
+#chat-mock-info.visible {
     display: flex;
 }
 

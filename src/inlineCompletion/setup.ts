@@ -8,7 +8,7 @@ import { ConsoleTelemetryEmitter } from './telemetryEmitter.js';
 import { SimplePromptBuilder } from './promptBuilder.js';
 import { SimpleAICompletionClient } from './llm/simpleAICompletionClient.js';
 import { StandardAICompletionClient } from './llm/standardAICompletionClient.js';
-import { DummyAICompletionClient } from './llm/dummyAICompletionClient.js';
+import { MockAICompletionClient } from './llm/mockAICompletionClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
 import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
@@ -62,7 +62,7 @@ export function setupInlineCompletion(
     }
 
     const modeLabel = {
-        dummy: 'DummyAICompletionClient',
+        mock: 'MockAICompletionClient',
         simple: 'SimpleAICompletionClient',
         standard: 'StandardAICompletionClient',
     }[aiCompletionConfig.clientMode] ?? 'StandardAICompletionClient';
@@ -76,9 +76,9 @@ export function setupInlineCompletion(
  * 根据统一配置创建 AI 补全客户端
  */
 function createClientFromConfig() {
-    const { clientMode, dummy } = aiCompletionConfig;
-    if (clientMode === 'dummy') {
-        return new DummyAICompletionClient(dummy);
+    const { clientMode, mock } = aiCompletionConfig;
+    if (clientMode === 'mock') {
+        return new MockAICompletionClient(mock);
     }
     if (clientMode === 'simple') {
         return new SimpleAICompletionClient();
@@ -140,7 +140,7 @@ function setupAutoTrigger(editor: monaco.editor.ICodeEditor) {
 /**
  * 切换客户端模式（运行时动态切换）
  */
-export function switchClientMode(mode: 'dummy' | 'simple' | 'standard') {
+export function switchClientMode(mode: 'mock' | 'simple' | 'standard') {
     setClientMode(mode);
     logger.info(`Client mode switched to: ${mode} (will take effect on next completion request)`);
 }

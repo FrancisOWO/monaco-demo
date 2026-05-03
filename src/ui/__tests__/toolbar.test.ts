@@ -104,8 +104,8 @@ describe('toolbar', () => {
             configService: {
                 apiConfigs: {
                     get: jest.fn(() => Promise.resolve({
-                        configs: [{ id: 'dummy', name: 'Dummy', baseUrl: '', apiKey: '', isBuiltIn: true }],
-                        currentConfigId: 'dummy',
+                        configs: [{ id: 'mock', name: 'Mock', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                        currentConfigId: 'mock',
                     })),
                     save: jest.fn(() => Promise.resolve()),
                 },

@@ -119,20 +119,20 @@ export interface ApiConfigsData {
 }
 
 /**
- * 获取默认 API 配置（包含 Dummy）
+ * 获取默认 API 配置（包含 Mock）
  */
 export function getDefaultApiConfigs(): ApiConfigsData {
     return {
         configs: [
             {
-                id: 'dummy',
-                name: 'Dummy (本地测试)',
+                id: 'mock',
+                name: 'Mock (本地测试)',
                 baseUrl: '',
                 apiKey: '',
                 isBuiltIn: true,
             },
         ],
-        currentConfigId: 'dummy',
+        currentConfigId: 'mock',
     };
 }
 
@@ -142,16 +142,16 @@ export function getDefaultApiConfigs(): ApiConfigsData {
 export function readApiConfigs(): ApiConfigsData {
     const data = readConfigFile<ApiConfigsData>(CONFIG_FILES.apiConfigs, getDefaultApiConfigs());
 
-    // 确保 Dummy 配置存在
-    const hasDummy = data.configs.some(c => c.id === 'dummy');
-    if (!hasDummy) {
+    // 确保 Mock 配置存在
+    const hasMock = data.configs.some(c => c.id === 'mock');
+    if (!hasMock) {
         data.configs.unshift(getDefaultApiConfigs().configs[0]);
     }
 
     // 确保 currentConfigId 有效
     const configExists = data.configs.some(c => c.id === data.currentConfigId);
     if (!configExists) {
-        data.currentConfigId = 'dummy';
+        data.currentConfigId = 'mock';
     }
 
     return data;

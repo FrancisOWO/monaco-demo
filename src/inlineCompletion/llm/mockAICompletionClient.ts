@@ -1,5 +1,5 @@
 /**
- * DummyAICompletionClient
+ * MockAICompletionClient
  * 用于测试的虚拟 LLM 客户端
  * 不需要真实的 API Key，返回预定义的补全结果
  */
@@ -18,7 +18,7 @@ import type {
 import { getTemplatesForLanguage } from '../templates/index.js';
 
 /** 虚拟 LLM 客户端配置 */
-export interface DummyAICompletionClientConfig {
+export interface MockAICompletionClientConfig {
     /** 延迟时间（ms），模拟网络延迟 */
     delayMs?: number;
     /** 是否随机返回空结果（模拟无补全场景） */
@@ -31,10 +31,10 @@ export interface DummyAICompletionClientConfig {
  * 虚拟 LLM 客户端
  * 用于测试，无需真实的 API Key
  */
-export class DummyAICompletionClient implements IAICompletionClient {
-    private config: Required<DummyAICompletionClientConfig>;
+export class MockAICompletionClient implements IAICompletionClient {
+    private config: Required<MockAICompletionClientConfig>;
 
-    constructor(config?: DummyAICompletionClientConfig) {
+    constructor(config?: MockAICompletionClientConfig) {
         this.config = {
             delayMs: 300,
             randomEmpty: true,
