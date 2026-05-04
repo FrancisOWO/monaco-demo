@@ -717,110 +717,82 @@ export function closeSettingsPanel() {
  * 保存补全设置到服务端
  */
 export async function saveCompletionSettingsToStorage() {
-    try {
-        const data = {
-            configs: chatState.completionApiConfigs.filter(c => !c.isBuiltIn),
-            currentConfigId: chatState.currentCompletionConfigId,
-        };
-        await configService.completionApiConfigs.save(data);
-        return true;
-    } catch (error) {
-        console.error('[ChatStore] Failed to save completion settings:', error);
-        return false;
-    }
+    const data = {
+        configs: chatState.completionApiConfigs.filter(c => !c.isBuiltIn),
+        currentConfigId: chatState.currentCompletionConfigId,
+    };
+    await configService.completionApiConfigs.save(data);
 }
 
 /**
  * 保存对话设置到服务端
  */
 export async function saveChatSettingsToStorage() {
-    try {
-        const data = {
-            configs: chatState.chatApiConfigs.filter(c => !c.isBuiltIn),
-            currentConfigId: chatState.currentChatConfigId,
-        };
-        await configService.chatApiConfigs.save(data);
-        return true;
-    } catch (error) {
-        console.error('[ChatStore] Failed to save chat settings:', error);
-        return false;
-    }
+    const data = {
+        configs: chatState.chatApiConfigs.filter(c => !c.isBuiltIn),
+        currentConfigId: chatState.currentChatConfigId,
+    };
+    await configService.chatApiConfigs.save(data);
 }
 
 /**
  * 保存所有设置到服务端（补全 + 对话）
  */
 export async function saveSettingsToStorage() {
-    const completionOk = await saveCompletionSettingsToStorage();
-    const chatOk = await saveChatSettingsToStorage();
-    return completionOk && chatOk;
+    await saveCompletionSettingsToStorage();
+    await saveChatSettingsToStorage();
 }
 
 /**
  * 从服务端加载补全设置
  */
 export async function loadCompletionSettingsFromStorage() {
-    try {
-        const data = await configService.completionApiConfigs.get();
-        if (data.configs && Array.isArray(data.configs)) {
-            const seen = new Set();
-            chatState.completionApiConfigs = data.configs.filter(c => {
-                if (seen.has(c.id)) return false;
-                seen.add(c.id);
-                return true;
-            });
-        }
-        if (data.currentConfigId) {
-            const config = chatState.completionApiConfigs.find(c => c.id === data.currentConfigId);
-            if (config) {
-                chatState.currentCompletionConfigId = data.currentConfigId;
-            }
-        }
-        emit('onSettingsChanged');
-        return true;
-    } catch (error) {
-        console.error('[ChatStore] Failed to load completion settings:', error);
-        emit('onSettingsChanged');
-        return false;
+    const data = await configService.completionApiConfigs.get();
+    if (data.configs && Array.isArray(data.configs)) {
+        const seen = new Set();
+        chatState.completionApiConfigs = data.configs.filter(c => {
+            if (seen.has(c.id)) return false;
+            seen.add(c.id);
+            return true;
+        });
     }
+    if (data.currentConfigId) {
+        const config = chatState.completionApiConfigs.find(c => c.id === data.currentConfigId);
+        if (config) {
+            chatState.currentCompletionConfigId = data.currentConfigId;
+        }
+    }
+    emit('onSettingsChanged');
 }
 
 /**
  * 从服务端加载对话设置
  */
 export async function loadChatSettingsFromStorage() {
-    try {
-        const data = await configService.chatApiConfigs.get();
-        if (data.configs && Array.isArray(data.configs)) {
-            const seen = new Set();
-            chatState.chatApiConfigs = data.configs.filter(c => {
-                if (seen.has(c.id)) return false;
-                seen.add(c.id);
-                return true;
-            });
-        }
-        if (data.currentConfigId) {
-            const config = chatState.chatApiConfigs.find(c => c.id === data.currentConfigId);
-            if (config) {
-                chatState.currentChatConfigId = data.currentConfigId;
-            }
-        }
-        emit('onSettingsChanged');
-        return true;
-    } catch (error) {
-        console.error('[ChatStore] Failed to load chat settings:', error);
-        emit('onSettingsChanged');
-        return false;
+    const data = await configService.chatApiConfigs.get();
+    if (data.configs && Array.isArray(data.configs)) {
+        const seen = new Set();
+        chatState.chatApiConfigs = data.configs.filter(c => {
+            if (seen.has(c.id)) return false;
+            seen.add(c.id);
+            return true;
+        });
     }
+    if (data.currentConfigId) {
+        const config = chatState.chatApiConfigs.find(c => c.id === data.currentConfigId);
+        if (config) {
+            chatState.currentChatConfigId = data.currentConfigId;
+        }
+    }
+    emit('onSettingsChanged');
 }
 
 /**
  * 从服务端加载所有设置
  */
 export async function loadSettingsFromStorage() {
-    const completionOk = await loadCompletionSettingsFromStorage();
-    const chatOk = await loadChatSettingsFromStorage();
-    return completionOk && chatOk;
+    await loadCompletionSettingsFromStorage();
+    await loadChatSettingsFromStorage();
 }
 
 /**
@@ -848,33 +820,20 @@ export async function clearSettings() {
  * @returns {Promise<boolean>}
  */
 export async function saveConversationHistoryToStorage() {
-    try {
-        await configService.conversationHistory.save({
-            history: chatState.conversationHistory,
-        });
-        return true;
-    } catch (error) {
-        console.error('[ChatStore] Failed to save conversation history:', error);
-        return false;
-    }
+    await configService.conversationHistory.save({
+        history: chatState.conversationHistory,
+    });
 }
 
 /**
  * 从服务端加载对话历史
- * @returns {Promise<boolean>}
  */
 export async function loadConversationHistoryFromStorage() {
-    try {
-        const data = await configService.conversationHistory.get();
-        if (data.history && Array.isArray(data.history)) {
-            chatState.conversationHistory = data.history;
-        }
-        emit('onHistoryChanged');
-        return true;
-    } catch (error) {
-        console.error('[ChatStore] Failed to load conversation history:', error);
-        return false;
+    const data = await configService.conversationHistory.get();
+    if (data.history && Array.isArray(data.history)) {
+        chatState.conversationHistory = data.history;
     }
+    emit('onHistoryChanged');
 }
 
 /**

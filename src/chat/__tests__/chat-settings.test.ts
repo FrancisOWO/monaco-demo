@@ -306,13 +306,10 @@ describe('chatSettings', () => {
             expect(chatStore.getChatApiConfigById('mock')).toBeDefined();
         });
 
-        it('loadSettingsFromStorage 处理 API 错误', async () => {
+        it('loadSettingsFromStorage API 错误时抛异常', async () => {
             const { configService } = require('../config-service.js');
-            configService.chatApiConfigs.get.mockRejectedValueOnce(new Error('API Error'));
             configService.completionApiConfigs.get.mockRejectedValueOnce(new Error('API Error'));
-            await chatStore.loadSettingsFromStorage();
-            expect(chatStore.getChatApiConfigs().length).toBe(1);
-            expect(chatStore.getChatApiConfigById('mock')).toBeDefined();
+            await expect(chatStore.loadSettingsFromStorage()).rejects.toThrow('API Error');
         });
 
         it('loadSettingsFromStorage 触发 onSettingsChanged', async () => {
