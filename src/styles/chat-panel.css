@@ -431,12 +431,12 @@
     gap: 8px;
 }
 
-#chat-config-select {
+.chat-config-selector .custom-dropdown {
     flex: 1;
     font-size: 13px;
 }
 
-#chat-config-select:focus {
+.chat-config-selector .custom-dropdown:focus {
     border-color: #007acc;
 }
 
@@ -496,17 +496,27 @@
     line-height: 1.5;
 }
 
-#chat-config-form-section.disabled {
+.chat-config-form-section.disabled {
     opacity: 0.5;
     pointer-events: none;
 }
 
-#chat-mock-info {
+.chat-mock-info {
     display: none;
 }
 
-#chat-mock-info.visible {
+.chat-mock-info.visible {
     display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #e8f4fd;
+    border-radius: 6px;
+    border: 1px solid #b8daff;
+    font-size: 12px;
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 16px;
 }
 
 /* === History Panel === */
@@ -2105,7 +2115,7 @@ body[data-theme="dark"] .chat-settings-section-title {
     color: #d4d4d4;
 }
 
-body[data-theme="dark"] #chat-config-select:focus {
+body[data-theme="dark"] .chat-config-selector .custom-dropdown:focus {
     border-color: #007acc;
 }
 
@@ -2141,6 +2151,12 @@ body[data-theme="dark"] .chat-settings-info-icon {
 }
 
 body[data-theme="dark"] .chat-settings-info-text {
+    color: #aaa;
+}
+
+body[data-theme="dark"] .chat-mock-info {
+    background: #1a3a4a;
+    border-color: #007acc55;
     color: #aaa;
 }
 
