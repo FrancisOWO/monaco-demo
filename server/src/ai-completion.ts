@@ -10,7 +10,7 @@
 import express, { Router } from 'express';
 import OpenAI from 'openai';
 import { config } from './config';
-import { configManager } from './config-manager';
+import { configManager, CompletionApiConfig } from './config-manager';
 
 const router: Router = express.Router();
 
@@ -18,19 +18,10 @@ const TEST_MODE = config.ai.testMode;
 
 // ============ API 配置读取 ============
 
-interface ApiConfig {
-    id: string;
-    name: string;
-    baseUrl: string;
-    apiKey: string;
-    model?: string;
-    isBuiltIn?: boolean;
-}
-
-/** 从 config-manager 获取当前 API 配置 */
-function getCurrentApiConfig(): ApiConfig | null {
-    const data = configManager.apiConfigs.read();
-    const current = data.configs.find((c: ApiConfig) => c.id === data.currentConfigId);
+/** 从 config-manager 获取当前补全 API 配置 */
+function getCurrentApiConfig(): CompletionApiConfig | null {
+    const data = configManager.completionApiConfigs.read();
+    const current = data.configs.find(c => c.id === data.currentConfigId);
     if (!current || current.isBuiltIn) {
         return null; // mock 配置，不发请求
     }
@@ -38,7 +29,7 @@ function getCurrentApiConfig(): ApiConfig | null {
 }
 
 /** 根据用户配置创建 OpenAI 客户端 */
-function createOpenAIClient(apiConfig: ApiConfig): OpenAI {
+function createOpenAIClient(apiConfig: CompletionApiConfig): OpenAI {
     return new OpenAI({
         apiKey: apiConfig.apiKey,
         baseURL: apiConfig.baseUrl,
@@ -117,7 +108,7 @@ router.post('/', async (req, res) => {
         }
 
         const client = createOpenAIClient(apiConfig);
-        const model = apiConfig.model || config.ai.fimModel;
+        const model = apiConfig.modelId || config.ai.fimModel;
 
         // 非流式
         if (!isStream) {

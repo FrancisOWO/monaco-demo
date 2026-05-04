@@ -17,6 +17,8 @@ const CONFIG_DIR_NAME = '.monaco-demo';
 // 配置文件名
 export const CONFIG_FILES = {
     apiConfigs: 'api-configs.json',
+    completionApiConfigs: 'completion-api-configs.json',
+    chatApiConfigs: 'chat-api-configs.json',
     conversationHistory: 'conversation-history.json',
     settings: 'settings.json',
     mcpServers: 'mcp-servers.json',
@@ -49,7 +51,8 @@ export function ensureConfigDir(): string {
 
     // 首次创建目录时，写入默认配置文件模板
     if (isNew) {
-        writeConfigFile(CONFIG_FILES.apiConfigs, getDefaultApiConfigs());
+        writeConfigFile(CONFIG_FILES.completionApiConfigs, getDefaultCompletionApiConfigs());
+        writeConfigFile(CONFIG_FILES.chatApiConfigs, getDefaultChatApiConfigs());
         writeConfigFile(CONFIG_FILES.conversationHistory, { history: [], deletedItems: [] });
         writeConfigFile(CONFIG_FILES.settings, {});
         console.log('[Config] Created default config files');
@@ -114,7 +117,7 @@ export function deleteConfigFile(filename: string): boolean {
     }
 }
 
-// ==================== API 配置 ====================
+// ==================== 旧 API 配置（兼容迁移） ====================
 
 export interface ApiConfig {
     id: string;
@@ -128,11 +131,10 @@ export interface ApiConfig {
 export interface ApiConfigsData {
     configs: ApiConfig[];
     currentConfigId: string;
+    _migrated?: boolean;
+    _migratedAt?: number;
 }
 
-/**
- * 获取默认 API 配置（包含 Mock）
- */
 export function getDefaultApiConfigs(): ApiConfigsData {
     return {
         configs: [
@@ -149,19 +151,14 @@ export function getDefaultApiConfigs(): ApiConfigsData {
     };
 }
 
-/**
- * 读取 API 配置
- */
 export function readApiConfigs(): ApiConfigsData {
     const data = readConfigFile<ApiConfigsData>(CONFIG_FILES.apiConfigs, getDefaultApiConfigs());
 
-    // 确保 Mock 配置存在
     const hasMock = data.configs.some(c => c.id === 'mock');
     if (!hasMock) {
         data.configs.unshift(getDefaultApiConfigs().configs[0]);
     }
 
-    // 确保 currentConfigId 有效
     const configExists = data.configs.some(c => c.id === data.currentConfigId);
     if (!configExists) {
         data.currentConfigId = 'mock';
@@ -170,11 +167,167 @@ export function readApiConfigs(): ApiConfigsData {
     return data;
 }
 
+// ==================== 补全 API 配置 ====================
+
+export interface CompletionApiConfig {
+    id: string;
+    name: string;
+    baseUrl: string;
+    apiKey: string;
+    modelId: string;
+    isBuiltIn?: boolean;
+}
+
+export interface CompletionApiConfigsData {
+    configs: CompletionApiConfig[];
+    currentConfigId: string;
+}
+
+export function getDefaultCompletionApiConfigs(): CompletionApiConfigsData {
+    return {
+        configs: [
+            {
+                id: 'mock',
+                name: 'Mock (本地测试)',
+                baseUrl: '',
+                apiKey: '',
+                modelId: '',
+                isBuiltIn: true,
+            },
+        ],
+        currentConfigId: 'mock',
+    };
+}
+
+export function readCompletionApiConfigs(): CompletionApiConfigsData {
+    const data = readConfigFile<CompletionApiConfigsData>(CONFIG_FILES.completionApiConfigs, getDefaultCompletionApiConfigs());
+
+    const hasMock = data.configs.some(c => c.id === 'mock');
+    if (!hasMock) {
+        data.configs.unshift(getDefaultCompletionApiConfigs().configs[0]);
+    }
+
+    const configExists = data.configs.some(c => c.id === data.currentConfigId);
+    if (!configExists) {
+        data.currentConfigId = 'mock';
+    }
+
+    return data;
+}
+
+export function writeCompletionApiConfigs(data: CompletionApiConfigsData): boolean {
+    return writeConfigFile(CONFIG_FILES.completionApiConfigs, data);
+}
+
+// ==================== 对话 API 配置 ====================
+
+export interface ChatApiConfig {
+    id: string;
+    name: string;
+    baseUrl: string;
+    apiKey: string;
+    chatModel: string;
+    isBuiltIn?: boolean;
+}
+
+export interface ChatApiConfigsData {
+    configs: ChatApiConfig[];
+    currentConfigId: string;
+}
+
+export function getDefaultChatApiConfigs(): ChatApiConfigsData {
+    return {
+        configs: [
+            {
+                id: 'mock',
+                name: 'Mock (本地测试)',
+                baseUrl: '',
+                apiKey: '',
+                chatModel: '',
+                isBuiltIn: true,
+            },
+        ],
+        currentConfigId: 'mock',
+    };
+}
+
+export function readChatApiConfigs(): ChatApiConfigsData {
+    const data = readConfigFile<ChatApiConfigsData>(CONFIG_FILES.chatApiConfigs, getDefaultChatApiConfigs());
+
+    const hasMock = data.configs.some(c => c.id === 'mock');
+    if (!hasMock) {
+        data.configs.unshift(getDefaultChatApiConfigs().configs[0]);
+    }
+
+    const configExists = data.configs.some(c => c.id === data.currentConfigId);
+    if (!configExists) {
+        data.currentConfigId = 'mock';
+    }
+
+    return data;
+}
+
+export function writeChatApiConfigs(data: ChatApiConfigsData): boolean {
+    return writeConfigFile(CONFIG_FILES.chatApiConfigs, data);
+}
+
+// ==================== 旧配置迁移 ====================
+
 /**
- * 保存 API 配置
+ * 将旧 api-configs.json 迁移到 completion-api-configs.json 和 chat-api-configs.json
+ * 只在新文件不存在且旧文件未标记 _migrated 时执行
  */
-export function writeApiConfigs(data: ApiConfigsData): boolean {
-    return writeConfigFile(CONFIG_FILES.apiConfigs, data);
+export function migrateOldApiConfigs(): boolean {
+    const configDir = getConfigDir();
+
+    // 检查旧文件是否存在
+    const oldFilePath = path.join(configDir, CONFIG_FILES.apiConfigs);
+    if (!fs.existsSync(oldFilePath)) return false;
+
+    // 检查旧文件是否已迁移
+    const oldData = readApiConfigs();
+    if (oldData._migrated) return false;
+
+    // 检查新文件是否已存在（用户可能已手动配置）
+    const completionFilePath = path.join(configDir, CONFIG_FILES.completionApiConfigs);
+    const chatFilePath = path.join(configDir, CONFIG_FILES.chatApiConfigs);
+    if (fs.existsSync(completionFilePath) || fs.existsSync(chatFilePath)) return false;
+
+    // 迁移：每条旧配置同时写入两份新文件
+    const completionConfigs: CompletionApiConfig[] = oldData.configs.map(c => ({
+        id: c.id,
+        name: c.name,
+        baseUrl: c.baseUrl,
+        apiKey: c.apiKey,
+        modelId: c.modelId,
+        isBuiltIn: c.isBuiltIn,
+    }));
+
+    const chatConfigs: ChatApiConfig[] = oldData.configs.map(c => ({
+        id: c.id,
+        name: c.name,
+        baseUrl: c.baseUrl,
+        apiKey: c.apiKey,
+        chatModel: c.modelId,
+        isBuiltIn: c.isBuiltIn,
+    }));
+
+    writeCompletionApiConfigs({
+        configs: completionConfigs,
+        currentConfigId: oldData.currentConfigId,
+    });
+
+    writeChatApiConfigs({
+        configs: chatConfigs,
+        currentConfigId: oldData.currentConfigId,
+    });
+
+    // 标记旧文件已迁移（不删除）
+    const migratedData = { ...oldData, _migrated: true, _migratedAt: Date.now() };
+    writeConfigFile(CONFIG_FILES.apiConfigs, migratedData);
+
+    console.log('[Config] Migrated old api-configs.json to completion-api-configs.json and chat-api-configs.json');
+    return true;
 }
 
 // ==================== 对话历史 ====================
@@ -318,10 +471,16 @@ export const configManager = {
     readConfigFile,
     writeConfigFile,
     deleteConfigFile,
-    apiConfigs: {
-        read: readApiConfigs,
-        write: writeApiConfigs,
-        getDefault: getDefaultApiConfigs,
+    migrateOldApiConfigs,
+    completionApiConfigs: {
+        read: readCompletionApiConfigs,
+        write: writeCompletionApiConfigs,
+        getDefault: getDefaultCompletionApiConfigs,
+    },
+    chatApiConfigs: {
+        read: readChatApiConfigs,
+        write: writeChatApiConfigs,
+        getDefault: getDefaultChatApiConfigs,
     },
     conversationHistory: {
         read: readConversationHistory,

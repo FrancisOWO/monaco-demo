@@ -28,7 +28,7 @@ const chatState = {
     settingsPanelVisible: false, // 设置面板可见性
     conversationHistory: [], // 对话历史
     historyPanelVisible: false, // 历史面板可见性
-    apiConfigs: [
+    completionApiConfigs: [
         {
             id: 'mock',
             name: 'Mock (本地测试)',
@@ -37,13 +37,28 @@ const chatState = {
             apiKey: '',
             isBuiltIn: true,
         },
-    ], // API 配置列表
-    currentConfigId: 'mock', // 当前选中的配置 ID
+    ], // 补全 API 配置列表
+    currentCompletionConfigId: 'mock', // 当前选中的补全配置 ID
+    chatApiConfigs: [
+        {
+            id: 'mock',
+            name: 'Mock (本地测试)',
+            baseUrl: '',
+            chatModel: '',
+            apiKey: '',
+            isBuiltIn: true,
+        },
+    ], // 对话 API 配置列表
+    currentChatConfigId: 'mock', // 当前选中的对话配置 ID
 };
 
 /** 生成唯一 ID */
 function generateId() {
     return 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+function generateConfigId() {
+    return 'config_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
 }
 
 /** 事件回调注册 */
@@ -467,52 +482,40 @@ export function getState() {
     return { ...chatState };
 }
 
-// ============ API 配置管理 ============
+// ============ 补全 API 配置管理 ============
 
 /**
- * 获取所有 API 配置
- * @returns {Array} API 配置列表
+ * 获取所有补全 API 配置
  */
-export function getApiConfigs() {
-    return [...chatState.apiConfigs];
+export function getCompletionApiConfigs() {
+    return [...chatState.completionApiConfigs];
 }
 
 /**
- * 根据 ID 获取 API 配置
- * @param {string} id 配置 ID
- * @returns {Object|undefined} 配置对象
+ * 根据 ID 获取补全 API 配置
  */
-export function getApiConfigById(id) {
-    return chatState.apiConfigs.find(c => c.id === id);
+export function getCompletionApiConfigById(id) {
+    return chatState.completionApiConfigs.find(c => c.id === id);
 }
 
 /**
- * 获取当前选中的配置
- * @returns {Object|undefined} 当前配置
+ * 获取当前选中的补全配置
  */
-export function getCurrentApiConfig() {
-    return getApiConfigById(chatState.currentConfigId);
+export function getCurrentCompletionApiConfig() {
+    return getCompletionApiConfigById(chatState.currentCompletionConfigId);
 }
 
 /**
- * 获取当前配置 ID
- * @returns {string} 当前配置 ID
+ * 获取当前补全配置 ID
  */
-export function getCurrentConfigId() {
-    return chatState.currentConfigId;
-}
-
-/** 生成唯一 ID */
-function generateConfigId() {
-    return 'config_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+export function getCurrentCompletionConfigId() {
+    return chatState.currentCompletionConfigId;
 }
 
 /**
- * 添加新的 API 配置
- * @param {Object} config 配置对象 { name, baseUrl, apiKey }
- * @returns {string} 新配置的 ID
+ * 添加新的补全 API 配置
  */
-export function addApiConfig(config) {
+export function addCompletionApiConfig(config) {
     const newConfig = {
         id: generateConfigId(),
         name: config.name,
@@ -521,41 +524,32 @@ export function addApiConfig(config) {
         apiKey: config.apiKey || '',
         isBuiltIn: false,
     };
-    chatState.apiConfigs.push(newConfig);
+    chatState.completionApiConfigs.push(newConfig);
     emit('onSettingsChanged');
     return newConfig.id;
 }
 
 /**
- * 更新 API 配置
- * @param {string} id 配置 ID
- * @param {Object} updates 更新的字段
+ * 更新补全 API 配置
  */
-export function updateApiConfig(id, updates) {
-    const config = chatState.apiConfigs.find(c => c.id === id);
-    if (!config || config.isBuiltIn) {
-        return;
-    }
+export function updateCompletionApiConfig(id, updates) {
+    const config = chatState.completionApiConfigs.find(c => c.id === id);
+    if (!config || config.isBuiltIn) return;
     Object.assign(config, updates);
     emit('onSettingsChanged');
 }
 
 /**
- * 删除 API 配置
- * @param {string} id 配置 ID
+ * 删除补全 API 配置
  */
-export function deleteApiConfig(id) {
-    const config = chatState.apiConfigs.find(c => c.id === id);
-    if (!config || config.isBuiltIn) {
-        return;
-    }
-
-    const index = chatState.apiConfigs.findIndex(c => c.id === id);
+export function deleteCompletionApiConfig(id) {
+    const config = chatState.completionApiConfigs.find(c => c.id === id);
+    if (!config || config.isBuiltIn) return;
+    const index = chatState.completionApiConfigs.findIndex(c => c.id === id);
     if (index >= 0) {
-        chatState.apiConfigs.splice(index, 1);
-        // 如果删除的是当前配置，切换到 mock
-        if (chatState.currentConfigId === id) {
-            chatState.currentConfigId = 'mock';
+        chatState.completionApiConfigs.splice(index, 1);
+        if (chatState.currentCompletionConfigId === id) {
+            chatState.currentCompletionConfigId = 'mock';
             emit('onCurrentConfigChanged');
         }
         emit('onSettingsChanged');
@@ -563,21 +557,103 @@ export function deleteApiConfig(id) {
 }
 
 /**
- * 设置当前选中的配置
- * @param {string} id 配置 ID
+ * 设置当前选中的补全配置
  */
-export function setCurrentConfigId(id) {
-    const config = chatState.apiConfigs.find(c => c.id === id);
-    if (config && chatState.currentConfigId !== id) {
-        chatState.currentConfigId = id;
+export function setCurrentCompletionConfigId(id) {
+    const config = chatState.completionApiConfigs.find(c => c.id === id);
+    if (config && chatState.currentCompletionConfigId !== id) {
+        chatState.currentCompletionConfigId = id;
+        emit('onCurrentConfigChanged');
+    }
+}
+
+// ============ 对话 API 配置管理 ============
+
+/**
+ * 获取所有对话 API 配置
+ */
+export function getChatApiConfigs() {
+    return [...chatState.chatApiConfigs];
+}
+
+/**
+ * 根据 ID 获取对话 API 配置
+ */
+export function getChatApiConfigById(id) {
+    return chatState.chatApiConfigs.find(c => c.id === id);
+}
+
+/**
+ * 获取当前选中的对话配置
+ */
+export function getCurrentChatApiConfig() {
+    return getChatApiConfigById(chatState.currentChatConfigId);
+}
+
+/**
+ * 获取当前对话配置 ID
+ */
+export function getCurrentChatConfigId() {
+    return chatState.currentChatConfigId;
+}
+
+/**
+ * 添加新的对话 API 配置
+ */
+export function addChatApiConfig(config) {
+    const newConfig = {
+        id: generateConfigId(),
+        name: config.name,
+        baseUrl: config.baseUrl || '',
+        chatModel: config.chatModel || '',
+        apiKey: config.apiKey || '',
+        isBuiltIn: false,
+    };
+    chatState.chatApiConfigs.push(newConfig);
+    emit('onSettingsChanged');
+    return newConfig.id;
+}
+
+/**
+ * 更新对话 API 配置
+ */
+export function updateChatApiConfig(id, updates) {
+    const config = chatState.chatApiConfigs.find(c => c.id === id);
+    if (!config || config.isBuiltIn) return;
+    Object.assign(config, updates);
+    emit('onSettingsChanged');
+}
+
+/**
+ * 删除对话 API 配置
+ */
+export function deleteChatApiConfig(id) {
+    const config = chatState.chatApiConfigs.find(c => c.id === id);
+    if (!config || config.isBuiltIn) return;
+    const index = chatState.chatApiConfigs.findIndex(c => c.id === id);
+    if (index >= 0) {
+        chatState.chatApiConfigs.splice(index, 1);
+        if (chatState.currentChatConfigId === id) {
+            chatState.currentChatConfigId = 'mock';
+            emit('onCurrentConfigChanged');
+        }
+        emit('onSettingsChanged');
+    }
+}
+
+/**
+ * 设置当前选中的对话配置
+ */
+export function setCurrentChatConfigId(id) {
+    const config = chatState.chatApiConfigs.find(c => c.id === id);
+    if (config && chatState.currentChatConfigId !== id) {
+        chatState.currentChatConfigId = id;
         emit('onCurrentConfigChanged');
     }
 }
 
 /**
  * 验证 API 配置
- * @param {Object} config 待验证的配置
- * @returns {{valid: boolean, errors: string[]}} 验证结果
  */
 export function validateApiConfig(config) {
     const errors = [];
@@ -638,66 +714,126 @@ export function closeSettingsPanel() {
 }
 
 /**
- * 保存设置到服务端
- * @returns {Promise<boolean>}
+ * 保存补全设置到服务端
  */
-export async function saveSettingsToStorage() {
+export async function saveCompletionSettingsToStorage() {
     try {
         const data = {
-            configs: chatState.apiConfigs.filter(c => !c.isBuiltIn),
-            currentConfigId: chatState.currentConfigId,
+            configs: chatState.completionApiConfigs.filter(c => !c.isBuiltIn),
+            currentConfigId: chatState.currentCompletionConfigId,
         };
-        await configService.apiConfigs.save(data);
+        await configService.completionApiConfigs.save(data);
         return true;
     } catch (error) {
-        console.error('[ChatStore] Failed to save settings:', error);
+        console.error('[ChatStore] Failed to save completion settings:', error);
         return false;
     }
 }
 
 /**
- * 从服务端加载设置
- * @returns {Promise<boolean>}
+ * 保存对话设置到服务端
  */
-export async function loadSettingsFromStorage() {
+export async function saveChatSettingsToStorage() {
     try {
-        const data = await configService.apiConfigs.get();
-        // 合并自定义配置（保留 mock 内置配置）
+        const data = {
+            configs: chatState.chatApiConfigs.filter(c => !c.isBuiltIn),
+            currentConfigId: chatState.currentChatConfigId,
+        };
+        await configService.chatApiConfigs.save(data);
+        return true;
+    } catch (error) {
+        console.error('[ChatStore] Failed to save chat settings:', error);
+        return false;
+    }
+}
+
+/**
+ * 保存所有设置到服务端（补全 + 对话）
+ */
+export async function saveSettingsToStorage() {
+    const completionOk = await saveCompletionSettingsToStorage();
+    const chatOk = await saveChatSettingsToStorage();
+    return completionOk && chatOk;
+}
+
+/**
+ * 从服务端加载补全设置
+ */
+export async function loadCompletionSettingsFromStorage() {
+    try {
+        const data = await configService.completionApiConfigs.get();
         if (data.configs && Array.isArray(data.configs)) {
-            // 服务端数据已含内置配置，去重后直接使用
             const seen = new Set();
-            chatState.apiConfigs = data.configs.filter(c => {
+            chatState.completionApiConfigs = data.configs.filter(c => {
                 if (seen.has(c.id)) return false;
                 seen.add(c.id);
                 return true;
             });
         }
-        // 恢复当前配置（如果存在）
         if (data.currentConfigId) {
-            const config = chatState.apiConfigs.find(c => c.id === data.currentConfigId);
+            const config = chatState.completionApiConfigs.find(c => c.id === data.currentConfigId);
             if (config) {
-                chatState.currentConfigId = data.currentConfigId;
+                chatState.currentCompletionConfigId = data.currentConfigId;
             }
         }
         emit('onSettingsChanged');
         return true;
     } catch (error) {
-        console.error('[ChatStore] Failed to load settings:', error);
-        // 保持默认配置
+        console.error('[ChatStore] Failed to load completion settings:', error);
         emit('onSettingsChanged');
         return false;
     }
+}
+
+/**
+ * 从服务端加载对话设置
+ */
+export async function loadChatSettingsFromStorage() {
+    try {
+        const data = await configService.chatApiConfigs.get();
+        if (data.configs && Array.isArray(data.configs)) {
+            const seen = new Set();
+            chatState.chatApiConfigs = data.configs.filter(c => {
+                if (seen.has(c.id)) return false;
+                seen.add(c.id);
+                return true;
+            });
+        }
+        if (data.currentConfigId) {
+            const config = chatState.chatApiConfigs.find(c => c.id === data.currentConfigId);
+            if (config) {
+                chatState.currentChatConfigId = data.currentConfigId;
+            }
+        }
+        emit('onSettingsChanged');
+        return true;
+    } catch (error) {
+        console.error('[ChatStore] Failed to load chat settings:', error);
+        emit('onSettingsChanged');
+        return false;
+    }
+}
+
+/**
+ * 从服务端加载所有设置
+ */
+export async function loadSettingsFromStorage() {
+    const completionOk = await loadCompletionSettingsFromStorage();
+    const chatOk = await loadChatSettingsFromStorage();
+    return completionOk && chatOk;
 }
 
 /**
  * 清空所有自定义配置
  */
 export async function clearSettings() {
-    // 只保留内置配置
-    chatState.apiConfigs = chatState.apiConfigs.filter(c => c.isBuiltIn);
-    chatState.currentConfigId = 'mock';
+    chatState.completionApiConfigs = chatState.completionApiConfigs.filter(c => c.isBuiltIn);
+    chatState.currentCompletionConfigId = 'mock';
+    chatState.chatApiConfigs = chatState.chatApiConfigs.filter(c => c.isBuiltIn);
+    chatState.currentChatConfigId = 'mock';
     try {
-        await configService.apiConfigs.save({ configs: [], currentConfigId: 'mock' });
+        await configService.completionApiConfigs.save({ configs: [], currentConfigId: 'mock' });
+        await configService.chatApiConfigs.save({ configs: [], currentConfigId: 'mock' });
     } catch (error) {
         console.error('[ChatStore] Failed to clear settings:', error);
     }

@@ -114,8 +114,9 @@ for (const serverConfig of LANGUAGE_SERVERS) {
 
 // 启动服务器
 export function startServer(): void {
-    // 确保配置目录存在，然后清理过期软删除条目
+    // 确保配置目录存在，迁移旧配置，清理过期软删除条目
     configManager.ensureConfigDir();
+    configManager.migrateOldApiConfigs();
     configManager.conversationHistory.cleanupSoftDeleted();
 
     // 从配置连接 MCP 服务器

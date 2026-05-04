@@ -11,9 +11,16 @@ jest.mock('../../utils/logger.js', () => ({
 // Mock config-service
 jest.mock('../config-service.js', () => ({
     configService: {
-        apiConfigs: {
+        completionApiConfigs: {
             get: jest.fn(() => Promise.resolve({
-                configs: [{ id: 'mock', name: 'Mock (本地测试)', baseUrl: '', apiKey: '', isBuiltIn: true }],
+                configs: [{ id: 'mock', name: 'Mock (本地测试)', baseUrl: '', apiKey: '', modelId: '', isBuiltIn: true }],
+                currentConfigId: 'mock',
+            })),
+            save: jest.fn(() => Promise.resolve()),
+        },
+        chatApiConfigs: {
+            get: jest.fn(() => Promise.resolve({
+                configs: [{ id: 'mock', name: 'Mock (本地测试)', baseUrl: '', apiKey: '', chatModel: '', isBuiltIn: true }],
                 currentConfigId: 'mock',
             })),
             save: jest.fn(() => Promise.resolve()),
@@ -22,6 +29,7 @@ jest.mock('../config-service.js', () => ({
             get: jest.fn(() => Promise.resolve({ history: [] })),
             save: jest.fn(() => Promise.resolve()),
             clear: jest.fn(() => Promise.resolve()),
+            deleteItem: jest.fn(() => Promise.resolve()),
         },
         settings: {
             get: jest.fn(() => Promise.resolve({})),

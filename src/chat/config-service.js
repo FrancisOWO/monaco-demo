@@ -30,30 +30,57 @@ export async function getConfigInfo() {
     return result.data;
 }
 
-// ==================== API 配置 ====================
+// ==================== 补全 API 配置 ====================
 
 /**
- * 获取 API 配置
+ * 获取补全 API 配置
  */
-export async function getApiConfigs() {
-    const result = await fetchJson(`${API_BASE}/api-configs`);
+export async function getCompletionApiConfigs() {
+    const result = await fetchJson(`${API_BASE}/completion-api-configs`);
     if (!result.success) {
-        throw new Error(result.error || 'Failed to get API configs');
+        throw new Error(result.error || 'Failed to get completion API configs');
     }
     return result.data;
 }
 
 /**
- * 保存 API 配置
+ * 保存补全 API 配置
  */
-export async function saveApiConfigs(data) {
-    const result = await fetchJson(`${API_BASE}/api-configs`, {
+export async function saveCompletionApiConfigs(data) {
+    const result = await fetchJson(`${API_BASE}/completion-api-configs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
     if (!result.success) {
-        throw new Error(result.error || 'Failed to save API configs');
+        throw new Error(result.error || 'Failed to save completion API configs');
+    }
+}
+
+// ==================== 对话 API 配置 ====================
+
+/**
+ * 获取对话 API 配置
+ */
+export async function getChatApiConfigs() {
+    const result = await fetchJson(`${API_BASE}/chat-api-configs`);
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to get chat API configs');
+    }
+    return result.data;
+}
+
+/**
+ * 保存对话 API 配置
+ */
+export async function saveChatApiConfigs(data) {
+    const result = await fetchJson(`${API_BASE}/chat-api-configs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to save chat API configs');
     }
 }
 
@@ -195,9 +222,13 @@ export async function removeMcpServer(name) {
 
 export const configService = {
     getConfigInfo,
-    apiConfigs: {
-        get: getApiConfigs,
-        save: saveApiConfigs,
+    completionApiConfigs: {
+        get: getCompletionApiConfigs,
+        save: saveCompletionApiConfigs,
+    },
+    chatApiConfigs: {
+        get: getChatApiConfigs,
+        save: saveChatApiConfigs,
     },
     conversationHistory: {
         get: getConversationHistory,

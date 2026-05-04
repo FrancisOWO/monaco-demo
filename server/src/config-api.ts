@@ -6,7 +6,8 @@
 import express from 'express';
 import {
     configManager,
-    ApiConfigsData,
+    CompletionApiConfigsData,
+    ChatApiConfigsData,
     ConversationHistoryData,
     SettingsData,
     McpServersData,
@@ -15,15 +16,15 @@ import {
 
 const router: express.Router = express.Router();
 
-// ==================== API 配置 ====================
+// ==================== 补全 API 配置 ====================
 
-// GET /config/api-configs - 获取 API 配置
-router.get('/api-configs', (req, res) => {
+// GET /config/completion-api-configs - 获取补全 API 配置
+router.get('/completion-api-configs', (req, res) => {
     try {
-        const data = configManager.apiConfigs.read();
+        const data = configManager.completionApiConfigs.read();
         res.json({ success: true, data });
     } catch (error) {
-        console.error('[Config API] Error reading API configs:', error);
+        console.error('[Config API] Error reading completion API configs:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
@@ -31,18 +32,53 @@ router.get('/api-configs', (req, res) => {
     }
 });
 
-// POST /config/api-configs - 保存 API 配置
-router.post('/api-configs', (req, res) => {
+// POST /config/completion-api-configs - 保存补全 API 配置
+router.post('/completion-api-configs', (req, res) => {
     try {
-        const data: ApiConfigsData = req.body;
-        const success = configManager.apiConfigs.write(data);
+        const data: CompletionApiConfigsData = req.body;
+        const success = configManager.completionApiConfigs.write(data);
         if (success) {
             res.json({ success: true });
         } else {
             res.status(500).json({ success: false, error: 'Failed to save' });
         }
     } catch (error) {
-        console.error('[Config API] Error saving API configs:', error);
+        console.error('[Config API] Error saving completion API configs:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// ==================== 对话 API 配置 ====================
+
+// GET /config/chat-api-configs - 获取对话 API 配置
+router.get('/chat-api-configs', (req, res) => {
+    try {
+        const data = configManager.chatApiConfigs.read();
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('[Config API] Error reading chat API configs:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// POST /config/chat-api-configs - 保存对话 API 配置
+router.post('/chat-api-configs', (req, res) => {
+    try {
+        const data: ChatApiConfigsData = req.body;
+        const success = configManager.chatApiConfigs.write(data);
+        if (success) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ success: false, error: 'Failed to save' });
+        }
+    } catch (error) {
+        console.error('[Config API] Error saving chat API configs:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',

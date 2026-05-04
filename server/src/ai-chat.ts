@@ -93,7 +93,7 @@ interface ChatRequest {
     apiConfig?: {
         id: string;
         baseUrl: string;
-        modelId: string;
+        chatModel: string;
         apiKey: string;
     };
 }
@@ -395,10 +395,10 @@ async function executeTool(name: string, args: Record<string, unknown>): Promise
 }
 
 // 实际调用 AI API 的 SSE 流
-async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?: string, apiKey?: string, modelId?: string) {
+async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?: string, apiKey?: string, chatModel?: string) {
     const { messages, context, mode } = reqBody;
     const client = getOpenAIClient(baseUrl, apiKey);
-    const model = modelId || config.ai.chatModel;
+    const model = chatModel || config.ai.chatModel;
 
     // 构造系统提示（按模式区分）
     const modeInstructions = mode === 'agent'
@@ -688,7 +688,7 @@ router.post('/message', async (req, res) => {
     if (isMock) {
         mockChatSSE(res, { messages: messages || [], context: context || [], mode });
     } else {
-        await realChatSSE(res, { messages: messages || [], context: context || [], mode }, apiConfig!.baseUrl, apiConfig!.apiKey, apiConfig!.modelId);
+        await realChatSSE(res, { messages: messages || [], context: context || [], mode }, apiConfig!.baseUrl, apiConfig!.apiKey, apiConfig!.chatModel);
     }
 });
 

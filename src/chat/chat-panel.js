@@ -194,144 +194,229 @@ function setupSettingsPanel() {
         });
     });
 
-    // 配置选择相关元素
-    const configSelect = document.getElementById('chat-config-select');
-    const configLabel = configSelect.querySelector('.custom-dropdown-label');
-    const configList = configSelect.querySelector('.custom-dropdown-list');
-    const configTrigger = configSelect.querySelector('.custom-dropdown-trigger');
-    const addConfigBtn = document.getElementById('chat-config-add');
-    const deleteConfigBtn = document.getElementById('chat-config-delete');
-    const formSection = document.getElementById('chat-config-form-section');
-    const mockInfo = document.getElementById('chat-mock-info');
+    // ============ 补全配置 Tab ============
+    const completionSelect = document.getElementById('chat-completion-config-select');
+    const completionConfigLabel = completionSelect.querySelector('.custom-dropdown-label');
+    const completionConfigList = completionSelect.querySelector('.custom-dropdown-list');
+    const completionConfigTrigger = completionSelect.querySelector('.custom-dropdown-trigger');
+    const completionAddBtn = document.getElementById('chat-completion-config-add');
+    const completionDeleteBtn = document.getElementById('chat-completion-config-delete');
+    const completionFormSection = document.getElementById('chat-completion-config-form-section');
+    const completionMockInfo = document.getElementById('chat-completion-mock-info');
+    const completionNameInput = document.getElementById('chat-completion-config-name');
+    const completionBaseUrlInput = document.getElementById('chat-completion-config-baseurl');
+    const completionModelIdInput = document.getElementById('chat-completion-config-modelid');
+    const completionApiKeyInput = document.getElementById('chat-completion-config-apikey');
+    let editingCompletionConfigId = null;
 
-    // 配置表单字段
-    const nameInput = document.getElementById('chat-config-name');
-    const baseUrlInput = document.getElementById('chat-config-baseurl');
-    const modelIdInput = document.getElementById('chat-config-modelid');
-    const apiKeyInput = document.getElementById('chat-config-apikey');
+    function renderCompletionConfigSelect() {
+        const configs = chatStore.getCompletionApiConfigs();
+        const currentId = chatStore.getCurrentCompletionConfigId();
 
-    // 当前编辑的配置 ID
-    let editingConfigId = null;
-
-    // 渲染配置选择下拉框
-    function renderConfigSelect() {
-        const configs = chatStore.getApiConfigs();
-        const currentId = chatStore.getCurrentConfigId();
-
-        configList.innerHTML = '';
+        completionConfigList.innerHTML = '';
         configs.forEach(config => {
             const item = document.createElement('div');
             item.className = 'custom-dropdown-item' + (config.id === currentId ? ' active' : '');
             item.dataset.value = config.id;
             item.textContent = config.name;
             item.addEventListener('click', () => {
-                selectConfig(config.id);
+                selectCompletionConfig(config.id);
             });
-            configList.appendChild(item);
+            completionConfigList.appendChild(item);
         });
 
-        // 更新显示标签
         const current = configs.find(c => c.id === currentId);
-        configLabel.textContent = current ? current.name : '';
+        completionConfigLabel.textContent = current ? current.name : '';
     }
 
-    // 选中配置
-    function selectConfig(id) {
-        chatStore.setCurrentConfigId(id);
-        loadConfigToForm(id);
-        configSelect.classList.remove('open');
-        renderConfigSelect();
+    function selectCompletionConfig(id) {
+        chatStore.setCurrentCompletionConfigId(id);
+        loadCompletionConfigToForm(id);
+        completionSelect.classList.remove('open');
+        renderCompletionConfigSelect();
     }
 
-    // 切换下拉展开/收起
-    configTrigger.addEventListener('click', (e) => {
+    completionConfigTrigger.addEventListener('click', (e) => {
         e.stopPropagation();
-        configSelect.classList.toggle('open');
+        completionSelect.classList.toggle('open');
     });
 
-    // 点击外部关闭
     document.addEventListener('click', (e) => {
-        if (!configSelect.contains(e.target)) {
-            configSelect.classList.remove('open');
+        if (!completionSelect.contains(e.target)) {
+            completionSelect.classList.remove('open');
         }
     });
 
-    // 加载配置详情到表单
-    function loadConfigToForm(configId) {
-        const config = chatStore.getApiConfigById(configId);
+    function loadCompletionConfigToForm(configId) {
+        const config = chatStore.getCompletionApiConfigById(configId);
         if (!config) return;
 
-        editingConfigId = configId;
+        editingCompletionConfigId = configId;
 
         if (config.isBuiltIn) {
-            // Mock 配置：禁用表单，显示提示
-            formSection.classList.add('disabled');
-            mockInfo?.classList.add('visible');
-            deleteConfigBtn.disabled = true;
-
-            // 清空表单
-            nameInput.value = '';
-            baseUrlInput.value = '';
-            modelIdInput.value = '';
-            apiKeyInput.value = '';
+            completionFormSection.classList.add('disabled');
+            completionMockInfo?.classList.add('visible');
+            completionDeleteBtn.disabled = true;
+            completionNameInput.value = '';
+            completionBaseUrlInput.value = '';
+            completionModelIdInput.value = '';
+            completionApiKeyInput.value = '';
         } else {
-            // 自定义配置：启用表单
-            formSection.classList.remove('disabled');
-            mockInfo?.classList.remove('visible');
-            deleteConfigBtn.disabled = false;
-
-            // 填充表单
-            nameInput.value = config.name || '';
-            baseUrlInput.value = config.baseUrl || '';
-            modelIdInput.value = config.modelId || '';
-            apiKeyInput.value = config.apiKey || '';
+            completionFormSection.classList.remove('disabled');
+            completionMockInfo?.classList.remove('visible');
+            completionDeleteBtn.disabled = false;
+            completionNameInput.value = config.name || '';
+            completionBaseUrlInput.value = config.baseUrl || '';
+            completionModelIdInput.value = config.modelId || '';
+            completionApiKeyInput.value = config.apiKey || '';
         }
     }
 
-    // 监听设置面板可见性变化
+    completionAddBtn.addEventListener('click', () => {
+        const name = prompt('请输入新补全配置的名称:');
+        if (!name || !name.trim()) return;
+
+        const newId = chatStore.addCompletionApiConfig({
+            name: name.trim(),
+            baseUrl: '',
+            apiKey: '',
+        });
+
+        chatStore.setCurrentCompletionConfigId(newId);
+        renderCompletionConfigSelect();
+        loadCompletionConfigToForm(newId);
+    });
+
+    completionDeleteBtn.addEventListener('click', () => {
+        const config = chatStore.getCompletionApiConfigById(editingCompletionConfigId);
+        if (!config || config.isBuiltIn) return;
+
+        if (confirm(`确定要删除配置 "${config.name}" 吗？`)) {
+            chatStore.deleteCompletionApiConfig(editingCompletionConfigId);
+            renderCompletionConfigSelect();
+            loadCompletionConfigToForm(chatStore.getCurrentCompletionConfigId());
+        }
+    });
+
+    // ============ 对话配置 Tab ============
+    const chatSelect = document.getElementById('chat-chat-config-select');
+    const chatConfigLabel = chatSelect.querySelector('.custom-dropdown-label');
+    const chatConfigList = chatSelect.querySelector('.custom-dropdown-list');
+    const chatConfigTrigger = chatSelect.querySelector('.custom-dropdown-trigger');
+    const chatAddBtn = document.getElementById('chat-chat-config-add');
+    const chatDeleteBtn = document.getElementById('chat-chat-config-delete');
+    const chatFormSection = document.getElementById('chat-chat-config-form-section');
+    const chatMockInfo = document.getElementById('chat-chat-mock-info');
+    const chatNameInput = document.getElementById('chat-chat-config-name');
+    const chatBaseUrlInput = document.getElementById('chat-chat-config-baseurl');
+    const chatModelInput = document.getElementById('chat-chat-config-chatmodel');
+    const chatApiKeyInput = document.getElementById('chat-chat-config-apikey');
+    let editingChatConfigId = null;
+
+    function renderChatConfigSelect() {
+        const configs = chatStore.getChatApiConfigs();
+        const currentId = chatStore.getCurrentChatConfigId();
+
+        chatConfigList.innerHTML = '';
+        configs.forEach(config => {
+            const item = document.createElement('div');
+            item.className = 'custom-dropdown-item' + (config.id === currentId ? ' active' : '');
+            item.dataset.value = config.id;
+            item.textContent = config.name;
+            item.addEventListener('click', () => {
+                selectChatConfig(config.id);
+            });
+            chatConfigList.appendChild(item);
+        });
+
+        const current = configs.find(c => c.id === currentId);
+        chatConfigLabel.textContent = current ? current.name : '';
+    }
+
+    function selectChatConfig(id) {
+        chatStore.setCurrentChatConfigId(id);
+        loadChatConfigToForm(id);
+        chatSelect.classList.remove('open');
+        renderChatConfigSelect();
+    }
+
+    chatConfigTrigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        chatSelect.classList.toggle('open');
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!chatSelect.contains(e.target)) {
+            chatSelect.classList.remove('open');
+        }
+    });
+
+    function loadChatConfigToForm(configId) {
+        const config = chatStore.getChatApiConfigById(configId);
+        if (!config) return;
+
+        editingChatConfigId = configId;
+
+        if (config.isBuiltIn) {
+            chatFormSection.classList.add('disabled');
+            chatMockInfo?.classList.add('visible');
+            chatDeleteBtn.disabled = true;
+            chatNameInput.value = '';
+            chatBaseUrlInput.value = '';
+            chatModelInput.value = '';
+            chatApiKeyInput.value = '';
+        } else {
+            chatFormSection.classList.remove('disabled');
+            chatMockInfo?.classList.remove('visible');
+            chatDeleteBtn.disabled = false;
+            chatNameInput.value = config.name || '';
+            chatBaseUrlInput.value = config.baseUrl || '';
+            chatModelInput.value = config.chatModel || '';
+            chatApiKeyInput.value = config.apiKey || '';
+        }
+    }
+
+    chatAddBtn.addEventListener('click', () => {
+        const name = prompt('请输入新对话配置的名称:');
+        if (!name || !name.trim()) return;
+
+        const newId = chatStore.addChatApiConfig({
+            name: name.trim(),
+            baseUrl: '',
+            apiKey: '',
+        });
+
+        chatStore.setCurrentChatConfigId(newId);
+        renderChatConfigSelect();
+        loadChatConfigToForm(newId);
+    });
+
+    chatDeleteBtn.addEventListener('click', () => {
+        const config = chatStore.getChatApiConfigById(editingChatConfigId);
+        if (!config || config.isBuiltIn) return;
+
+        if (confirm(`确定要删除配置 "${config.name}" 吗？`)) {
+            chatStore.deleteChatApiConfig(editingChatConfigId);
+            renderChatConfigSelect();
+            loadChatConfigToForm(chatStore.getCurrentChatConfigId());
+        }
+    });
+
+    // ============ 面板可见性与保存 ============
+
     chatStore.on('onSettingsPanelVisibilityChanged', () => {
         const isVisible = chatStore.isSettingsPanelVisible();
         if (isVisible) {
-            renderConfigSelect();
-            loadConfigToForm(chatStore.getCurrentConfigId());
+            renderCompletionConfigSelect();
+            loadCompletionConfigToForm(chatStore.getCurrentCompletionConfigId());
+            renderChatConfigSelect();
+            loadChatConfigToForm(chatStore.getCurrentChatConfigId());
             modal.classList.remove('hidden');
         } else {
             modal.classList.add('hidden');
         }
     });
 
-    // 配置切换（已在 selectConfig 中处理）
-
-    // 添加新配置
-    addConfigBtn.addEventListener('click', () => {
-        const name = prompt('请输入新配置的名称:');
-        if (!name || !name.trim()) return;
-
-        const newId = chatStore.addApiConfig({
-            name: name.trim(),
-            baseUrl: '',
-            apiKey: '',
-        });
-
-        // 切换到新配置
-        chatStore.setCurrentConfigId(newId);
-        renderConfigSelect();
-        loadConfigToForm(newId);
-    });
-
-    // 删除当前配置
-    deleteConfigBtn.addEventListener('click', () => {
-        const config = chatStore.getApiConfigById(editingConfigId);
-        if (!config || config.isBuiltIn) return;
-
-        if (confirm(`确定要删除配置 "${config.name}" 吗？`)) {
-            chatStore.deleteApiConfig(editingConfigId);
-            renderConfigSelect();
-            loadConfigToForm(chatStore.getCurrentConfigId());
-        }
-    });
-
-    // 关闭面板
     function closePanel() {
         chatStore.closeSettingsPanel();
     }
@@ -340,7 +425,7 @@ function setupSettingsPanel() {
     closeBtn.addEventListener('click', closePanel);
     cancelBtn.addEventListener('click', closePanel);
 
-    // 保存设置（API 配置 + MCP JSON）
+    // 保存设置（补全 + 对话 + MCP）
     saveBtn.addEventListener('click', async () => {
         // 如果 JSON 编辑器面板可见，优先保存 MCP 配置
         const jsonPanelEl = document.getElementById('chat-mcp-json-panel');
@@ -355,40 +440,43 @@ function setupSettingsPanel() {
             }
         }
 
-        const config = chatStore.getApiConfigById(editingConfigId);
-        if (!config || config.isBuiltIn) {
-            closePanel();
-            return;
+        // 保存补全配置
+        const completionConfig = chatStore.getCompletionApiConfigById(editingCompletionConfigId);
+        if (completionConfig && !completionConfig.isBuiltIn) {
+            const name = completionNameInput.value.trim();
+            const baseUrl = completionBaseUrlInput.value.trim();
+            const validation = chatStore.validateApiConfig({ name, baseUrl });
+            if (!validation.valid) {
+                if (validation.errors.includes('name')) { alert('请输入补全配置名称'); return; }
+                if (validation.errors.includes('baseUrl')) { alert('请输入有效的 Base URL'); return; }
+            }
+            chatStore.updateCompletionApiConfig(editingCompletionConfigId, {
+                name: completionNameInput.value.trim(),
+                baseUrl: completionBaseUrlInput.value.trim(),
+                modelId: completionModelIdInput.value.trim(),
+                apiKey: completionApiKeyInput.value.trim(),
+            });
+            renderCompletionConfigSelect();
         }
 
-        const name = nameInput.value.trim();
-        const baseUrl = baseUrlInput.value.trim();
-        const modelId = modelIdInput.value.trim();
-        const apiKey = apiKeyInput.value.trim();
-
-        // 验证配置
-        const validation = chatStore.validateApiConfig({ name, baseUrl });
-        if (!validation.valid) {
-            if (validation.errors.includes('name')) {
-                alert('请输入配置名称');
-                return;
+        // 保存对话配置
+        const chatConfig = chatStore.getChatApiConfigById(editingChatConfigId);
+        if (chatConfig && !chatConfig.isBuiltIn) {
+            const name = chatNameInput.value.trim();
+            const baseUrl = chatBaseUrlInput.value.trim();
+            const validation = chatStore.validateApiConfig({ name, baseUrl });
+            if (!validation.valid) {
+                if (validation.errors.includes('name')) { alert('请输入对话配置名称'); return; }
+                if (validation.errors.includes('baseUrl')) { alert('请输入有效的 Base URL'); return; }
             }
-            if (validation.errors.includes('baseUrl')) {
-                alert('请输入有效的 Base URL');
-                return;
-            }
+            chatStore.updateChatApiConfig(editingChatConfigId, {
+                name: chatNameInput.value.trim(),
+                baseUrl: chatBaseUrlInput.value.trim(),
+                chatModel: chatModelInput.value.trim(),
+                apiKey: chatApiKeyInput.value.trim(),
+            });
+            renderChatConfigSelect();
         }
-
-        // 更新配置
-        chatStore.updateApiConfig(editingConfigId, {
-            name,
-            baseUrl,
-            modelId,
-            apiKey,
-        });
-
-        // 更新选择框显示
-        renderConfigSelect();
 
         // 保存到服务端
         try {
@@ -399,18 +487,15 @@ function setupSettingsPanel() {
             return;
         }
 
-        // 关闭面板
         closePanel();
     });
 
-    // 按 Esc 关闭面板
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && chatStore.isSettingsPanelVisible()) {
             closePanel();
         }
     });
 
-    // MCP 配置面板逻辑
     setupMcpConfigPanel(modal);
 }
 

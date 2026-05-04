@@ -18,7 +18,7 @@ export async function streamChatMessage() {
     const messages = chatStore.getMessages();
     const context = chatStore.getContextItems();
     const mode = chatStore.getMode();
-    const apiConfig = chatStore.getCurrentApiConfig();
+    const apiConfig = chatStore.getCurrentChatApiConfig();
 
     const messageId = chatStore.startStreaming();
     const abortController = new AbortController();
@@ -33,7 +33,7 @@ export async function streamChatMessage() {
                 context,
                 mode,
                 apiConfig: apiConfig
-                    ? { id: apiConfig.id, baseUrl: apiConfig.baseUrl, modelId: apiConfig.modelId, apiKey: apiConfig.apiKey }
+                    ? { id: apiConfig.id, baseUrl: apiConfig.baseUrl, chatModel: apiConfig.chatModel, apiKey: apiConfig.apiKey }
                     : undefined,
             }),
             signal: abortController.signal,
