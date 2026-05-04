@@ -21,5 +21,4 @@ python-mcp/.pytest_cache/
 python-mcp/**/__pycache__/
 
 # 编译产物
-server/dist/
-src/dist/
+*/dist/
