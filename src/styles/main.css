@@ -858,6 +858,7 @@ body[data-theme="light"] .welcome-recent-remove:hover {
 .custom-dropdown {
     position: relative;
     outline: none;
+    width: 250px;
 }
 
 .custom-dropdown-trigger {
@@ -878,6 +879,10 @@ body[data-theme="light"] .welcome-recent-remove:hover {
     border-color: #007acc;
 }
 
+.custom-dropdown-label { 
+    font-size: 14px;
+}
+
 .custom-dropdown-arrow {
     font-size: 12px;
     color: #888;
@@ -887,6 +892,7 @@ body[data-theme="light"] .welcome-recent-remove:hover {
 .custom-dropdown-list {
     display: none;
     position: absolute;
+    font-size: 14px;
     top: calc(100% + 4px);
     left: 0;
     right: 0;
