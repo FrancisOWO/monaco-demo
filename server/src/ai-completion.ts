@@ -4,8 +4,7 @@
  * API 配置从 config-manager（用户目录）读取，不硬编码
  *
  * 端点：
- *   POST /ai/completion        — 非流式补全
- *   POST /ai/completion/stream  — SSE 流式补全
+ *   POST /ai/completion — 统一补全（stream=true → SSE 流式，stream=false → 非流式）
  */
 
 import express, { Router } from 'express';
@@ -52,6 +51,7 @@ interface CompletionRequestBody {
     prefix: string;
     suffix?: string;
     language: string;
+    stream?: boolean;
     strategy: {
         requestMultiline: boolean;
         maxTokens: number;
@@ -63,9 +63,9 @@ interface CompletionRequestBody {
     };
 }
 
-// ============ 非流式补全 ============
+// ============ 统一补全路由 ============
 
-router.post('/completion', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const body: CompletionRequestBody = req.body;
 
@@ -75,96 +75,80 @@ router.post('/completion', async (req, res) => {
         }
 
         const apiConfig = getCurrentApiConfig();
+        const isStream = body.stream ?? false;
 
-        // 无真实配置 → 返回空结果（前端用 MockAICompletionClient）
+        // 无真实配置 → 返回空结果
         if (!apiConfig) {
-            res.json({ items: [] });
+            if (isStream) {
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.write(`event: done\ndata: {"fullText":""}\n\n`);
+                res.end();
+            } else {
+                res.json({ items: [] });
+            }
             return;
         }
 
+        // 测试模式
         if (TEST_MODE) {
-            const result = generateTestCompletion(body.prefix, body.language);
-            res.json({
-                items: result.suggestions.map((s, i) => ({
-                    insertText: s.text,
-                    isMultiline: s.text.includes('\n'),
-                    completionId: `test-${i}`,
-                })),
-            });
+            if (isStream) {
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.setHeader('X-Accel-Buffering', 'no');
+                let completion = generateTestMultilineCompletion(body.prefix, body.language);
+                if (!completion) {
+                    completion = generateDefaultMultilineCompletion(body.prefix, body.language);
+                }
+                streamMockCompletion(res, completion);
+            } else {
+                const result = generateTestCompletion(body.prefix, body.language);
+                res.json({
+                    items: result.suggestions.map((s, i) => ({
+                        insertText: s.text,
+                        isMultiline: s.text.includes('\n'),
+                        completionId: `test-${i}`,
+                    })),
+                });
+            }
             return;
         }
 
         const client = createOpenAIClient(apiConfig);
         const model = apiConfig.model || config.ai.fimModel;
 
-        const response = await client.completions.create({
-            model,
-            prompt: body.prefix,
-            suffix: body.suffix || undefined,
-            max_tokens: body.strategy?.maxTokens ?? 64,
-            stop: body.strategy?.stopTokens?.length > 0 ? body.strategy.stopTokens : undefined,
-            temperature: 0.01,
-            n: 1,
-            stream: false,
-        });
+        // 非流式
+        if (!isStream) {
+            const response = await client.completions.create({
+                model,
+                prompt: body.prefix,
+                suffix: body.suffix || undefined,
+                max_tokens: body.strategy?.maxTokens ?? 64,
+                stop: body.strategy?.stopTokens?.length > 0 ? body.strategy.stopTokens : undefined,
+                temperature: 0.01,
+                n: 1,
+                stream: false,
+            });
 
-        const items = response.choices
-            .map((choice, index) => ({
-                insertText: choice.text,
-                isMultiline: body.strategy?.requestMultiline ?? false,
-                completionId: `completion-${index}`,
-            }))
-            .filter(item => item.insertText.trim().length > 0);
+            const items = response.choices
+                .map((choice, index) => ({
+                    insertText: choice.text,
+                    isMultiline: body.strategy?.requestMultiline ?? false,
+                    completionId: `completion-${index}`,
+                }))
+                .filter(item => item.insertText.trim().length > 0);
 
-        res.json({ items });
-
-    } catch (error: any) {
-        console.error('[AI Completion] Error:', error);
-        res.json({ items: [], error: error.message || 'Completion request failed' });
-    }
-});
-
-// ============ SSE 流式补全 ============
-
-router.post('/stream', async (req, res) => {
-    try {
-        const body: CompletionRequestBody = req.body;
-
-        if (!body.prefix) {
-            res.status(400).json({ error: 'Missing prefix' });
+            res.json({ items });
             return;
         }
 
-        const apiConfig = getCurrentApiConfig();
-
-        // 无真实配置 → 返回空 SSE 流
-        if (!apiConfig) {
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
-            res.write(`event: done\ndata: {"fullText":""}\n\n`);
-            res.end();
-            return;
-        }
-
-        // 设置 SSE 头
+        // 流式 — 设置 SSE 头
         res.setHeader('Content-Type', 'text/event-stream');
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no');
-
-        if (TEST_MODE) {
-            let completion = generateTestMultilineCompletion(body.prefix, body.language);
-            if (!completion) {
-                completion = generateDefaultMultilineCompletion(body.prefix, body.language);
-            }
-            streamMockCompletion(res, completion);
-            return;
-        }
-
-        // 调用 OpenAI FIM 流式补全
-        const client = createOpenAIClient(apiConfig);
-        const model = apiConfig.model || config.ai.fimModel;
 
         try {
             const stream = await client.completions.create({
@@ -197,8 +181,8 @@ router.post('/stream', async (req, res) => {
         }
 
     } catch (error: any) {
-        console.error('[AI Completion Stream] Setup error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('[AI Completion] Error:', error);
+        res.json({ items: [], error: error.message || 'Completion request failed' });
     }
 });
 

@@ -23,7 +23,7 @@ import { aiCompletionConfig } from '../aiCompletionConfig.js';
 import { createFimAdapter } from '../prompt/fimAdapter.js';
 import { DefaultModelSelector } from './modelSelector.js';
 
-/** 非流式补全客户端 — fetch POST /ai/completion */
+/** 非流式补全客户端 — fetch POST /ai/completion (stream=false) */
 export class SimpleAICompletionClient implements IAICompletionClient {
     private abortController: AbortController | null = null;
     private fimAdapter: IFimAdapter;
@@ -58,10 +58,11 @@ export class SimpleAICompletionClient implements IAICompletionClient {
         const formattedPrompt = this.fimAdapter.format(prompt, strategy);
 
         try {
-            const response = await fetch(modelConfig.endpoint.replace('/stream', ''), {
+            const response = await fetch(modelConfig.endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    stream: false,
                     prompt: formattedPrompt,
                     prefix: prompt.prefix,
                     suffix: prompt.suffix,

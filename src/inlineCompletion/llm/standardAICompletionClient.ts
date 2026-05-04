@@ -24,7 +24,7 @@ import { createFimAdapter } from '../prompt/fimAdapter.js';
 import { DefaultModelSelector } from './modelSelector.js';
 
 /**
- * 流式补全客户端 — fetch POST + SSE 解析
+ * 流式补全客户端 — fetch POST + SSE 解析 (stream=true)
  * 等待第一个 token 就返回，后台继续缓存
  */
 export class StandardAICompletionClient implements IAICompletionClient {
@@ -86,6 +86,7 @@ export class StandardAICompletionClient implements IAICompletionClient {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                stream: true,
                 prompt: formattedPrompt,
                 // 也发送原始信息供后端参考
                 prefix: prompt.prefix,

@@ -6,6 +6,8 @@
 
 import { FimFormat, type FimModelConfig } from './types.js';
 
+const endpoint = '/ai/completion' as string;
+
 /** AI 补全配置 */
 export const aiCompletionConfig = {
     /** 客户端模式：'mock' 伪模型 | 'simple' 非流式 | 'standard' 流式 */
@@ -26,7 +28,7 @@ export const aiCompletionConfig = {
         {
             modelId: 'codex',
             fimFormat: FimFormat.Codex,
-            endpoint: '/ai/completion/stream',
+            endpoint: endpoint,
             maxPromptTokens: 2048,
             maxCompletionTokens: 256,
             supportedLanguages: [],
@@ -35,7 +37,7 @@ export const aiCompletionConfig = {
         {
             modelId: 'deepseek',
             fimFormat: FimFormat.DeepSeek,
-            endpoint: '/ai/completion/stream',
+            endpoint: endpoint,
             maxPromptTokens: 4096,
             maxCompletionTokens: 256,
             supportedLanguages: ['python', 'javascript', 'typescript', 'typescriptreact', 'go', 'rust', 'cpp', 'c'],
@@ -44,7 +46,7 @@ export const aiCompletionConfig = {
         {
             modelId: 'codellama',
             fimFormat: FimFormat.CodeLlama,
-            endpoint: '/ai/completion/stream',
+            endpoint: endpoint,
             maxPromptTokens: 4096,
             maxCompletionTokens: 256,
             supportedLanguages: ['python', 'javascript', 'typescript', 'typescriptreact', 'cpp', 'c', 'java'],
@@ -53,7 +55,7 @@ export const aiCompletionConfig = {
         {
             modelId: 'starcoder',
             fimFormat: FimFormat.StarCoder,
-            endpoint: '/ai/completion/stream',
+            endpoint: endpoint,
             maxPromptTokens: 4096,
             maxCompletionTokens: 256,
             supportedLanguages: [],
@@ -62,7 +64,7 @@ export const aiCompletionConfig = {
         {
             modelId: 'qwen',
             fimFormat: FimFormat.Qwen,
-            endpoint: '/ai/completion/stream',
+            endpoint: endpoint,
             maxPromptTokens: 8192,
             maxCompletionTokens: 256,
             supportedLanguages: ['python', 'javascript', 'typescript', 'typescriptreact', 'go', 'rust', 'java', 'cpp'],
