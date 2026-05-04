@@ -1233,9 +1233,8 @@
 .msg-tool-call-output {
     color: #333;
     font-size: 11px;
-    margin-top: 4px;
-    padding-top: 4px;
-    border-top: 1px solid #e0e0e0;
+    margin-top: 0px;
+    padding-top: 0px;
 }
 
 .tool-status-success::before {
