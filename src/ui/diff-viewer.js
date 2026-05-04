@@ -74,6 +74,7 @@ export function openDiffView(original, modified) {
         fontSize: 14,
         lineNumbers: 'on',
         scrollBeyondLastLine: false,
+        find: { addExtraSpaceOnTop: false },
     });
 
     diffEditor.setModel({
