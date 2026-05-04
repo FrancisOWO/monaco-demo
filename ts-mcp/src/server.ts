@@ -88,4 +88,13 @@ server.addTool({
   execute: async (args) => tools.compareFiles(args.originalPath, args.modifiedPath, args.language),
 });
 
-server.start({ transportType: 'stdio' });
+const transportType = (process.env.MCP_TRANSPORT || 'stdio') as 'stdio' | 'httpStream';
+const options: Parameters<typeof server.start>[0] = { transportType };
+
+if (transportType === 'httpStream') {
+    options.httpStream = {
+        port: parseInt(process.env.MCP_PORT || '3001', 10),
+    };
+}
+
+server.start(options);

@@ -67,8 +67,15 @@ async def compare_files(
     return await tools.compare_files(original_path, modified_path, language)
 
 
+import os
+
+
 def main() -> None:
-    mcp.run()
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    kwargs: dict[str, Any] = {"transport": transport}
+    if transport in ("sse", "http", "streamable-http"):
+        kwargs["port"] = int(os.getenv("MCP_PORT", "3002"))
+    mcp.run(**kwargs)
 
 
 if __name__ == "__main__":
