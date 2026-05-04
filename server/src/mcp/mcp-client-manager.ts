@@ -6,7 +6,7 @@
 
 import { ChildProcess, spawn } from 'child_process';
 import { EventEmitter } from 'events';
-import { configManager, McpServerConfig, McpServersData } from './config-manager';
+import { configManager, McpServerConfig, McpServersData } from '../config-manager';
 
 const logger = {
     info: (...args: unknown[]) => console.log('[McpClient]', ...args),
@@ -129,11 +129,13 @@ class StdioMcpConnection extends EventEmitter implements McpConnection {
 
             this.pendingRequests.set(id, { resolve, reject, timer });
 
-            this.queue = this.queue.then(() => {
-                const body = JSON.stringify(message);
-                const frame = `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
-                this.process.stdin!.write(frame);
-            });
+            if (!this.process.stdin) {
+                reject(new Error(`[${this.serverName}] MCP stdin not available`));
+                return;
+            }
+            const body = JSON.stringify(message);
+            const frame = `Content-Length: ${Buffer.byteLength(body, 'utf8')}\r\n\r\n${body}`;
+            this.process.stdin.write(frame);
         });
     }
 
@@ -216,8 +218,8 @@ class SseMcpConnection extends EventEmitter implements McpConnection {
         try {
             const response = await fetch(`${this.endpoint}/tools`);
             if (response.ok) {
-                const data = await response.json();
-                return data.tools || [];
+                const data = await response.json() as Record<string, unknown>;
+                return (data.tools as McpToolDefinition[]) || [];
             }
         } catch { /* fallback */ }
 
@@ -229,8 +231,8 @@ class SseMcpConnection extends EventEmitter implements McpConnection {
                 body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
             });
             if (response.ok) {
-                const data = await response.json();
-                return data.result?.tools || [];
+                const data = await response.json() as Record<string, unknown>;
+                return (data.result as Record<string, unknown>)?.tools as McpToolDefinition[] || [];
             }
         } catch { /* fallback */ }
 
@@ -245,8 +247,8 @@ class SseMcpConnection extends EventEmitter implements McpConnection {
                 body: JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name, arguments: args } }),
             });
             if (response.ok) {
-                const data = await response.json();
-                return data.result || { content: [{ type: 'text', text: JSON.stringify(data) }] };
+                const data = await response.json() as Record<string, unknown>;
+                return (data.result as McpToolCallResult) || { content: [{ type: 'text', text: JSON.stringify(data) }] };
             }
             return { content: [{ type: 'text', text: `Error: HTTP ${response.status}` }] };
         } catch (error) {
