@@ -21,6 +21,7 @@ import type {
 } from '../types.js';
 import { aiCompletionConfig } from '../aiCompletionConfig.js';
 import { createFimAdapter } from '../prompt/fimAdapter.js';
+import { DefaultModelSelector } from './modelSelector.js';
 
 /**
  * 流式补全客户端 — fetch POST + SSE 解析
@@ -37,7 +38,7 @@ export class StandardAICompletionClient implements IAICompletionClient {
     ) {
         // 默认使用 Codex 格式适配器
         this.fimAdapter = fimAdapter ?? createFimAdapter(aiCompletionConfig.models[0]?.fimFormat ?? 'codex' as any);
-        this.modelSelector = modelSelector ?? new DefaultModelSelectorFallback();
+        this.modelSelector = modelSelector ?? new DefaultModelSelector();
     }
 
     /**
@@ -214,44 +215,5 @@ export class StandardAICompletionClient implements IAICompletionClient {
     cancelRequest(_requestId: string): void {
         this.abortController?.abort();
         this.abortController = null;
-    }
-}
-
-/** 回退模型选择器（不依赖 modelSelector.ts，避免循环） */
-class DefaultModelSelectorFallback implements IModelSelector {
-    selectModel(context: CompletionRequestContext): FimModelConfig {
-        const models = aiCompletionConfig.models;
-        const languageId = context.languageId;
-
-        // 查语言优先映射
-        const preferredList = aiCompletionConfig.languageModelMap[languageId];
-        if (preferredList && preferredList.length > 0) {
-            for (const modelId of preferredList) {
-                const model = models.find(m => m.modelId === modelId);
-                if (model) return model;
-            }
-        }
-
-        // 查支持该语言的最低优先级模型
-        const sorted = models
-            .filter(m => m.supportedLanguages.length === 0 || m.supportedLanguages.includes(languageId))
-            .sort((a, b) => a.priority - b.priority);
-
-        return sorted[0] ?? models[0];
-    }
-
-    getAvailableModels(): FimModelConfig[] {
-        return [...aiCompletionConfig.models];
-    }
-
-    addModel(config: FimModelConfig): void {
-        aiCompletionConfig.models.push(config);
-    }
-
-    removeModel(modelId: string): void {
-        const idx = aiCompletionConfig.models.findIndex(m => m.modelId === modelId);
-        if (idx >= 0) {
-            aiCompletionConfig.models.splice(idx, 1);
-        }
     }
 }

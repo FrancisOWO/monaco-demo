@@ -33,7 +33,7 @@ export const aiCompletionConfig = {
             priority: 0,
         },
         {
-            modelId: 'deepseek-coder',
+            modelId: 'deepseek',
             fimFormat: FimFormat.DeepSeek,
             endpoint: '/ai/completion/stream',
             maxPromptTokens: 4096,
@@ -60,7 +60,7 @@ export const aiCompletionConfig = {
             priority: 3,
         },
         {
-            modelId: 'qwen-coder',
+            modelId: 'qwen',
             fimFormat: FimFormat.Qwen,
             endpoint: '/ai/completion/stream',
             maxPromptTokens: 8192,
@@ -70,17 +70,19 @@ export const aiCompletionConfig = {
         },
     ] as FimModelConfig[],
 
+    defaultModelId: 'qwen' as string,
+
     /** 默认语言到模型的映射优先级（按优先级顺序，空表示使用全局默认） */
     languageModelMap: {
-        python: ['deepseek-coder', 'codellama', 'codex'],
-        javascript: ['deepseek-coder', 'codellama', 'codex'],
-        typescript: ['deepseek-coder', 'codellama', 'codex'],
-        typescriptreact: ['deepseek-coder', 'codellama', 'codex'],
-        go: ['deepseek-coder', 'qwen-coder', 'codex'],
-        rust: ['deepseek-coder', 'qwen-coder', 'codex'],
-        cpp: ['codellama', 'deepseek-coder', 'codex'],
-        c: ['codellama', 'deepseek-coder', 'codex'],
-        java: ['codellama', 'qwen-coder', 'codex'],
+        python: ['deepseek', 'codellama', 'codex'],
+        javascript: ['deepseek', 'codellama', 'codex'],
+        typescript: ['deepseek', 'codellama', 'codex'],
+        typescriptreact: ['deepseek', 'codellama', 'codex'],
+        go: ['deepseek', 'qwen', 'codex'],
+        rust: ['deepseek', 'qwen', 'codex'],
+        cpp: ['codellama', 'deepseek', 'codex'],
+        c: ['codellama', 'deepseek', 'codex'],
+        java: ['codellama', 'qwen', 'codex'],
     } as Record<string, string[]>,
 
     /** 自动触发补全 */

@@ -21,6 +21,7 @@ import type {
 } from '../types.js';
 import { aiCompletionConfig } from '../aiCompletionConfig.js';
 import { createFimAdapter } from '../prompt/fimAdapter.js';
+import { DefaultModelSelector } from './modelSelector.js';
 
 /** 非流式补全客户端 — fetch POST /ai/completion */
 export class SimpleAICompletionClient implements IAICompletionClient {
@@ -33,7 +34,7 @@ export class SimpleAICompletionClient implements IAICompletionClient {
         modelSelector?: IModelSelector,
     ) {
         this.fimAdapter = fimAdapter ?? createFimAdapter(aiCompletionConfig.models[0]?.fimFormat ?? 'codex' as any);
-        this.modelSelector = modelSelector ?? new DefaultModelSelectorFallback();
+        this.modelSelector = modelSelector ?? new DefaultModelSelector();
     }
 
     async requestCompletion(
@@ -113,42 +114,5 @@ export class SimpleAICompletionClient implements IAICompletionClient {
     cancelRequest(_requestId: string): void {
         this.abortController?.abort();
         this.abortController = null;
-    }
-}
-
-/** 回退模型选择器 */
-class DefaultModelSelectorFallback implements IModelSelector {
-    selectModel(context: CompletionRequestContext): FimModelConfig {
-        const models = aiCompletionConfig.models;
-        const languageId = context.languageId;
-
-        const preferredList = aiCompletionConfig.languageModelMap[languageId];
-        if (preferredList && preferredList.length > 0) {
-            for (const modelId of preferredList) {
-                const model = models.find(m => m.modelId === modelId);
-                if (model) return model;
-            }
-        }
-
-        const sorted = models
-            .filter(m => m.supportedLanguages.length === 0 || m.supportedLanguages.includes(languageId))
-            .sort((a, b) => a.priority - b.priority);
-
-        return sorted[0] ?? models[0];
-    }
-
-    getAvailableModels(): FimModelConfig[] {
-        return [...aiCompletionConfig.models];
-    }
-
-    addModel(config: FimModelConfig): void {
-        aiCompletionConfig.models.push(config);
-    }
-
-    removeModel(modelId: string): void {
-        const idx = aiCompletionConfig.models.findIndex(m => m.modelId === modelId);
-        if (idx >= 0) {
-            aiCompletionConfig.models.splice(idx, 1);
-        }
     }
 }

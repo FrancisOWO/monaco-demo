@@ -24,7 +24,16 @@ export class DefaultModelSelector implements IModelSelector {
         this.models = models ?? [...aiCompletionConfig.models];
     }
 
+    getDefaultModel(): FimModelConfig | undefined {
+        return this.models.find(m => m.modelId === aiCompletionConfig.defaultModelId);
+    }
+
     selectModel(context: CompletionRequestContext): FimModelConfig {
+        const defaultModel = this.getDefaultModel();
+        if (defaultModel) {
+            return defaultModel;
+        }
+
         const languageId = context.languageId;
 
         // 1. 查语言优先映射表
