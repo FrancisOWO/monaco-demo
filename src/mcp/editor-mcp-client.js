@@ -92,6 +92,15 @@ export function createEditorMcpCommandHandler(editor) {
                 return toFileResult(snapshot);
             }
 
+            case 'editor.markSaved': {
+                const snapshot = markFileSaved(
+                    params.path ? String(params.path) : undefined,
+                    params.content === undefined ? undefined : String(params.content)
+                );
+                if (!snapshot) throw new Error('File is not open');
+                return toFileResult(snapshot);
+            }
+
             case 'editor.deleteFile': {
                 const path = String(params.path || activeFilePath || '');
                 if (!path) throw new Error('File is not open');
