@@ -9,6 +9,7 @@ import OpenAI from 'openai';
 import path from 'path';
 import { config } from './config';
 import { editorControlHub } from './editor-control';
+import { mcpClientManager, McpToolDefinition } from './mcp/mcp-client-manager';
 
 const router: Router = express.Router();
 
@@ -98,7 +99,13 @@ interface ChatRequest {
 }
 
 function writeSSE(res: express.Response, event: string, data: object) {
+    writeSSE.currentRes = res;
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
+
+// 模块级引用，供 executeTool 发送 MCP SSE 事件
+namespace writeSSE {
+    export let currentRes: express.Response | null = null;
 }
 
 // ============ 上下文组装 ============
@@ -186,13 +193,28 @@ const EDIT_FILE_TOOL: OpenAI.ChatCompletionTool = {
     },
 };
 
-/** 根据模式返回工具列表：ask/plan 只读，agent 可读写 */
-function getToolsForMode(mode: string): OpenAI.ChatCompletionTool[] {
-    if (mode === 'agent') {
-        return [READ_FILE_TOOL, WRITE_FILE_TOOL, EDIT_FILE_TOOL];
+/** 根据模式返回工具列表：ask/plan 只读，agent 可读写 + MCP */
+async function getToolsForMode(mode: string): Promise<OpenAI.ChatCompletionTool[]> {
+    const baseTools: OpenAI.ChatCompletionTool[] = mode === 'agent'
+        ? [READ_FILE_TOOL, WRITE_FILE_TOOL, EDIT_FILE_TOOL]
+        : [READ_FILE_TOOL];
+
+    // 动态添加已连接 MCP 服务器的工具
+    const mcpTools = await mcpClientManager.getAllTools();
+    for (const { server, tool } of mcpTools) {
+        // MCP 工具名格式: mcp__<server>__<toolName>
+        const openaiToolName = `mcp__${server}__${tool.name}`;
+        baseTools.push({
+            type: 'function',
+            function: {
+                name: openaiToolName,
+                description: `[MCP/${server}] ${tool.description || tool.name}`,
+                parameters: (tool.inputSchema as Record<string, unknown>) || { type: 'object', properties: {} },
+            },
+        });
     }
-    // ask 和 plan 模式都提供只读工具
-    return [READ_FILE_TOOL];
+
+    return baseTools;
 }
 
 /** 去掉路径开头的斜杠，显示为相对路径 */
@@ -202,6 +224,13 @@ function displayPath(p: string): string {
 
 /** 生成工具调用的简短描述 */
 function toolCallSummary(name: string, input: Record<string, unknown>): string {
+    if (name.startsWith('mcp__')) {
+        const parts = name.split('__');
+        const server = parts[1] || '';
+        const toolName = parts.slice(2).join('__') || '';
+        const argsPreview = Object.keys(input).map(k => `${k}=${String(input[k]).substring(0, 30)}`).join(', ');
+        return `MCP/${server}/${toolName} ${argsPreview ? `(${argsPreview})` : ''}`;
+    }
     switch (name) {
         case 'read_file':
             return `读取文件 ${displayPath(String(input.path || ''))}`;
@@ -216,6 +245,10 @@ function toolCallSummary(name: string, input: Record<string, unknown>): string {
 
 /** 工具调用显示名称映射 */
 function getToolDisplayName(name: string): string {
+    if (name.startsWith('mcp__')) {
+        const parts = name.split('__');
+        return `MCP/${parts[1]}`;
+    }
     switch (name) {
         case 'read_file': return 'Read';
         case 'write_file': return 'Write';
@@ -274,8 +307,39 @@ async function readFileFromEditor(filePath: string): Promise<{ content: string; 
     return null;
 }
 
-/** 通过编辑器控制通道执行工具调用 */
+/** 通过编辑器控制通道或 MCP 客户端执行工具调用 */
 async function executeTool(name: string, args: Record<string, unknown>): Promise<string> {
+    // MCP 工具格式: mcp__<server>__<toolName>
+    if (name.startsWith('mcp__')) {
+        const parts = name.split('__');
+        if (parts.length >= 3) {
+            const server = parts[1];
+            const toolName = parts.slice(2).join('__');
+
+            writeSSE.currentRes?.write(`event: mcp-call\ndata: ${JSON.stringify({
+                callId: name,
+                server,
+                toolId: toolName,
+                toolName,
+                input: args,
+            })}\n\n`);
+
+            const result = await mcpClientManager.callTool(server, toolName, args);
+            const textParts = result.content
+                .filter(c => c.type === 'text' && c.text)
+                .map(c => c.text!)
+                .join('\n');
+
+            writeSSE.currentRes?.write(`event: mcp-result\ndata: ${JSON.stringify({
+                callId: name,
+                output: textParts,
+            })}\n\n`);
+
+            return textParts || 'MCP tool returned no text content';
+        }
+        return `Error: Invalid MCP tool name format: ${name}`;
+    }
+
     const filePath = String(args.path || '');
 
     if (!editorControlHub.isEditorConnected()) {
@@ -362,7 +426,7 @@ async function realChatSSE(res: express.Response, reqBody: ChatRequest, baseUrl?
         }
     }
 
-    const tools = getToolsForMode(mode);
+    const tools = await getToolsForMode(mode);
 
     try {
         // 带工具的多轮对话（支持 tool_call 循环）
@@ -672,22 +736,21 @@ router.get('/registry/skills', (_req, res) => {
     res.json(config.ai.testMode ? MOCK_SKILLS : []);
 });
 
-// GET /ai/chat/registry/mcp — 返回 MCP 工具注册列表（扁平化）
-router.get('/registry/mcp', (_req, res) => {
-    const tools: Array<{ server: string; toolId: string; name: string; description: string }> = [];
-    if (config.ai.testMode) {
-        for (const mcpServer of MOCK_MCP_SERVERS) {
-            for (const tool of mcpServer.tools) {
-                tools.push({
-                    server: mcpServer.server,
-                    toolId: tool.id,
-                    name: tool.name,
-                    description: tool.description,
-                });
-            }
-        }
+// GET /ai/chat/registry/mcp — 返回 MCP 工具注册列表（从真实服务器获取）
+router.get('/registry/mcp', async (_req, res) => {
+    try {
+        const allTools = await mcpClientManager.getAllTools();
+        const tools: Array<{ server: string; toolId: string; name: string; description: string }> = allTools.map(({ server, tool }) => ({
+            server,
+            toolId: tool.name,
+            name: tool.name,
+            description: tool.description || '',
+        }));
+        res.json(tools);
+    } catch (error) {
+        console.error('[AI Chat] Error fetching MCP registry:', error);
+        res.json([]);
     }
-    res.json(tools);
 });
 
 export default router;

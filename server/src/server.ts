@@ -16,6 +16,7 @@ import aiChatRouter from './ai-chat';
 import configRouter from './config-api';
 import condaRouter from './conda-api';
 import { editorControlHub } from './editor-control';
+import { mcpClientManager } from './mcp/mcp-client-manager';
 
 const app: express.Express = express();
 expressWs(app);
@@ -116,6 +117,16 @@ export function startServer(): void {
     // 确保配置目录存在，然后清理过期软删除条目
     configManager.ensureConfigDir();
     configManager.conversationHistory.cleanupSoftDeleted();
+
+    // 从配置连接 MCP 服务器
+    mcpClientManager.loadFromConfig().then(() => {
+        const names = mcpClientManager.getConnectionNames();
+        if (names.length > 0) {
+            console.log(`[Server] MCP servers connected: ${names.join(', ')}`);
+        } else {
+            console.log('[Server] No MCP servers configured');
+        }
+    }).catch(e => console.warn('[Server] MCP connection failed:', e));
 
     app.listen(config.port, () => {
         console.log(`[Server] LSP Server running at http://localhost:${config.port}`);
