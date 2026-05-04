@@ -1,1 +1,0 @@
-pnpm run server:build

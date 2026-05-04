@@ -1,1 +1,1 @@
-pnpm run server:start
+pnpm run server:dev
