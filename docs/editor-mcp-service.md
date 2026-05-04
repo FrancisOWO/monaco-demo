@@ -7,29 +7,47 @@
 调用链路：
 
 ```text
-外部 agent
-  -> MCP stdio 服务 (三种实现)
-     - server/src/mcp/editor-mcp-server.ts (手写 framing)
-     - python-mcp/src/editor_mcp_fastmcp/server.py (Python FastMCP)
-     - ts-mcp/src/server.ts (TypeScript FastMCP)
+外部 agent (Claude Code 等)
+  -> MCP 服务 (两种 FastMCP 实现，均支持 stdio 和 HTTP/SSE 传输)
+     - ts-mcp/  (TypeScript FastMCP, stdio | httpStream)
+     - python-mcp/  (Python FastMCP, stdio | sse)
   -> HTTP 控制端点 /editor-control/command
   -> WebSocket 桥接 /editor-control
   -> 浏览器中的 Monaco 编辑器
 ```
+
+端口分配：
+
+| 端口 | 用途 |
+|------|------|
+| 3000 | 编辑器后端 (Express)，MCP 服务器通过 HTTP 调用它的 `/editor-control/command` |
+| 3001 | TS FastMCP HTTP 模式监听端口 (Claude Code 连接) |
+| 3002 | Python FastMCP SSE 模式监听端口 (Claude Code 连接) |
 
 关键模块：
 
 - `server/src/editor-control.ts`：管理浏览器编辑器 WebSocket 连接，转发命令并等待响应。
 - `server/src/server.ts`：提供 `/editor-control` WebSocket，以及 `/editor-control/status`、`/editor-control/command` HTTP 端点。
 - `src/mcp/editor-mcp-client.js`：浏览器侧命令处理器，实际调用 `file-store` 和 `diff-viewer`。
-- `server/src/mcp/editor-mcp-server.ts`：手写 MCP stdio 入口。
-- `server/src/mcp/editor-tools.ts`：手写 MCP tool 定义和工具实现。
-- `python-mcp/src/editor_mcp_fastmcp/server.py`：Python FastMCP 服务器入口。
-- `python-mcp/src/editor_mcp_fastmcp/tools.py`：Python EditorTools 类。
-- `python-mcp/src/editor_mcp_fastmcp/client.py`：Python HTTP 客户端。
-- `ts-mcp/src/server.ts`：TypeScript FastMCP 服务器入口。
+- `ts-mcp/src/server.ts`：TypeScript FastMCP 服务器入口，通过 `MCP_TRANSPORT` 环境变量选择传输方式。
 - `ts-mcp/src/tools.ts`：TypeScript EditorTools 类。
 - `ts-mcp/src/client.ts`：TypeScript HTTP 客户端。
+- `python-mcp/src/editor_mcp_fastmcp/server.py`：Python FastMCP 服务器入口，通过 `MCP_TRANSPORT` 环境变量选择传输方式。
+- `python-mcp/src/editor_mcp_fastmcp/tools.py`：Python EditorTools 类。
+- `python-mcp/src/editor_mcp_fastmcp/client.py`：Python HTTP 客户端。
+
+> 历史版本 `server/src/mcp/editor-mcp-server.ts` 为手写 MCP framing 的 stdio 实现，已由 FastMCP 版本替代。
+
+## 传输方式
+
+两种 FastMCP 实现均通过 `MCP_TRANSPORT` 环境变量控制传输方式：
+
+| 实现 | `MCP_TRANSPORT` 值 | 说明 | 默认 |
+|------|---------------------|------|------|
+| TypeScript | `stdio` / `httpStream` | stdio 由 Claude Code 自动启动；httpStream 需手动启动 | `stdio` |
+| Python | `stdio` / `sse` / `http` | stdio 由 Claude Code 自动启动；sse/http 需手动启动 | `stdio` |
+
+HTTP/SSE 模式的端口通过 `MCP_PORT` 环境变量指定（TS 默认 3001，Python 默认 3002）。
 
 ## 启动
 
@@ -45,103 +63,75 @@ pnpm server:dev
 pnpm dev
 ```
 
-最后启动 MCP 服务：
+默认 MCP 服务会连接后端 `http://localhost:3000`。如果后端地址不同，可设置 `EDITOR_MCP_SERVER_URL` 环境变量。
+
+### stdio 模式（Claude Code 自动启动）
+
+无需手动启动 MCP 服务。Claude Code 连接时会自动 spawn 子进程。
+
+### HTTP/SSE 模式（需手动启动）
 
 ```bash
-pnpm mcp:editor
+# TypeScript httpStream 模式 (端口 3001)
+MCP_TRANSPORT=httpStream MCP_PORT=3001 node ts-mcp/dist/server.js
+
+# Python SSE 模式 (端口 3002)
+MCP_TRANSPORT=sse MCP_PORT=3002 python-mcp/.venv/Scripts/python.exe -m editor_mcp_fastmcp.server
 ```
 
-默认 MCP 服务会连接：
+## Claude Code 配置
 
-```text
-http://localhost:3000
-```
+在 `.claude.json` 项目的 `mcpServers` 中配置。以下四种方式可同时配置，按需启用：
 
-如果后端服务地址不同，可以设置：
-
-```bash
-EDITOR_MCP_SERVER_URL=http://localhost:3001 pnpm mcp:editor
-```
-
-## MCP Client 配置示例
-
-Node/TypeScript 版本示例配置：
+### TS stdio（推荐，自动启动）
 
 ```json
 {
-  "mcpServers": {
-    "monaco-editor": {
-      "command": "pnpm",
-      "args": ["mcp:editor"],
-      "env": {
-        "EDITOR_MCP_SERVER_URL": "http://localhost:3000"
-      }
-    }
+  "editor-stdio": {
+    "type": "stdio",
+    "command": "cmd",
+    "args": ["/c", "node", "<项目绝对路径>/ts-mcp/dist/server.js"],
+    "env": { "MCP_TRANSPORT": "stdio" }
   }
 }
 ```
 
-Python FastMCP 版本示例配置：
+### TS HTTP Stream（需手动启动服务）
 
 ```json
 {
-  "mcpServers": {
-    "monaco-editor-python": {
-      "command": "uv",
-      "args": ["run", "--directory", "D:/Users/Lenovo/_Demo/_Projects/monaco-start/python-mcp", "monaco-editor-fastmcp"],
-      "env": {
-        "EDITOR_MCP_SERVER_URL": "http://localhost:3000"
-      }
-    }
+  "editor-http": {
+    "type": "http",
+    "url": "http://localhost:3001/mcp"
   }
 }
 ```
 
-Python FastMCP 版本源码位于：
-
-```text
-python-mcp/
-```
-
-本地验证：
-
-```bash
-cd python-mcp
-uv lock
-uv run pytest -q
-uv run monaco-editor-fastmcp
-```
-
-TypeScript FastMCP 版本源码位于：
-
-```text
-ts-mcp/
-```
-
-本地验证：
-
-```bash
-cd ts-mcp
-pnpm install
-pnpm test
-pnpm dev
-```
-
-TypeScript FastMCP 版本示例配置：
+### Python stdio（自动启动）
 
 ```json
 {
-  "mcpServers": {
-    "monaco-editor-fastmcp-ts": {
-      "command": "node",
-      "args": ["ts-mcp/dist/server.js"],
-      "env": {
-        "EDITOR_MCP_SERVER_URL": "http://localhost:3000"
-      }
-    }
+  "editor-py-stdio": {
+    "type": "stdio",
+    "command": "cmd",
+    "args": ["/c", "<项目绝对路径>/python-mcp/.venv/Scripts/python.exe", "-m", "editor_mcp_fastmcp.server"],
+    "env": { "MCP_TRANSPORT": "stdio" }
   }
 }
 ```
+
+### Python SSE（需手动启动服务）
+
+```json
+{
+  "editor-py-sse": {
+    "type": "sse",
+    "url": "http://localhost:3002/sse"
+  }
+}
+```
+
+> **注意**：stdio 模式中 `args` 里的路径需使用绝对路径，因为 Claude Code 的 stdio 子进程工作目录不一定在项目根目录。
 
 ## 工具清单
 
@@ -274,10 +264,6 @@ TypeScript FastMCP 版本示例配置：
 推荐验证命令：
 
 ```bash
-# 手写版 MCP 服务测试
-pnpm test -- --runInBand server/test/editor-mcp-server.test.js server/test/editor-control.test.js server/test/editor-control-http.test.js src/mcp/__tests__/editor-mcp-client.test.ts src/file-system/__tests__/file-store.test.ts
-pnpm exec tsc -p server/tsconfig.json --noEmit
-
 # Python FastMCP 测试
 cd python-mcp && uv run pytest -q
 
@@ -285,12 +271,17 @@ cd python-mcp && uv run pytest -q
 cd ts-mcp && pnpm test
 ```
 
-完整测试：
+HTTP/SSE 端点验证：
 
 ```bash
-pnpm test -- --runInBand
-cd python-mcp && uv run pytest -q
-cd ts-mcp && pnpm test
+# TS httpStream (端口 3001)
+curl -s -X POST http://localhost:3001/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
+
+# Python SSE (端口 3002)
+curl -s http://localhost:3002/sse --max-time 3
 ```
 
 ## 限制
@@ -299,4 +290,4 @@ cd ts-mcp && pnpm test
 - 本地开发环境未做鉴权，生产或共享网络环境需要给 HTTP/WebSocket 控制端点增加访问控制。
 - 浏览器 File System Access API 的授权和 MCP 服务的 Node 文件系统权限是两套上下文；MCP 能读写磁盘，不代表浏览器侧也获得了同一个 handle。
 - `compare_files` 只打开 Diff 视图，不会保存任何文件。
-- MCP stdio 使用 `Content-Length` framed JSON-RPC；如果目标 client 使用其他实验性传输，需要单独适配。
+- HTTP/SSE 模式需要手动启动 MCP 服务进程；stdio 模式由 Claude Code 自动管理。

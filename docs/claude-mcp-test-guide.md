@@ -42,19 +42,35 @@ curl http://localhost:3000/editor-control/status
 
 ### 第四步：注册 MCP 服务器（首次使用）
 
+TS FastMCP stdio 模式（推荐，自动启动）：
+
 ```bash
-claude mcp add editor -- ts-node server/src/mcp/editor-mcp-server.ts
+claude mcp add editor-stdio -- node <项目绝对路径>/ts-mcp/dist/server.js -e MCP_TRANSPORT=stdio
 ```
 
-注册后，Claude Code 会在每次启动时自动连接这个 MCP server。
+Python FastMCP stdio 模式：
+
+```bash
+claude mcp add editor-py-stdio -- <项目绝对路径>/python-mcp/.venv/Scripts/python.exe -m editor_mcp_fastmcp.server -e MCP_TRANSPORT=stdio
+```
+
+HTTP/SSE 模式（需先手动启动 MCP 服务）：
+
+```bash
+# TS httpStream (需先启动: MCP_TRANSPORT=httpStream MCP_PORT=3001 node ts-mcp/dist/server.js)
+claude mcp add --transport http editor-http http://localhost:3001/mcp
+
+# Python SSE (需先启动: MCP_TRANSPORT=sse MCP_PORT=3002 python-mcp/.venv/Scripts/python.exe -m editor_mcp_fastmcp.server)
+claude mcp add --transport sse editor-py-sse http://localhost:3002/sse
+```
+
+注册后，Claude Code 会在每次启动时自动连接 stdio 类型的 MCP server。HTTP/SSE 类型需要确保服务已启动。
 
 验证注册：
 
 ```bash
 claude mcp list
 ```
-
-应显示 `editor` 服务器已连接。
 
 ## 使用 Claude Code 调用编辑器
 

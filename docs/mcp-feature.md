@@ -73,8 +73,30 @@
 
 ### 注册 MCP 服务器到 Claude Code
 
+支持 TS FastMCP 和 Python FastMCP 两种实现，每种均有 stdio（自动启动）和 HTTP/SSE（手动启动）两种传输方式：
+
 ```bash
-claude mcp add editor -- ts-node server/src/mcp/editor-mcp-server.ts
+# TS stdio 模式（推荐）
+claude mcp add editor-stdio -- node <项目绝对路径>/ts-mcp/dist/server.js -e MCP_TRANSPORT=stdio
+
+# Python stdio 模式
+claude mcp add editor-py-stdio -- <项目绝对路径>/python-mcp/.venv/Scripts/python.exe -m editor_mcp_fastmcp.server -e MCP_TRANSPORT=stdio
+
+# TS HTTP 模式（需先手动启动 MCP 服务）
+claude mcp add --transport http editor-http http://localhost:3001/mcp
+
+# Python SSE 模式（需先手动启动 MCP 服务）
+claude mcp add --transport sse editor-py-sse http://localhost:3002/sse
+```
+
+手动启动 HTTP/SSE 服务：
+
+```bash
+# TS httpStream (端口 3001)
+MCP_TRANSPORT=httpStream MCP_PORT=3001 node ts-mcp/dist/server.js
+
+# Python SSE (端口 3002)
+MCP_TRANSPORT=sse MCP_PORT=3002 python-mcp/.venv/Scripts/python.exe -m editor_mcp_fastmcp.server
 ```
 
 注册后，Claude Code 可以直接调用以下编辑器工具：
@@ -92,9 +114,19 @@ claude mcp add editor -- ts-node server/src/mcp/editor-mcp-server.ts
 
 ### 通信链路
 
+stdio 模式：
+
 ```
-Claude Code → stdio (JSON-RPC) → editor-mcp-server.ts
-    → HTTP POST → Express → editorControlHub
+Claude Code → stdio (自动 spawn) → FastMCP server (ts-mcp 或 python-mcp)
+    → HTTP POST /editor-control/command → Express → editorControlHub
+    → WebSocket → Browser → Monaco Editor
+```
+
+HTTP/SSE 模式：
+
+```
+Claude Code → HTTP/SSE (localhost:3001 或 3002) → FastMCP server
+    → HTTP POST /editor-control/command → Express → editorControlHub
     → WebSocket → Browser → Monaco Editor
 ```
 
