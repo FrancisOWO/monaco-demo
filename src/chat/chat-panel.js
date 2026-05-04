@@ -208,6 +208,11 @@ function setupSettingsPanel() {
     const completionModelIdInput = document.getElementById('chat-completion-config-modelid');
     const completionApiKeyInput = document.getElementById('chat-completion-config-apikey');
     let editingCompletionConfigId = null;
+    let dirty = false;
+
+    function updateSaveBtnState() {
+        saveBtn.disabled = !dirty;
+    }
 
     function renderCompletionConfigSelect() {
         const configs = chatStore.getCompletionApiConfigs();
@@ -270,6 +275,8 @@ function setupSettingsPanel() {
             completionModelIdInput.value = config.modelId || '';
             completionApiKeyInput.value = config.apiKey || '';
         }
+        dirty = false;
+        updateSaveBtnState();
     }
 
     completionAddBtn.addEventListener('click', () => {
@@ -285,6 +292,8 @@ function setupSettingsPanel() {
         chatStore.setCurrentCompletionConfigId(newId);
         renderCompletionConfigSelect();
         loadCompletionConfigToForm(newId);
+        dirty = true;
+        updateSaveBtnState();
     });
 
     completionDeleteBtn.addEventListener('click', () => {
@@ -295,10 +304,10 @@ function setupSettingsPanel() {
             chatStore.deleteCompletionApiConfig(editingCompletionConfigId);
             renderCompletionConfigSelect();
             loadCompletionConfigToForm(chatStore.getCurrentCompletionConfigId());
+            dirty = true;
+            updateSaveBtnState();
         }
     });
-
-    // ============ 对话配置 Tab ============
     const chatSelect = document.getElementById('chat-chat-config-select');
     const chatConfigLabel = chatSelect.querySelector('.custom-dropdown-label');
     const chatConfigList = chatSelect.querySelector('.custom-dropdown-list');
@@ -374,6 +383,8 @@ function setupSettingsPanel() {
             chatModelInput.value = config.chatModel || '';
             chatApiKeyInput.value = config.apiKey || '';
         }
+        dirty = false;
+        updateSaveBtnState();
     }
 
     chatAddBtn.addEventListener('click', () => {
@@ -389,6 +400,8 @@ function setupSettingsPanel() {
         chatStore.setCurrentChatConfigId(newId);
         renderChatConfigSelect();
         loadChatConfigToForm(newId);
+        dirty = true;
+        updateSaveBtnState();
     });
 
     chatDeleteBtn.addEventListener('click', () => {
@@ -399,7 +412,19 @@ function setupSettingsPanel() {
             chatStore.deleteChatApiConfig(editingChatConfigId);
             renderChatConfigSelect();
             loadChatConfigToForm(chatStore.getCurrentChatConfigId());
+            dirty = true;
+            updateSaveBtnState();
         }
+    });
+
+    // ============ 表单变化监听 ============
+
+    [completionNameInput, completionBaseUrlInput, completionModelIdInput, completionApiKeyInput,
+     chatNameInput, chatBaseUrlInput, chatModelInput, chatApiKeyInput].forEach(input => {
+        input.addEventListener('input', () => {
+            dirty = true;
+            updateSaveBtnState();
+        });
     });
 
     // ============ 面板可见性与保存 ============
@@ -487,7 +512,9 @@ function setupSettingsPanel() {
             return;
         }
 
-        closePanel();
+        // 保存成功：标记为已保存状态
+        dirty = false;
+        updateSaveBtnState();
     });
 
     document.addEventListener('keydown', (e) => {
