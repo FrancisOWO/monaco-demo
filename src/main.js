@@ -27,6 +27,7 @@ let getLSPManager, LANGUAGE_CONFIGS;
 let setupChatPanel = () => {};
 let addSelectionContext = () => {};
 let openPanel = () => {};
+let chatStoreOn = () => {};
 let setupDiffViewer = () => {};
 let setupEditorMcpClient = () => {};
 
@@ -63,7 +64,7 @@ async function loadOptionalModules() {
         {
             name: 'chatStore',
             importFn: () => import('./chat/chat-store.js'),
-            onLoad: (m) => { addSelectionContext = m.addSelectionContext; openPanel = m.openPanel; },
+            onLoad: (m) => { addSelectionContext = m.addSelectionContext; openPanel = m.openPanel; chatStoreOn = m.on; },
         },
         {
             name: 'diffViewer',
@@ -700,6 +701,11 @@ loadEnvironmentInfo();
 
 // 注册 AI 行内补全（Monaco Provider + 快捷键 + 自动触发）
 setupInlineCompletion(monaco, editor);
+
+// 补全配置切换时重新初始化行内补全（mock ↔ simple/standard）
+chatStoreOn('onCurrentConfigChanged', () => {
+    setupInlineCompletion(monaco, editor);
+});
 
 // 注册基础代码补全（作为 LSP 的后备）
 registerBasicCompletions();

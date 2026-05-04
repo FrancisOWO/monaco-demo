@@ -4,6 +4,7 @@
  */
 
 import { configService } from './config-service.js';
+import { setClientMode } from '../inlineCompletion/aiCompletionConfig.js';
 
 const logger = { info: (...args) => console.log('[ChatStore]', ...args) };
 
@@ -551,9 +552,21 @@ export function deleteCompletionApiConfig(id) {
         if (chatState.currentCompletionConfigId === id) {
             chatState.currentCompletionConfigId = 'mock';
             emit('onCurrentConfigChanged');
+            syncCompletionClientMode();
         }
         emit('onSettingsChanged');
     }
+}
+
+/**
+ * 同步补全客户端模式
+ * 当 currentCompletionConfigId 指向 mock 时使用 mock 客户端，否则使用 simple
+ */
+function syncCompletionClientMode() {
+    const isMock = chatState.currentCompletionConfigId === 'mock';
+    const newMode = isMock ? 'mock' : 'simple';
+    setClientMode(newMode);
+    logger.info(`Completion client mode synced to: ${newMode}`);
 }
 
 /**
@@ -564,6 +577,7 @@ export function setCurrentCompletionConfigId(id) {
     if (config && chatState.currentCompletionConfigId !== id) {
         chatState.currentCompletionConfigId = id;
         emit('onCurrentConfigChanged');
+        syncCompletionClientMode();
     }
 }
 
@@ -762,7 +776,9 @@ export async function loadCompletionSettingsFromStorage() {
             chatState.currentCompletionConfigId = data.currentConfigId;
         }
     }
+    syncCompletionClientMode();
     emit('onSettingsChanged');
+    emit('onCurrentConfigChanged');
 }
 
 /**
@@ -809,6 +825,7 @@ export async function clearSettings() {
     } catch (error) {
         console.error('[ChatStore] Failed to clear settings:', error);
     }
+    syncCompletionClientMode();
     emit('onSettingsChanged');
     emit('onCurrentConfigChanged');
 }
