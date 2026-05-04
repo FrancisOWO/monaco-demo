@@ -9,6 +9,7 @@ import {
     ApiConfigsData,
     ConversationHistoryData,
     SettingsData,
+    McpServersData,
     CONFIG_FILES,
 } from './config-manager';
 
@@ -164,6 +165,103 @@ router.post('/settings', (req, res) => {
         }
     } catch (error) {
         console.error('[Config API] Error saving settings:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// ==================== MCP 服务器配置 ====================
+
+// GET /config/mcp-servers - 获取 MCP 服务器配置
+router.get('/mcp-servers', (req, res) => {
+    try {
+        const data = configManager.mcpServers.read();
+        res.json({ success: true, data });
+    } catch (error) {
+        console.error('[Config API] Error reading MCP servers:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// POST /config/mcp-servers - 保存 MCP 服务器配置
+router.post('/mcp-servers', (req, res) => {
+    try {
+        const data: McpServersData = req.body;
+        const success = configManager.mcpServers.write(data);
+        if (success) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ success: false, error: 'Failed to save' });
+        }
+    } catch (error) {
+        console.error('[Config API] Error saving MCP servers:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// POST /config/mcp-servers/add - 添加单个 MCP 服务器
+router.post('/mcp-servers/add', (req, res) => {
+    try {
+        const { name, config } = req.body;
+        if (!name || !config) {
+            res.status(400).json({ success: false, error: 'name and config are required' });
+            return;
+        }
+
+        const data = configManager.mcpServers.read();
+        if (data.mcpServers[name]) {
+            res.status(409).json({ success: false, error: `MCP server "${name}" already exists` });
+            return;
+        }
+
+        data.mcpServers[name] = config;
+        const success = configManager.mcpServers.write(data);
+        if (success) {
+            res.json({ success: true, data });
+        } else {
+            res.status(500).json({ success: false, error: 'Failed to save' });
+        }
+    } catch (error) {
+        console.error('[Config API] Error adding MCP server:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+        });
+    }
+});
+
+// DELETE /config/mcp-servers/remove?name=xxx - 删除单个 MCP 服务器
+router.delete('/mcp-servers/remove', (req, res) => {
+    try {
+        const name = req.query.name as string;
+        if (!name) {
+            res.status(400).json({ success: false, error: 'name parameter is required' });
+            return;
+        }
+
+        const data = configManager.mcpServers.read();
+        if (!data.mcpServers[name]) {
+            res.status(404).json({ success: false, error: `MCP server "${name}" not found` });
+            return;
+        }
+
+        delete data.mcpServers[name];
+        const success = configManager.mcpServers.write(data);
+        if (success) {
+            res.json({ success: true, data });
+        } else {
+            res.status(500).json({ success: false, error: 'Failed to save' });
+        }
+    } catch (error) {
+        console.error('[Config API] Error removing MCP server:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',

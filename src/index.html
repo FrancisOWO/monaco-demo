@@ -193,7 +193,7 @@
                 <span id="thinking-text"></span>
             </div>
             <div id="chat-input-area">
-                <textarea id="chat-input" placeholder=""
+                <textarea id="chat-input" placeholder="@文件 /skill /mcp"
                     rows="1"></textarea>
                 <div id="chat-input-bottom-row">
                     <div id="chat-mode-selector">
@@ -241,50 +241,71 @@
                 <span class="chat-modal-title">账户设置</span>
                 <button class="chat-modal-close" id="chat-settings-close" title="关闭">✕</button>
             </div>
+            <div class="chat-modal-tabs">
+                <button class="chat-modal-tab active" data-tab="api">API 配置</button>
+                <button class="chat-modal-tab" data-tab="mcp">MCP 服务器</button>
+            </div>
             <div class="chat-modal-body">
-                <!-- 配置选择器 -->
-                <div class="chat-settings-section">
-                    <div class="chat-settings-section-title">选择配置</div>
-                    <div class="chat-config-selector">
-                        <div id="chat-config-select" class="custom-dropdown">
-                            <div class="custom-dropdown-trigger">
-                                <span class="custom-dropdown-label"></span>
-                                <span class="custom-dropdown-arrow">⌵</span>
+                <!-- API 配置 Tab -->
+                <div class="chat-modal-tab-content active" data-tab-content="api">
+                    <!-- 配置选择器 -->
+                    <div class="chat-settings-section">
+                        <div class="chat-settings-section-title">选择配置</div>
+                        <div class="chat-config-selector">
+                            <div id="chat-config-select" class="custom-dropdown">
+                                <div class="custom-dropdown-trigger">
+                                    <span class="custom-dropdown-label"></span>
+                                    <span class="custom-dropdown-arrow">⌵</span>
+                                </div>
+                                <div class="custom-dropdown-list"></div>
                             </div>
-                            <div class="custom-dropdown-list"></div>
+                            <button class="chat-config-btn" id="chat-config-add" title="添加配置">＋</button>
+                            <button class="chat-config-btn chat-config-btn-danger" id="chat-config-delete" title="删除当前配置">删除</button>
                         </div>
-                        <button class="chat-config-btn" id="chat-config-add" title="添加配置">＋</button>
-                        <button class="chat-config-btn chat-config-btn-danger" id="chat-config-delete" title="删除当前配置">删除</button>
+                    </div>
+                    <!-- 配置详情表单 -->
+                    <div class="chat-settings-section" id="chat-config-form-section">
+                        <div class="chat-settings-section-title">配置详情</div>
+                        <form class="chat-settings-form" id="chat-config-form" autocomplete="off">
+                            <div class="chat-settings-field">
+                                <label for="chat-config-name">配置名称</label>
+                                <input type="text" id="chat-config-name" placeholder="例如: OpenAI" autocomplete="off" />
+                            </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-config-modelid">模型 ID</label>
+                                <input type="text" id="chat-config-modelid" placeholder="例如: gpt-4o-mini, deepseek-chat" autocomplete="off" />
+                            </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-config-baseurl">Base URL</label>
+                                <input type="url" id="chat-config-baseurl" placeholder="https://api.example.com/v1" autocomplete="off" />
+                            </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-config-apikey">API Key</label>
+                                <input type="password" id="chat-config-apikey" placeholder="sk-..." autocomplete="new-password" />
+                            </div>
+                        </form>
                     </div>
                 </div>
-                <!-- Mock 配置说明 -->
-                <!-- <div class="chat-settings-section chat-settings-info" id="chat-mock-info">
-                    <div class="chat-settings-info-icon">ℹ</div>
-                    <div class="chat-settings-info-text">
-                        Mock 配置用于本地测试，无需填写配置信息。
+                <!-- MCP 服务器 Tab -->
+                <div class="chat-modal-tab-content" data-tab-content="mcp">
+                    <div class="chat-settings-section">
+                        <div class="chat-settings-section-title">MCP 服务器配置</div>
+                        <div class="chat-mcp-desc">配置外部 MCP 工具服务器，AI 对话可通过 /mcp 引用这些工具。</div>
+                        <div id="chat-mcp-server-list" class="chat-mcp-server-list"></div>
+                        <div class="chat-mcp-add-row">
+                            <button class="chat-mcp-add-btn" id="chat-mcp-add-btn" title="添加 MCP 服务器">＋ 添加服务器</button>
+                            <button class="chat-mcp-add-btn chat-mcp-edit-json-btn" id="chat-mcp-edit-json-btn" title="编辑 JSON 配置">编辑 JSON</button>
+                        </div>
                     </div>
-                </div> -->
-                <!-- 配置详情表单 -->
-                <div class="chat-settings-section" id="chat-config-form-section">
-                    <div class="chat-settings-section-title">配置详情</div>
-                    <form class="chat-settings-form" id="chat-config-form" autocomplete="off">
-                        <div class="chat-settings-field">
-                            <label for="chat-config-name">配置名称</label>
-                            <input type="text" id="chat-config-name" placeholder="例如: OpenAI" autocomplete="off" />
+                    <!-- JSON 编辑面板（默认隐藏） -->
+                    <div id="chat-mcp-json-panel" class="chat-mcp-json-panel hidden">
+                        <div class="chat-mcp-json-header">
+                            <span class="chat-mcp-json-title">JSON 配置</span>
+                            <button class="chat-mcp-json-close" id="chat-mcp-json-close" title="关闭">✕</button>
                         </div>
-                        <div class="chat-settings-field">
-                            <label for="chat-config-modelid">模型 ID</label>
-                            <input type="text" id="chat-config-modelid" placeholder="例如: gpt-4o-mini, deepseek-chat" autocomplete="off" />
-                        </div>
-                        <div class="chat-settings-field">
-                            <label for="chat-config-baseurl">Base URL</label>
-                            <input type="url" id="chat-config-baseurl" placeholder="https://api.example.com/v1" autocomplete="off" />
-                        </div>
-                        <div class="chat-settings-field">
-                            <label for="chat-config-apikey">API Key</label>
-                            <input type="password" id="chat-config-apikey" placeholder="sk-..." autocomplete="new-password" />
-                        </div>
-                    </form>
+                        <textarea id="chat-mcp-json-editor" class="chat-mcp-json-editor" spellcheck="false" placeholder="{\n  \"mcpServers\": {\n    \"server-name\": {\n      \"command\": \"node\",\n      \"args\": [\"path/to/server.js\"],\n      \"env\": { \"KEY\": \"value\" }\n    }\n  }\n}"></textarea>
+                        <div id="chat-mcp-json-error" class="chat-mcp-json-error hidden"></div>
+                    </div>
                 </div>
             </div>
             <div class="chat-modal-footer">
@@ -334,9 +355,9 @@
             <div class="chat-empty-state-title">AI 对话</div>
             <div>选择模式开始对话</div>
             <div style="font-size: 11px; color: #999;">
-                Ask — 问答模式<br>
-                Plan — 规划模式<br>
-                Agent — 执行模式
+                @文件 — 引用文件<br>
+                /skill — 引用 Skill<br>
+                /mcp — 引用 MCP 工具
             </div>
         </div>
     </template>

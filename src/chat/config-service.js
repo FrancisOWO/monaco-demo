@@ -135,6 +135,62 @@ export async function saveSettings(data) {
     }
 }
 
+// ==================== MCP 服务器配置 ====================
+
+/**
+ * 获取 MCP 服务器配置
+ */
+export async function getMcpServers() {
+    const result = await fetchJson(`${API_BASE}/mcp-servers`);
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to get MCP servers');
+    }
+    return result.data;
+}
+
+/**
+ * 保存 MCP 服务器配置（全量）
+ */
+export async function saveMcpServers(data) {
+    const result = await fetchJson(`${API_BASE}/mcp-servers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to save MCP servers');
+    }
+    return result;
+}
+
+/**
+ * 添加单个 MCP 服务器
+ */
+export async function addMcpServer(name, config) {
+    const result = await fetchJson(`${API_BASE}/mcp-servers/add`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, config }),
+    });
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to add MCP server');
+    }
+    return result.data;
+}
+
+/**
+ * 删除单个 MCP 服务器
+ */
+export async function removeMcpServer(name) {
+    const result = await fetchJson(`${API_BASE}/mcp-servers/remove?name=${encodeURIComponent(name)}`, {
+        method: 'DELETE',
+    });
+    if (!result.success) {
+        throw new Error(result.error || 'Failed to remove MCP server');
+    }
+    return result.data;
+}
+
 // ==================== 导出 ====================
 
 export const configService = {
@@ -152,6 +208,12 @@ export const configService = {
     settings: {
         get: getSettings,
         save: saveSettings,
+    },
+    mcpServers: {
+        get: getMcpServers,
+        save: saveMcpServers,
+        add: addMcpServer,
+        remove: removeMcpServer,
     },
 };
 

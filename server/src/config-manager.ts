@@ -19,6 +19,7 @@ export const CONFIG_FILES = {
     apiConfigs: 'api-configs.json',
     conversationHistory: 'conversation-history.json',
     settings: 'settings.json',
+    mcpServers: 'mcp-servers.json',
 };
 
 /**
@@ -274,6 +275,40 @@ export function writeSettings(data: SettingsData): boolean {
     return writeConfigFile(CONFIG_FILES.settings, data);
 }
 
+// ==================== MCP 服务器配置 ====================
+
+export interface McpServerConfig {
+    command: string;
+    args?: string[];
+    env?: Record<string, string>;
+    url?: string;   // SSE 远程连接（与 command 互斥）
+}
+
+export interface McpServersData {
+    mcpServers: Record<string, McpServerConfig>;
+}
+
+/**
+ * 获取默认 MCP 服务器配置（空）
+ */
+export function getDefaultMcpServers(): McpServersData {
+    return { mcpServers: {} };
+}
+
+/**
+ * 读取 MCP 服务器配置
+ */
+export function readMcpServers(): McpServersData {
+    return readConfigFile<McpServersData>(CONFIG_FILES.mcpServers, getDefaultMcpServers());
+}
+
+/**
+ * 保存 MCP 服务器配置
+ */
+export function writeMcpServers(data: McpServersData): boolean {
+    return writeConfigFile(CONFIG_FILES.mcpServers, data);
+}
+
 // ==================== 导出配置信息 ====================
 
 export const configManager = {
@@ -296,6 +331,11 @@ export const configManager = {
     settings: {
         read: readSettings,
         write: writeSettings,
+    },
+    mcpServers: {
+        read: readMcpServers,
+        write: writeMcpServers,
+        getDefault: getDefaultMcpServers,
     },
 };
 

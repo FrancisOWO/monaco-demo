@@ -10,6 +10,7 @@ import { setupMessageRenderer } from './chat-message-renderer.js';
 import { setupContextManager } from './chat-context-manager.js';
 import { setupFoldController } from './chat-fold-controller.js';
 import { fetchSkillMcpRegistry } from './chat-stream-client.js';
+import { configService } from './config-service.js';
 import { LABEL } from './chat-icons.js';
 
 let editorInstance = null;
@@ -179,6 +180,20 @@ function setupSettingsPanel() {
     const cancelBtn = document.getElementById('chat-settings-cancel');
     const saveBtn = document.getElementById('chat-settings-save');
 
+    // Tab 切换
+    const tabs = modal.querySelectorAll('.chat-modal-tab');
+    const tabContents = modal.querySelectorAll('.chat-modal-tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+            tab.classList.add('active');
+            const target = tab.dataset.tab;
+            const content = modal.querySelector(`[data-tab-content="${target}"]`);
+            if (content) content.classList.add('active');
+        });
+    });
+
     // 配置选择相关元素
     const configSelect = document.getElementById('chat-config-select');
     const configLabel = configSelect.querySelector('.custom-dropdown-label');
@@ -325,11 +340,23 @@ function setupSettingsPanel() {
     closeBtn.addEventListener('click', closePanel);
     cancelBtn.addEventListener('click', closePanel);
 
-    // 保存设置
+    // 保存设置（API 配置 + MCP JSON）
     saveBtn.addEventListener('click', async () => {
+        // 如果 JSON 编辑器面板可见，优先保存 MCP 配置
+        const jsonPanelEl = document.getElementById('chat-mcp-json-panel');
+        if (!jsonPanelEl.classList.contains('hidden')) {
+            try {
+                const parsed = JSON.parse(document.getElementById('chat-mcp-json-editor').value);
+                if (parsed.mcpServers && typeof parsed.mcpServers === 'object') {
+                    await configService.mcpServers.save(parsed);
+                }
+            } catch (e) {
+                console.warn('[ChatPanel] MCP JSON save skipped:', e);
+            }
+        }
+
         const config = chatStore.getApiConfigById(editingConfigId);
         if (!config || config.isBuiltIn) {
-            // Mock 配置直接关闭
             closePanel();
             return;
         }
@@ -380,6 +407,141 @@ function setupSettingsPanel() {
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && chatStore.isSettingsPanelVisible()) {
             closePanel();
+        }
+    });
+
+    // MCP 配置面板逻辑
+    setupMcpConfigPanel(modal);
+}
+
+/**
+ * MCP 配置面板交互逻辑
+ */
+function setupMcpConfigPanel(modal) {
+    const serverList = document.getElementById('chat-mcp-server-list');
+    const addBtn = document.getElementById('chat-mcp-add-btn');
+    const editJsonBtn = document.getElementById('chat-mcp-edit-json-btn');
+    const jsonPanel = document.getElementById('chat-mcp-json-panel');
+    const jsonEditor = document.getElementById('chat-mcp-json-editor');
+    const jsonError = document.getElementById('chat-mcp-json-error');
+    const jsonCloseBtn = document.getElementById('chat-mcp-json-close');
+
+    let mcpServersData = { mcpServers: {} };
+
+    async function loadMcpServers() {
+        try {
+            mcpServersData = await configService.mcpServers.get();
+            renderMcpServerList();
+        } catch (error) {
+            console.warn('[ChatPanel] Failed to load MCP servers:', error);
+            mcpServersData = { mcpServers: {} };
+            renderMcpServerList();
+        }
+    }
+
+    function renderMcpServerList() {
+        const servers = mcpServersData.mcpServers || {};
+        const names = Object.keys(servers);
+
+        if (names.length === 0) {
+            serverList.innerHTML = '<div class="chat-mcp-empty">暂无 MCP 服务器配置。<br>点击 "添加服务器" 或 "编辑 JSON" 开始配置。</div>';
+            return;
+        }
+
+        serverList.innerHTML = names.map(name => {
+            const cfg = servers[name];
+            const typeLabel = cfg.url ? 'SSE' : 'stdio';
+            const detail = cfg.url || `${cfg.command} ${(cfg.args || []).join(' ')}`;
+            return `<div class="chat-mcp-server-item">
+                <div class="chat-mcp-server-info">
+                    <div class="chat-mcp-server-name">${name}</div>
+                    <div class="chat-mcp-server-detail">${typeLabel}: ${detail}</div>
+                </div>
+                <button class="chat-mcp-server-delete" data-name="${name}" title="删除">✕</button>
+            </div>`;
+        }).join('');
+
+        serverList.querySelectorAll('.chat-mcp-server-delete').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const name = btn.dataset.name;
+                try {
+                    const data = await configService.mcpServers.remove(name);
+                    mcpServersData = data || { mcpServers: {} };
+                    renderMcpServerList();
+                    jsonEditor.value = JSON.stringify(mcpServersData, null, 2);
+                } catch (error) {
+                    console.warn('[ChatPanel] Failed to remove MCP server:', error);
+                }
+            });
+        });
+    }
+
+    addBtn.addEventListener('click', async () => {
+        const name = prompt('MCP 服务器名称:');
+        if (!name || !name.trim()) return;
+
+        const typeChoice = prompt('连接方式 — 输入 "url" 使用 SSE 远程连接，否则使用本地 stdio:');
+        let config = {};
+        if (typeChoice?.toLowerCase() === 'url') {
+            const url = prompt('SSE URL (例如 http://localhost:8080/mcp):');
+            if (!url) return;
+            config = { url };
+        } else {
+            const command = prompt('启动命令 (例如 npx, node, python):');
+            if (!command) return;
+            const argsStr = prompt('命令参数 (空格分隔，可留空):');
+            config = { command };
+            if (argsStr?.trim()) {
+                config.args = argsStr.trim().split(/\s+/);
+            }
+            const envStr = prompt('环境变量 (格式 KEY=VALUE，逗号分隔，可留空):');
+            if (envStr?.trim()) {
+                config.env = {};
+                envStr.trim().split(',').forEach(pair => {
+                    const [key, val] = pair.split('=');
+                    if (key?.trim()) config.env[key.trim()] = (val || '').trim();
+                });
+            }
+        }
+
+        try {
+            const data = await configService.mcpServers.add(name.trim(), config);
+            mcpServersData = data || { mcpServers: {} };
+            renderMcpServerList();
+            jsonEditor.value = JSON.stringify(mcpServersData, null, 2);
+        } catch (error) {
+            alert(`添加失败: ${error.message}`);
+        }
+    });
+
+    editJsonBtn.addEventListener('click', () => {
+        jsonPanel.classList.remove('hidden');
+        jsonEditor.value = JSON.stringify(mcpServersData, null, 2);
+        jsonError.classList.add('hidden');
+    });
+
+    jsonCloseBtn.addEventListener('click', () => {
+        jsonPanel.classList.add('hidden');
+    });
+
+    jsonEditor.addEventListener('input', () => {
+        try {
+            const parsed = JSON.parse(jsonEditor.value);
+            if (!parsed.mcpServers || typeof parsed.mcpServers !== 'object') {
+                jsonError.textContent = 'JSON 必须包含 "mcpServers" 对象';
+                jsonError.classList.remove('hidden');
+                return;
+            }
+            jsonError.classList.add('hidden');
+        } catch (e) {
+            jsonError.textContent = `JSON 解析错误: ${e.message}`;
+            jsonError.classList.remove('hidden');
+        }
+    });
+
+    chatStore.on('onSettingsPanelVisibilityChanged', () => {
+        if (chatStore.isSettingsPanelVisible()) {
+            loadMcpServers();
         }
     });
 }

@@ -8,6 +8,8 @@ import { streamChatMessage, fetchFileContext } from './chat-stream-client.js';
 import { openFiles } from '../file-system/file-store.js';
 import { getFileTreeRoot } from '../ui/sidebar.js';
 import { FILE_ICON_MAP, DEFAULT_FILE_ICON } from './chat-icons.js';
+import { configService } from './config-service.js';
+import { showToast } from '../ui/dialogs.js';
 
 const AI_CHAT_URL = '/ai/chat';
 
@@ -37,15 +39,20 @@ export function setupChatInput(editor) {
         const text = input.value;
         const cursorPos = input.selectionStart;
 
-        // 查找当前光标前的 @ 符号
+        // 查找当前光标前的 @ 或 / 符号（@ 文件，/ skill/MCP）
         const textBeforeCursor = text.substring(0, cursorPos);
         const atIndex = textBeforeCursor.lastIndexOf('@');
+        const slashIndex = textBeforeCursor.lastIndexOf('/');
 
-        if (atIndex >= 0) {
-            const query = textBeforeCursor.substring(atIndex + 1);
+        // 优先匹配最近的前缀
+        const triggerIndex = Math.max(atIndex, slashIndex);
+        const triggerChar = textBeforeCursor[triggerIndex];
+
+        if (triggerIndex >= 0 && (triggerChar === '@' || triggerChar === '/')) {
+            const query = textBeforeCursor.substring(triggerIndex + 1);
             if (!query.includes(' ') && query.length <= 50) {
-                mentionStartIndex = atIndex;
-                showMentionPopup(query, cursorPos);
+                mentionStartIndex = triggerIndex;
+                showMentionPopup(query, cursorPos, triggerChar);
                 return;
             }
         }
@@ -106,7 +113,7 @@ async function sendMessage() {
 
     if (!text || chatStore.getState().isStreaming) return;
 
-    if (text.startsWith('/')) {
+    if (text.startsWith('/') && !text.startsWith('/skill:') && !text.startsWith('/mcp:')) {
         handleSlashCommand(text);
         input.value = '';
         hideMentionPopup();
@@ -157,19 +164,19 @@ async function sendMessage() {
 function handleSlashCommand(text) {
     const parts = text.split(/\s+/);
     const command = parts[0].toLowerCase();
-    const arg = parts[1];
+    const arg = parts.slice(1);
 
     const rounds = chatStore.getMessages().filter(m => m.role === 'user');
     const currentIndex = chatStore.getCurrentMessageIndex();
 
     switch (command) {
         case '/fold':
-            if (arg === 'all') {
+            if (arg[0] === 'all') {
                 chatStore.foldAll('assistant');
                 chatStore.foldAll('user');
-            } else if (arg === 'assistant' || arg === 'ai') {
+            } else if (arg[0] === 'assistant' || arg[0] === 'ai') {
                 chatStore.foldAll('assistant');
-            } else if (arg === 'user') {
+            } else if (arg[0] === 'user') {
                 chatStore.foldAll('user');
             } else {
                 const currentMsg = rounds[currentIndex];
@@ -180,7 +187,7 @@ function handleSlashCommand(text) {
             break;
 
         case '/expand':
-            if (arg === 'all') {
+            if (arg[0] === 'all') {
                 chatStore.expandAllMessages();
             } else {
                 const currentMsg = rounds[currentIndex];
@@ -203,58 +210,156 @@ function handleSlashCommand(text) {
             break;
 
         case '/goto':
-            const num = parseInt(arg);
+            const num = parseInt(arg[0]);
             if (num >= 1 && num <= rounds.length) {
                 chatStore.setCurrentMessageIndex(num - 1);
             }
             break;
+
+        case '/mcp':
+            handleMcpCommand(arg);
+            break;
+    }
+}
+
+async function handleMcpCommand(arg) {
+    const subCommand = arg[0];
+
+    if (subCommand === 'add') {
+        // /mcp add <name> <command> [args...]
+        // or /mcp add <name> --url <url>
+        if (arg.length < 3) {
+            showToast('用法: /mcp add <名称> <命令> [参数...] 或 /mcp add <名称> --url <URL>', 'warning');
+            return;
+        }
+
+        const name = arg[1];
+        const hasUrl = arg[2] === '--url';
+
+        const config = {};
+        if (hasUrl) {
+            config.url = arg[3];
+        } else {
+            config.command = arg[2];
+            if (arg.length > 3) {
+                config.args = arg.slice(3);
+            }
+        }
+
+        try {
+            await configService.mcpServers.add(name, config);
+            showToast(`MCP 服务器 "${name}" 已添加`, 'info');
+            await refreshMcpRegistryFromConfig();
+        } catch (error) {
+            showToast(`添加失败: ${error.message}`, 'warning');
+        }
+    } else if (subCommand === 'remove' || subCommand === 'rm') {
+        if (!arg[1]) {
+            showToast('用法: /mcp remove <名称>', 'warning');
+            return;
+        }
+        try {
+            await configService.mcpServers.remove(arg[1]);
+            showToast(`MCP 服务器 "${arg[1]}" 已删除`, 'info');
+            await refreshMcpRegistryFromConfig();
+        } catch (error) {
+            showToast(`删除失败: ${error.message}`, 'warning');
+        }
+    } else if (subCommand === 'list' || !subCommand) {
+        // /mcp list — 显示当前 MCP 配置
+        try {
+            const data = await configService.mcpServers.get();
+            const servers = data.mcpServers || {};
+            const names = Object.keys(servers);
+            if (names.length === 0) {
+                showToast('暂无 MCP 服务器配置', 'info');
+            } else {
+                const summary = names.map(name => {
+                    const cfg = servers[name];
+                    const type = cfg.url ? 'SSE' : 'stdio';
+                    const detail = cfg.url || `${cfg.command} ${(cfg.args || []).join(' ')}`;
+                    return `${name} (${type}: ${detail})`;
+                }).join('\n');
+                // 添加为助手消息展示列表
+                chatStore.addUserMessage('/mcp list');
+                const id = chatStore.addAssistantMessage();
+                chatStore.appendMessagePart(id, { type: 'output', text: `## MCP 服务器配置\n\n${summary}` });
+            }
+        } catch (error) {
+            showToast(`获取 MCP 配置失败: ${error.message}`, 'warning');
+        }
+    } else {
+        showToast('用法: /mcp add|remove|list', 'warning');
+    }
+}
+
+async function refreshMcpRegistryFromConfig() {
+    try {
+        const data = await configService.mcpServers.get();
+        const servers = data.mcpServers || {};
+        const mcpTools = [];
+        for (const [serverName, cfg] of Object.entries(servers)) {
+            mcpTools.push({
+                server: serverName,
+                toolId: `${serverName}/default`,
+                name: `${serverName} (MCP)`,
+                description: cfg.url ? `SSE: ${cfg.url}` : `stdio: ${cfg.command}`,
+            });
+        }
+        chatStore.setMcpRegistry(mcpTools);
+    } catch (e) {
+        console.warn('[ChatInput] Failed to refresh MCP registry:', e);
     }
 }
 
 /**
- * 解析文本中的 @mention（支持 @filepath, @skill:name, @mcp:server/tool）
+ * 解析文本中的 @mention（文件）和 /command（skill/MCP）
+ * @ 文件路径: @filepath
+ * /skill 引用: /skill:name
+ * /mcp 引用: /mcp:server/tool
  * @param {string} text
  * @returns {Array<{type, value, raw}>} 提取的 mention 对象列表
  */
 export function parseMentions(text) {
     const mentions = [];
 
-    // Skill mentions: @skill:name
-    const skillRegex = /@skill:([\w\-]+)/g;
+    // Skill references: /skill:name
+    const skillRegex = /\/skill:([\w\-]+)/g;
     let match;
     while ((match = skillRegex.exec(text)) !== null) {
         mentions.push({ type: 'skill', value: match[1], raw: match[0] });
     }
 
-    // MCP mentions: @mcp:server/tool
-    const mcpRegex = /@mcp:([\w\-]+\/[\w\-]+)/g;
+    // MCP references: /mcp:server/tool
+    const mcpRegex = /\/mcp:([\w\-]+\/[\w\-]+)/g;
     while ((match = mcpRegex.exec(text)) !== null) {
         mentions.push({ type: 'mcp', value: match[1], raw: match[0] });
     }
 
-    // File mentions: @filepath (skip skill: and mcp: prefixed)
+    // File mentions: @filepath
     const fileRegex = /@([\/\w\-\.]+)/g;
     while ((match = fileRegex.exec(text)) !== null) {
         const value = match[1];
-        if (!value.startsWith('skill:') && !value.startsWith('mcp:')) {
-            mentions.push({ type: 'file', value, raw: match[0] });
-        }
+        mentions.push({ type: 'file', value, raw: match[0] });
     }
 
     return mentions;
 }
 
 /**
- * 显示 @mention 弹窗（支持文件/skill/MCP 三类别）
+ * 显示 mention 弹窗（支持文件/skill/MCP 三类别）
+ * @ 触发 → 显示文件列表
+ * / 触发 → 显示 skill/MCP 列表
  * @param {string} query 搜索关键词
  * @param {number} cursorPos 光标位置
+ * @param {string} triggerChar 触发字符 '@' 或 '/'
  */
-function showMentionPopup(query, cursorPos) {
+function showMentionPopup(query, cursorPos, triggerChar) {
     const popup = document.getElementById('chat-mention-popup');
     const input = document.getElementById('chat-input');
 
     // 检测 mention 类型前缀
-    let mentionType = 'all';
+    let mentionType = triggerChar === '@' ? 'file' : 'all';
     let effectiveQuery = query;
     if (query.startsWith('skill:')) {
         mentionType = 'skill';
@@ -267,7 +372,7 @@ function showMentionPopup(query, cursorPos) {
     // 构建合并列表
     const allItems = [];
 
-    if (mentionType === 'all' || mentionType === 'file') {
+    if (mentionType === 'file' || (triggerChar === '@' && mentionType !== 'skill' && mentionType !== 'mcp')) {
         const fileList = buildFileList();
         fileList.forEach(f => allItems.push({ ...f, category: 'file', iconClass: getFileIconClass(f.name) }));
     }
@@ -329,7 +434,7 @@ function showMentionPopup(query, cursorPos) {
 }
 
 /**
- * 插入选中的 mention 到输入框（按类别加前缀）
+ * 插入选中的 mention 到输入框（文件用 @，skill/MCP 用 /）
  */
 function insertMention(item) {
     const input = document.getElementById('chat-input');
@@ -338,10 +443,10 @@ function insertMention(item) {
     const before = text.substring(0, mentionStartIndex);
     const after = text.substring(input.selectionStart);
 
-    // 按类别确定前缀
+    // 按类别确定前缀：文件用 @，skill/MCP 用 /
     let prefix = '@';
-    if (item.category === 'skill') prefix = '@skill:';
-    else if (item.category === 'mcp') prefix = '@mcp:';
+    if (item.category === 'skill') prefix = '/skill:';
+    else if (item.category === 'mcp') prefix = '/mcp:';
 
     const displayPath = item.category === 'file' ? item.path.replace(/^\//, '') : item.path;
     input.value = before + prefix + displayPath + ' ' + after;

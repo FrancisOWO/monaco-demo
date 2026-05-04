@@ -2191,3 +2191,288 @@ body[data-theme="dark"] .chat-history-item-btn {
 body[data-theme="dark"] .chat-history-item-btn:hover {
     background: #3c3c3c;
 }
+
+/* === Settings Modal Tabs === */
+
+.chat-modal-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 0 20px;
+}
+
+.chat-modal-tab {
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: #666;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    font-weight: 500;
+}
+
+.chat-modal-tab.active {
+    color: #007acc;
+    border-bottom-color: #007acc;
+}
+
+.chat-modal-tab:hover {
+    color: #333;
+}
+
+.chat-modal-tab-content {
+    display: none;
+}
+
+.chat-modal-tab-content.active {
+    display: block;
+}
+
+/* === MCP Server Config === */
+
+.chat-mcp-desc {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.chat-mcp-server-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.chat-mcp-server-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #f5f5f5;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.chat-mcp-server-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.chat-mcp-server-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+.chat-mcp-server-detail {
+    font-size: 11px;
+    color: #888;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-mcp-server-delete {
+    border: none;
+    background: none;
+    color: #d32f2f;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.chat-mcp-server-delete:hover {
+    background: #ffebee;
+}
+
+.chat-mcp-empty {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    padding: 20px;
+}
+
+.chat-mcp-add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.chat-mcp-add-btn {
+    padding: 8px 14px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    background: #f8f8f8;
+    color: #555;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.chat-mcp-add-btn:hover {
+    background: #e8e8e8;
+}
+
+.chat-mcp-edit-json-btn {
+    background: #e8f4fd;
+    border-color: #b8daff;
+    color: #007acc;
+}
+
+.chat-mcp-edit-json-btn:hover {
+    background: #d0e8f8;
+}
+
+/* === MCP JSON Editor Panel === */
+
+.chat-mcp-json-panel {
+    margin-top: 12px;
+}
+
+.chat-mcp-json-panel.hidden {
+    display: none;
+}
+
+.chat-mcp-json-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.chat-mcp-json-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
+
+.chat-mcp-json-close {
+    border: none;
+    background: none;
+    color: #666;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.chat-mcp-json-close:hover {
+    color: #333;
+}
+
+.chat-mcp-json-editor {
+    width: 100%;
+    min-height: 160px;
+    max-height: 300px;
+    padding: 12px;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 12px;
+    line-height: 1.5;
+    resize: vertical;
+    outline: none;
+    background: #f6f8fa;
+    color: #333;
+    box-sizing: border-box;
+}
+
+.chat-mcp-json-editor:focus {
+    border-color: #007acc;
+}
+
+.chat-mcp-json-error {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #d32f2f;
+    background: #ffebee;
+    padding: 6px 10px;
+    border-radius: 4px;
+}
+
+.chat-mcp-json-error.hidden {
+    display: none;
+}
+
+/* Dark theme: MCP Server Config */
+body[data-theme="dark"] .chat-modal-tab {
+    color: #aaa;
+}
+
+body[data-theme="dark"] .chat-modal-tab.active {
+    color: #007acc;
+}
+
+body[data-theme="dark"] .chat-modal-tab:hover {
+    color: #d4d4d4;
+}
+
+body[data-theme="dark"] .chat-mcp-desc {
+    color: #888;
+}
+
+body[data-theme="dark"] .chat-mcp-server-item {
+    background: #252526;
+    border-color: #444;
+}
+
+body[data-theme="dark"] .chat-mcp-server-name {
+    color: #d4d4d4;
+}
+
+body[data-theme="dark"] .chat-mcp-server-detail {
+    color: #888;
+}
+
+body[data-theme="dark"] .chat-mcp-server-delete {
+    color: #ff8a80;
+}
+
+body[data-theme="dark"] .chat-mcp-server-delete:hover {
+    background: #3d2626;
+}
+
+body[data-theme="dark"] .chat-mcp-add-btn {
+    background: #3c3c3c;
+    border-color: #444;
+    color: #d4d4d4;
+}
+
+body[data-theme="dark"] .chat-mcp-add-btn:hover {
+    background: #4c4c4c;
+}
+
+body[data-theme="dark"] .chat-mcp-edit-json-btn {
+    background: #094771;
+    border-color: #007acc55;
+    color: #007acc;
+}
+
+body[data-theme="dark"] .chat-mcp-edit-json-btn:hover {
+    background: #0a508a;
+}
+
+body[data-theme="dark"] .chat-mcp-json-title {
+    color: #d4d4d4;
+}
+
+body[data-theme="dark"] .chat-mcp-json-close {
+    color: #aaa;
+}
+
+body[data-theme="dark"] .chat-mcp-json-editor {
+    background: #1e1e1e;
+    border-color: #444;
+    color: #d4d4d4;
+}
+
+body[data-theme="dark"] .chat-mcp-json-editor:focus {
+    border-color: #007acc;
+}
+
+body[data-theme="dark"] .chat-mcp-json-error {
+    color: #ff8a80;
+    background: #3d2626;
+}
