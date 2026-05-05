@@ -16,6 +16,12 @@ const router: Router = express.Router();
 
 const TEST_MODE = config.ai.testMode;
 
+// ============ 冷却期 ============
+
+/** 补全请求冷却间隔（ms），上次补全返回后短时间内返回空结果 */
+const COOLDOWN_MS = 2000;
+let lastCompletionTime = 0;
+
 // ============ API 配置读取 ============
 
 /** 从 config-manager 获取当前补全 API 配置 */
@@ -67,6 +73,22 @@ router.post('/', async (req, res) => {
 
         const apiConfig = getCurrentApiConfig();
         const isStream = body.stream ?? false;
+
+        // 冷却期：上次补全返回后 2s 内，直接返回空结果
+        const now = Date.now();
+        if (apiConfig && now - lastCompletionTime < COOLDOWN_MS) {
+            console.log(`[AI Completion] Cooldown: ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left, returning empty`);
+            if (isStream) {
+                res.setHeader('Content-Type', 'text/event-stream');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.setHeader('Connection', 'keep-alive');
+                res.write(`event: done\ndata: {"fullText":""}\n\n`);
+                res.end();
+            } else {
+                res.json({ items: [] });
+            }
+            return;
+        }
 
         console.log(`[AI Completion] Request: lang=${body.language}, stream=${isStream}, config=${apiConfig ? apiConfig.name : 'none'}, testMode=${TEST_MODE}`);
 
@@ -140,6 +162,7 @@ router.post('/', async (req, res) => {
 
             const preview = (items[0]?.insertText || '').split('\n')[0]?.substring(0, 40) || '(empty)';
             console.log(`[AI Completion] Non-stream response: ${items.length} item(s), first line: ${preview}`);
+            lastCompletionTime = Date.now();
             res.json({ items });
             return;
         }
@@ -175,6 +198,7 @@ router.post('/', async (req, res) => {
             res.write(`event: done\ndata: ${JSON.stringify({ fullText })}\n\n`);
             const preview = fullText.split('\n')[0]?.substring(0, 40) || '(empty)';
             console.log(`[AI Completion] Stream done: ${fullText.length} chars, first line: ${preview}`);
+            lastCompletionTime = Date.now();
             res.end();
         } catch (error: any) {
             console.error('[AI Completion Stream] Error:', error);
