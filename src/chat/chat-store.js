@@ -4,7 +4,7 @@
  */
 
 import { configService } from './config-service.js';
-import { setPipelineMode } from '../inlineCompletion/aiCompletionConfig.js';
+import { setPipelineMode, aiCompletionConfig } from '../inlineCompletion/aiCompletionConfig.js';
 
 const logger = { info: (...args) => console.log('[ChatStore]', ...args) };
 
@@ -564,9 +564,10 @@ export function deleteCompletionApiConfig(id) {
  */
 export function syncCompletionClientMode() {
     const isMock = chatState.currentCompletionConfigId === 'mock';
-    const newMode = isMock ? 'mock' : 'simple';
-    setPipelineMode(newMode);
-    logger.info(`Completion pipeline mode synced to: ${newMode}`);
+    // 优先用 full 配置，simple 仅用于测试
+    const aiPipelineMode = aiCompletionConfig.pipelineMode === 'simple' ? 'simple' : 'full';
+    setPipelineMode(isMock ? 'mock' : aiPipelineMode);
+    logger.info(`Completion pipeline mode synced to: ${isMock ? 'mock' : aiCompletionConfig.pipelineMode}`);
 }
 
 /**
