@@ -14,18 +14,13 @@ import type {
     IPostProcessor,
     ITelemetryEmitter,
 } from './types.js';
-import { InlineCompletionTriggerKind } from './types.js';
 import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('GhostText');
 
-/** 自动触发冷却间隔（ms），补全成功后短时间内不再请求 */
-const COOLDOWN_MS = 2000;
-
 /** 简易 Ghost Text 控制器 */
 export class SimpleGhostTextController implements IGhostTextController {
     private currentRequestId: string = '';
-    private lastCompletionTime = 0;
 
     constructor(
         private promptBuilder: IPromptBuilder,
@@ -38,15 +33,6 @@ export class SimpleGhostTextController implements IGhostTextController {
     async getCompletions(
         context: CompletionRequestContext,
     ): Promise<CompletionResult[]> {
-        // 自动触发冷却：补全成功后 2s 内不再发请求，无论位置是否变化
-        if (context.triggerKind === InlineCompletionTriggerKind.Automatic) {
-            const now = Date.now();
-            if (now - this.lastCompletionTime < COOLDOWN_MS) {
-                logger.info(`Cooldown: ${Math.round(COOLDOWN_MS - (now - this.lastCompletionTime))}ms left`);
-                return [];
-            }
-        }
-
         this.currentRequestId = context.requestId;
 
         // 1. 构建 Prompt
@@ -102,11 +88,6 @@ export class SimpleGhostTextController implements IGhostTextController {
 
         // 5. 遥测
         logger.info(`Result: ${processed.length} item(s)${processed.length > 0 ? `, text=${processed[0].insertText.substring(0, 60).replace(/\n/g, '\\n')}...` : ''}`);
-
-        // 记录补全成功的时间（用于冷却期）
-        if (processed.length > 0) {
-            this.lastCompletionTime = Date.now();
-        }
         this.telemetryEmitter.emit({
             eventType: 'completion.received',
             requestId: context.requestId,

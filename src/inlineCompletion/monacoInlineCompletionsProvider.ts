@@ -15,6 +15,9 @@ import type {
     PromptInfo,
 } from './types.js';
 
+/** 自动触发冷却间隔（ms），补全成功后短时间内不再发新请求 */
+const COOLDOWN_MS = 2000;
+
 /** 单行补全策略（自动触发） */
 function singleLineStrategy(): CompletionStrategy {
     return {
@@ -39,6 +42,7 @@ function multiLineStrategy(): CompletionStrategy {
 export class MonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
     private idCounter = 0;
     private isComposing = false;
+    private lastCompletionTime = 0;
 
     constructor(
         private controller: IGhostTextController,
@@ -73,6 +77,14 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
             return { items: [] };
         }
 
+        // 自动触发冷却期：补全成功后 2s 内不再发新请求
+        if (triggerKind === InlineCompletionTriggerKind.Automatic) {
+            const now = Date.now();
+            if (now - this.lastCompletionTime < COOLDOWN_MS) {
+                return { items: [] };
+            }
+        }
+
         // 构建请求上下文
         const requestContext: CompletionRequestContext = {
             requestId: `req-${++this.idCounter}-${Date.now()}`,
@@ -100,6 +112,11 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
 
         // 获取补全
         const completions = await this.controller.getCompletions(requestContext);
+
+        // 补全返回结果后开始冷却计时（确保结果一定会被显示）
+        if (completions.length > 0) {
+            this.lastCompletionTime = Date.now();
+        }
 
         // 转换为 Monaco 格式
         const items: monaco.languages.InlineCompletion[] = completions.map(c => ({
