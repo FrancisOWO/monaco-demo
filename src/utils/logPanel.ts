@@ -28,24 +28,21 @@ let manuallyDragged = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 
-/** 将面板定位到编辑器右下角（未手动拖动时），或约束在编辑器边界内（手动拖动后） */
-function clampPanelToEditor(panel: HTMLElement): void {
-    const editorEl = document.getElementById('editor-container');
-    if (!editorEl) return;
-    const rect = editorEl.getBoundingClientRect();
+/** 将面板定位到视窗右下角（未手动拖动时），或约束在视窗边界内（手动拖动后）
+ *  底部预留状态栏高度，避免遮挡 */
+function clampPanelToViewport(panel: HTMLElement): void {
     const panelW = 220;
     const panelH = panel.offsetHeight || 150;
+    const statusBarH = 24;
 
     if (!manuallyDragged) {
-        // 自动锚定到编辑器右下角
-        panel.style.left = (rect.right - panelW - 8) + 'px';
-        panel.style.top = (rect.bottom - panelH - 8) + 'px';
+        panel.style.left = (window.innerWidth - panelW - 8) + 'px';
+        panel.style.top = (window.innerHeight - statusBarH - panelH - 8) + 'px';
     } else {
-        // 手动拖动后：约束在编辑器边界内
         let left = panel.offsetLeft;
         let top = panel.offsetTop;
-        left = Math.max(rect.left + 4, Math.min(rect.right - panelW - 4, left));
-        top = Math.max(rect.top + 4, Math.min(rect.bottom - panelH - 4, top));
+        left = Math.max(4, Math.min(window.innerWidth - panelW - 4, left));
+        top = Math.max(4, Math.min(window.innerHeight - statusBarH - panelH - 4, top));
         panel.style.left = left + 'px';
         panel.style.top = top + 'px';
     }
@@ -84,7 +81,7 @@ export function initLogPanel(): void {
             logBtn.classList.add('active');
             renderModules();
             requestAnimationFrame(() => {
-                clampPanelToEditor(panel);
+                clampPanelToViewport(panel);
             });
         } else {
             panel.classList.add('hidden');
@@ -120,13 +117,11 @@ export function initLogPanel(): void {
     document.addEventListener('mousemove', (e: MouseEvent) => {
         if (!isDragging) return;
         manuallyDragged = true;
-        const editorEl = document.getElementById('editor-container');
-        const editorRect = editorEl ? editorEl.getBoundingClientRect() : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
         let newLeft = e.clientX - dragOffsetX;
         let newTop = e.clientY - dragOffsetY;
-        // 限制在编辑器区域内
-        newLeft = Math.max(editorRect.left + 4, Math.min(editorRect.right - 220 - 4, newLeft));
-        newTop = Math.max(editorRect.top + 4, Math.min(editorRect.bottom - panel.offsetHeight - 4, newTop));
+        // 限制在视窗内（底部预留状态栏）
+        newLeft = Math.max(4, Math.min(window.innerWidth - 220 - 4, newLeft));
+        newTop = Math.max(4, Math.min(window.innerHeight - 24 - panel.offsetHeight - 4, newTop));
         panel.style.left = newLeft + 'px';
         panel.style.top = newTop + 'px';
     });
@@ -177,14 +172,10 @@ export function initLogPanel(): void {
         }
     });
 
-    // 窗口/编辑器尺寸变化时重新定位面板
+    // 窗口尺寸变化时重新定位面板
     const onResize = () => {
         if (panel.classList.contains('hidden')) return;
-        clampPanelToEditor(panel);
+        clampPanelToViewport(panel);
     };
     window.addEventListener('resize', onResize);
-    const editorEl = document.getElementById('editor-container');
-    if (editorEl) {
-        new ResizeObserver(onResize).observe(editorEl);
-    }
 }
