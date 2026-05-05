@@ -479,7 +479,7 @@ body[data-theme="dark"] .lsp-language-settings-link {
 }
 
 .log-panel-content {
-    max-height: 300px;
+    max-height: 200px;
     overflow-y: auto;
 }
 

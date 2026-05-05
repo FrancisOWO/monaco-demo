@@ -24,8 +24,32 @@ function getLevelName(level: LogLevel): string {
 
 /** 拖动状态 */
 let isDragging = false;
+let manuallyDragged = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
+
+/** 将面板定位到编辑器右下角（未手动拖动时），或约束在编辑器边界内（手动拖动后） */
+function clampPanelToEditor(panel: HTMLElement): void {
+    const editorEl = document.getElementById('editor-container');
+    if (!editorEl) return;
+    const rect = editorEl.getBoundingClientRect();
+    const panelW = 220;
+    const panelH = panel.offsetHeight || 150;
+
+    if (!manuallyDragged) {
+        // 自动锚定到编辑器右下角
+        panel.style.left = (rect.right - panelW - 8) + 'px';
+        panel.style.top = (rect.bottom - panelH - 8) + 'px';
+    } else {
+        // 手动拖动后：约束在编辑器边界内
+        let left = panel.offsetLeft;
+        let top = panel.offsetTop;
+        left = Math.max(rect.left + 4, Math.min(rect.right - panelW - 4, left));
+        top = Math.max(rect.top + 4, Math.min(rect.bottom - panelH - 4, top));
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+    }
+}
 
 /** 初始化日志控制面板 */
 export function initLogPanel(): void {
@@ -53,62 +77,56 @@ export function initLogPanel(): void {
     `;
     document.body.appendChild(panel);
 
-    // 点击状态栏按钮：显示面板
+    // 点击状态栏按钮：切换面板
     logBtn.addEventListener('click', () => {
-        panel.classList.remove('hidden');
-        logBtn.classList.add('active');
-        renderModules();
-        // 定位：编辑器区域右下角，确保面板完全在编辑器内
-        requestAnimationFrame(() => {
-            const editorEl = document.getElementById('editor-container');
-            const panelW = 220;
-            const panelH = panel.offsetHeight || 150;
-            if (editorEl) {
-                const rect = editorEl.getBoundingClientRect();
-                let left = rect.right - panelW - 8;
-                let top = rect.bottom - panelH - 8;
-                // 确保不超出编辑器上界和左界
-                left = Math.max(rect.left + 4, left);
-                top = Math.max(rect.top + 4, top);
-                // 只有首次打开或用户没拖动过时才自动定位
-                if (!panel.dataset.positioned) {
-                    panel.style.left = left + 'px';
-                    panel.style.top = top + 'px';
-                    panel.dataset.positioned = 'true';
-                }
-            }
-        });
+        if (panel.classList.contains('hidden')) {
+            panel.classList.remove('hidden');
+            logBtn.classList.add('active');
+            renderModules();
+            requestAnimationFrame(() => {
+                clampPanelToEditor(panel);
+            });
+        } else {
+            panel.classList.add('hidden');
+            logBtn.classList.remove('active');
+            manuallyDragged = false;
+            panel.style.left = '';
+            panel.style.top = '';
+        }
     });
 
     // 关闭按钮
-    panel.querySelector('.log-panel-close').addEventListener('click', () => {
+    const closeBtn = panel.querySelector('.log-panel-close') as HTMLElement;
+    closeBtn.addEventListener('click', () => {
         panel.classList.add('hidden');
         logBtn.classList.remove('active');
-        // 清除定位标记，下次打开重新定位到默认位置
-        delete panel.dataset.positioned;
+        manuallyDragged = false;
         panel.style.left = '';
         panel.style.top = '';
     });
 
     // 拖动逻辑：通过 drag-bar 拖动
-    const dragBar = panel.querySelector('.log-panel-drag-bar');
+    const dragBar = panel.querySelector('.log-panel-drag-bar') as HTMLElement;
 
-    dragBar.addEventListener('mousedown', (e: MouseEvent) => {
+    dragBar.addEventListener('mousedown', ((e: MouseEvent) => {
         // 排除关闭按钮的点击
         if ((e.target as HTMLElement).classList.contains('log-panel-close')) return;
         isDragging = true;
         dragOffsetX = e.clientX - panel.offsetLeft;
         dragOffsetY = e.clientY - panel.offsetTop;
         e.preventDefault();
-    });
+    }) as EventListener);
 
     document.addEventListener('mousemove', (e: MouseEvent) => {
         if (!isDragging) return;
+        manuallyDragged = true;
+        const editorEl = document.getElementById('editor-container');
+        const editorRect = editorEl ? editorEl.getBoundingClientRect() : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
         let newLeft = e.clientX - dragOffsetX;
         let newTop = e.clientY - dragOffsetY;
-        // 限制在视窗内
-        newLeft = Math.max(0, Math.min(newLeft, window.innerWidth - 220));
-        newTop = Math.max(0, Math.min(newTop, window.innerHeight - panel.offsetHeight));
+        // 限制在编辑器区域内
+        newLeft = Math.max(editorRect.left + 4, Math.min(editorRect.right - 220 - 4, newLeft));
+        newTop = Math.max(editorRect.top + 4, Math.min(editorRect.bottom - panel.offsetHeight - 4, newTop));
         panel.style.left = newLeft + 'px';
         panel.style.top = newTop + 'px';
     });
@@ -158,4 +176,15 @@ export function initLogPanel(): void {
             renderModules();
         }
     });
+
+    // 窗口/编辑器尺寸变化时重新定位面板
+    const onResize = () => {
+        if (panel.classList.contains('hidden')) return;
+        clampPanelToEditor(panel);
+    };
+    window.addEventListener('resize', onResize);
+    const editorEl = document.getElementById('editor-container');
+    if (editorEl) {
+        new ResizeObserver(onResize).observe(editorEl);
+    }
 }
