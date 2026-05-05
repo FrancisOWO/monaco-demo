@@ -226,7 +226,9 @@ export class SimpleCompletionsCache implements ICompletionsCache {
         // LRU 淘汰
         if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
             const firstKey = this.cache.keys().next().value;
-            this.cache.delete(firstKey);
+            if (firstKey) {
+                this.cache.delete(firstKey);
+            }
         }
 
         this.cache.set(key, existing);

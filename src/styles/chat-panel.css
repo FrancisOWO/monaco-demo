@@ -394,7 +394,14 @@
     border-color: #007acc;
 }
 
-.chat-modal-btn-primary:hover {
+.chat-modal-btn-primary:disabled {
+    background: #ccc;
+    color: #999;
+    border-color: #ccc;
+    cursor: not-allowed;
+}
+
+.chat-modal-btn-primary:hover:not(:disabled) {
     background: #005a9c;
 }
 
@@ -2103,6 +2110,12 @@ body[data-theme="dark"] .chat-settings-field input::placeholder {
 body[data-theme="dark"] .chat-modal-btn-secondary {
     color: #aaa;
     border-color: #444;
+}
+
+body[data-theme="dark"] .chat-modal-btn-primary:disabled {
+    background: #4a4a4a;
+    color: #666;
+    border-color: #4a4a4a;
 }
 
 body[data-theme="dark"] .chat-modal-btn-secondary:hover {

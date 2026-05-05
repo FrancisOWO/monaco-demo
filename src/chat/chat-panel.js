@@ -208,7 +208,28 @@ function setupSettingsPanel() {
     const completionModelIdInput = document.getElementById('chat-completion-config-modelid');
     const completionApiKeyInput = document.getElementById('chat-completion-config-apikey');
     let editingCompletionConfigId = null;
+    let editingChatConfigId = null;
     let dirty = false;
+    saveBtn.disabled = true;
+
+    // 保存初始值，用于判断表单是否真正发生了变化
+    let completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+    let chatSnapshot = { name: '', baseUrl: '', chatModel: '', apiKey: '' };
+
+    function checkDirty() {
+        const completionChanged =
+            completionNameInput.value !== completionSnapshot.name ||
+            completionBaseUrlInput.value !== completionSnapshot.baseUrl ||
+            completionModelIdInput.value !== completionSnapshot.modelId ||
+            completionApiKeyInput.value !== completionSnapshot.apiKey;
+        const chatChanged =
+            chatNameInput.value !== chatSnapshot.name ||
+            chatBaseUrlInput.value !== chatSnapshot.baseUrl ||
+            chatModelInput.value !== chatSnapshot.chatModel ||
+            chatApiKeyInput.value !== chatSnapshot.apiKey;
+        dirty = completionChanged || chatChanged;
+        updateSaveBtnState();
+    }
 
     function updateSaveBtnState() {
         saveBtn.disabled = !dirty;
@@ -266,6 +287,7 @@ function setupSettingsPanel() {
             completionBaseUrlInput.value = '';
             completionModelIdInput.value = '';
             completionApiKeyInput.value = '';
+            completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
         } else {
             completionFormSection.classList.remove('disabled');
             completionMockInfo?.classList.remove('visible');
@@ -274,12 +296,17 @@ function setupSettingsPanel() {
             completionBaseUrlInput.value = config.baseUrl || '';
             completionModelIdInput.value = config.modelId || '';
             completionApiKeyInput.value = config.apiKey || '';
+            completionSnapshot = {
+                name: config.name || '',
+                baseUrl: config.baseUrl || '',
+                modelId: config.modelId || '',
+                apiKey: config.apiKey || '',
+            };
         }
-        dirty = false;
-        updateSaveBtnState();
+        checkDirty();
     }
 
-    completionAddBtn.addEventListener('click', () => {
+    completionAddBtn.addEventListener('click', async () => {
         const name = prompt('请输入新补全配置的名称:');
         if (!name || !name.trim()) return;
 
@@ -292,8 +319,16 @@ function setupSettingsPanel() {
         chatStore.setCurrentCompletionConfigId(newId);
         renderCompletionConfigSelect();
         loadCompletionConfigToForm(newId);
-        dirty = true;
-        updateSaveBtnState();
+        // 先持久化新增的空配置
+        try {
+            await chatStore.saveSettingsToStorage();
+        } catch (e) {
+            console.warn('[ChatPanel] Failed to persist new completion config:', e);
+        }
+        // 重新加载，让快照反映已持久化的状态，然后对比当前表单值
+        loadCompletionConfigToForm(newId);
+        completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+        checkDirty();
     });
 
     completionDeleteBtn.addEventListener('click', () => {
@@ -304,8 +339,9 @@ function setupSettingsPanel() {
             chatStore.deleteCompletionApiConfig(editingCompletionConfigId);
             renderCompletionConfigSelect();
             loadCompletionConfigToForm(chatStore.getCurrentCompletionConfigId());
-            dirty = true;
-            updateSaveBtnState();
+            // 删除后配置列表已变，标记为脏
+            completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+            checkDirty();
         }
     });
     const chatSelect = document.getElementById('chat-chat-config-select');
@@ -320,7 +356,6 @@ function setupSettingsPanel() {
     const chatBaseUrlInput = document.getElementById('chat-chat-config-baseurl');
     const chatModelInput = document.getElementById('chat-chat-config-chatmodel');
     const chatApiKeyInput = document.getElementById('chat-chat-config-apikey');
-    let editingChatConfigId = null;
 
     function renderChatConfigSelect() {
         const configs = chatStore.getChatApiConfigs();
@@ -374,6 +409,7 @@ function setupSettingsPanel() {
             chatBaseUrlInput.value = '';
             chatModelInput.value = '';
             chatApiKeyInput.value = '';
+            chatSnapshot = { name: '', baseUrl: '', chatModel: '', apiKey: '' };
         } else {
             chatFormSection.classList.remove('disabled');
             chatMockInfo?.classList.remove('visible');
@@ -382,12 +418,17 @@ function setupSettingsPanel() {
             chatBaseUrlInput.value = config.baseUrl || '';
             chatModelInput.value = config.chatModel || '';
             chatApiKeyInput.value = config.apiKey || '';
+            chatSnapshot = {
+                name: config.name || '',
+                baseUrl: config.baseUrl || '',
+                chatModel: config.chatModel || '',
+                apiKey: config.apiKey || '',
+            };
         }
-        dirty = false;
-        updateSaveBtnState();
+        checkDirty();
     }
 
-    chatAddBtn.addEventListener('click', () => {
+    chatAddBtn.addEventListener('click', async () => {
         const name = prompt('请输入新对话配置的名称:');
         if (!name || !name.trim()) return;
 
@@ -400,8 +441,15 @@ function setupSettingsPanel() {
         chatStore.setCurrentChatConfigId(newId);
         renderChatConfigSelect();
         loadChatConfigToForm(newId);
-        dirty = true;
-        updateSaveBtnState();
+        // 先持久化新增的空配置
+        try {
+            await chatStore.saveSettingsToStorage();
+        } catch (e) {
+            console.warn('[ChatPanel] Failed to persist new chat config:', e);
+        }
+        loadChatConfigToForm(newId);
+        chatSnapshot = { name: '', baseUrl: '', chatModel: '', apiKey: '' };
+        checkDirty();
     });
 
     chatDeleteBtn.addEventListener('click', () => {
@@ -412,8 +460,8 @@ function setupSettingsPanel() {
             chatStore.deleteChatApiConfig(editingChatConfigId);
             renderChatConfigSelect();
             loadChatConfigToForm(chatStore.getCurrentChatConfigId());
-            dirty = true;
-            updateSaveBtnState();
+            chatSnapshot = { name: '', baseUrl: '', chatModel: '', apiKey: '' };
+            checkDirty();
         }
     });
 
@@ -422,7 +470,7 @@ function setupSettingsPanel() {
     [completionNameInput, completionBaseUrlInput, completionModelIdInput, completionApiKeyInput,
      chatNameInput, chatBaseUrlInput, chatModelInput, chatApiKeyInput].forEach(input => {
         input.addEventListener('input', () => {
-            dirty = true;
+            checkDirty();
             updateSaveBtnState();
         });
     });
@@ -512,9 +560,10 @@ function setupSettingsPanel() {
             return;
         }
 
-        // 保存成功：标记为已保存状态
-        dirty = false;
-        updateSaveBtnState();
+        // 保存成功：更新快照，表单值与快照一致则按钮禁用
+        loadCompletionConfigToForm(editingCompletionConfigId);
+        loadChatConfigToForm(editingChatConfigId);
+        checkDirty();
     });
 
     document.addEventListener('keydown', (e) => {
