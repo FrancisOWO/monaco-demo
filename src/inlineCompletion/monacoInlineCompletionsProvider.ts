@@ -38,11 +38,23 @@ function multiLineStrategy(): CompletionStrategy {
 /** Monaco Inline Completions Provider */
 export class MonacoInlineCompletionsProvider implements monaco.languages.InlineCompletionsProvider {
     private idCounter = 0;
+    private isComposing = false;
 
     constructor(
         private controller: IGhostTextController,
         private editor: monaco.editor.ICodeEditor,
-    ) { }
+    ) {
+        // 监听 IME composition 事件
+        const editorDom = editor.getDomNode();
+        if (editorDom) {
+            editorDom.addEventListener('compositionstart', () => {
+                this.isComposing = true;
+            });
+            editorDom.addEventListener('compositionend', () => {
+                this.isComposing = false;
+            });
+        }
+    }
 
     async provideInlineCompletions(
         model: monaco.editor.ITextModel,
@@ -55,6 +67,12 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
             return { items: [] };
         }
 
+        // IME 输入法正在组字时，不触发自动补全
+        const triggerKind = this.mapTriggerKind(context.triggerKind);
+        if (triggerKind === InlineCompletionTriggerKind.Automatic && this.isComposing) {
+            return { items: [] };
+        }
+
         // 构建请求上下文
         const requestContext: CompletionRequestContext = {
             requestId: `req-${++this.idCounter}-${Date.now()}`,
@@ -64,9 +82,9 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
                 lineNumber: position.lineNumber,
                 column: position.column,
             },
-            triggerKind: this.mapTriggerKind(context.triggerKind),
+            triggerKind,
             // 自动触发用单行策略，手动触发用多行策略
-            strategy: this.mapTriggerKind(context.triggerKind) === InlineCompletionTriggerKind.Automatic
+            strategy: triggerKind === InlineCompletionTriggerKind.Automatic
                 ? singleLineStrategy()
                 : multiLineStrategy(),
             prompt: {} as PromptInfo, // 会被 promptBuilder 填充

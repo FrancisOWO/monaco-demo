@@ -223,45 +223,68 @@ function setupAutoTrigger(editor: monaco.editor.ICodeEditor) {
     const { debounceMs, cooldownMs, triggerPatterns } = aiCompletionConfig.autoTrigger;
     let debounceTimer: ReturnType<typeof setTimeout> | undefined;
     let lastTriggerTime = 0;
+    let isComposing = false;
+
+    // 监听 IME composition 事件，composition 进行中不触发补全
+    const editorDom = editor.getDomNode();
+    if (editorDom) {
+        editorDom.addEventListener('compositionstart', () => {
+            isComposing = true;
+            clearTimeout(debounceTimer);
+        });
+        editorDom.addEventListener('compositionend', () => {
+            isComposing = false;
+            // composition 结束后重新启动防抖计时
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                tryAutoTrigger(editor);
+            }, debounceMs);
+        });
+    }
 
     editor.onDidChangeModelContent(() => {
         if (!aiCompletionConfig.autoTrigger.enabled) return;
+        if (isComposing) return; // IME 输入中不触发
 
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-            const model = editor.getModel();
-            const position = editor.getPosition();
-            if (!model || !position) return;
-
-            const prefix = model.getValueInRange({
-                startLineNumber: 1,
-                startColumn: 1,
-                endLineNumber: position.lineNumber,
-                endColumn: position.column,
-            });
-            const lastLine = prefix.split('\n').pop() ?? '';
-            const lastChar = lastLine.slice(-1);
-            const trimmedLine = lastLine.trim();
-
-            const shouldTrigger = triggerPatterns.some(pattern => {
-                if (typeof pattern === 'string') {
-                    return lastChar === pattern;
-                }
-                return pattern.test(trimmedLine);
-            });
-
-            if (shouldTrigger) {
-                const now = Date.now();
-                if (now - lastTriggerTime < cooldownMs) return;
-                lastTriggerTime = now;
-
-                logger.info('Auto-triggered, last line:', JSON.stringify(trimmedLine.substring(0, 50)));
-                editor.trigger('ai-completion', 'editor.action.inlineSuggest.trigger', {});
-            } else {
-                logger.info('Auto-trigger skipped, last line:', JSON.stringify(trimmedLine.substring(0, 30)), 'lastChar:', JSON.stringify(lastChar));
-            }
+            tryAutoTrigger(editor);
         }, debounceMs);
     });
+
+    function tryAutoTrigger(editor: monaco.editor.ICodeEditor) {
+        const model = editor.getModel();
+        const position = editor.getPosition();
+        if (!model || !position) return;
+
+        const prefix = model.getValueInRange({
+            startLineNumber: 1,
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+        });
+        const lastLine = prefix.split('\n').pop() ?? '';
+        const lastChar = lastLine.slice(-1);
+        const trimmedLine = lastLine.trim();
+
+        const shouldTrigger = triggerPatterns.some(pattern => {
+            if (typeof pattern === 'string') {
+                return lastChar === pattern;
+            }
+            return pattern.test(trimmedLine);
+        });
+
+        if (shouldTrigger) {
+            const now = Date.now();
+            if (now - lastTriggerTime < cooldownMs) return;
+            lastTriggerTime = now;
+
+            logger.info('Auto-triggered, last line:', JSON.stringify(trimmedLine.substring(0, 50)));
+            editor.trigger('ai-completion', 'editor.action.inlineSuggest.trigger', {});
+        } else {
+            logger.info('Auto-trigger skipped, last line:', JSON.stringify(trimmedLine.substring(0, 30)), 'lastChar:', JSON.stringify(lastChar));
+        }
+    }
 }
 
 /**

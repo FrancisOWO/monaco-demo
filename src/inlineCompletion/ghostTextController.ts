@@ -26,7 +26,6 @@ const COOLDOWN_MS = 2000;
 export class SimpleGhostTextController implements IGhostTextController {
     private currentRequestId: string = '';
     private lastCompletionTime = 0;
-    private lastCompletionPosition: { lineNumber: number; column: number } | null = null;
 
     constructor(
         private promptBuilder: IPromptBuilder,
@@ -39,13 +38,11 @@ export class SimpleGhostTextController implements IGhostTextController {
     async getCompletions(
         context: CompletionRequestContext,
     ): Promise<CompletionResult[]> {
-        // 自动触发冷却：同一位置刚补全完，短时间内不再请求
+        // 自动触发冷却：补全成功后 2s 内不再发请求，无论位置是否变化
         if (context.triggerKind === InlineCompletionTriggerKind.Automatic) {
             const now = Date.now();
-            if (this.lastCompletionPosition
-                && this.lastCompletionPosition.lineNumber === context.position.lineNumber
-                && now - this.lastCompletionTime < COOLDOWN_MS) {
-                logger.info(`Cooldown: pos ${context.position.lineNumber}:${context.position.column}, ${Math.round(COOLDOWN_MS - (now - this.lastCompletionTime))}ms left`);
+            if (now - this.lastCompletionTime < COOLDOWN_MS) {
+                logger.info(`Cooldown: ${Math.round(COOLDOWN_MS - (now - this.lastCompletionTime))}ms left`);
                 return [];
             }
         }
@@ -106,10 +103,9 @@ export class SimpleGhostTextController implements IGhostTextController {
         // 5. 遥测
         logger.info(`Result: ${processed.length} item(s)${processed.length > 0 ? `, text=${processed[0].insertText.substring(0, 60).replace(/\n/g, '\\n')}...` : ''}`);
 
-        // 记录补全成功的时间和位置（用于冷却期）
+        // 记录补全成功的时间（用于冷却期）
         if (processed.length > 0) {
             this.lastCompletionTime = Date.now();
-            this.lastCompletionPosition = { lineNumber: context.position.lineNumber, column: context.position.column };
         }
         this.telemetryEmitter.emit({
             eventType: 'completion.received',
