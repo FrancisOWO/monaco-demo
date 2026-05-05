@@ -11,7 +11,7 @@ const endpoint = '/ai/completion' as string;
 /** AI 补全配置 */
 export const aiCompletionConfig = {
     /** 管线模式：'mock' 模板补全 | 'simple' 简易 AI 补全 | 'full' 完整 AI 补全 */
-    pipelineMode: PipelineMode.Simple as PipelineMode,
+    pipelineMode: PipelineMode.Full as PipelineMode,
 
     /** 是否启用流式补全（true → SSE 流式，false → 非流式 JSON） */
     streamEnabled: false,

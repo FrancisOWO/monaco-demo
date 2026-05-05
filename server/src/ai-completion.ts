@@ -66,18 +66,23 @@ router.post('/', async (req, res) => {
     try {
         const body: CompletionRequestBody = req.body;
 
-        if (!body.prefix) {
-            res.status(400).json({ error: 'Missing prefix' });
+        const isStream = body.stream ?? false;
+        const apiConfig = getCurrentApiConfig();
+
+        // 统一记录：请求到达
+        console.log(`[AI Completion] Request received: lang=${body.language}, stream=${isStream}, prefixLen=${(body.prefix?.length ?? 0)}, suffixLen=${(body.suffix?.length ?? 0)}, config=${apiConfig ? apiConfig.name : 'none'}`);
+
+        // 校验：prefix 缺失或为空串 → 无法构成有效 prompt
+        if (!body.prefix || body.prefix.trim().length === 0) {
+            console.log(`[AI Completion] Skipped: invalid prompt (prefix is missing or empty)`);
+            res.status(400).json({ error: 'Missing or empty prefix' });
             return;
         }
-
-        const apiConfig = getCurrentApiConfig();
-        const isStream = body.stream ?? false;
 
         // 冷却期：上次补全返回后 2s 内，直接返回空结果
         const now = Date.now();
         if (apiConfig && now - lastCompletionTime < COOLDOWN_MS) {
-            console.log(`[AI Completion] Cooldown: ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left, returning empty`);
+            console.log(`[AI Completion] Skipped: cooldown active, ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left`);
             if (isStream) {
                 res.setHeader('Content-Type', 'text/event-stream');
                 res.setHeader('Cache-Control', 'no-cache');
@@ -90,54 +95,52 @@ router.post('/', async (req, res) => {
             return;
         }
 
-        console.log(`[AI Completion] Request: lang=${body.language}, stream=${isStream}, config=${apiConfig ? apiConfig.name : 'none'}, testMode=${TEST_MODE}`);
-
-        // 无真实配置 → 返回空结果
+        // 无真实配置 → 测试模式使用模板补全，否则返回空结果
         if (!apiConfig) {
-            console.log('[AI Completion] No real API config, returning empty');
-            if (isStream) {
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-                res.write(`event: done\ndata: {"fullText":""}\n\n`);
-                res.end();
-            } else {
-                res.json({ items: [] });
-            }
-            return;
-        }
-
-        // 测试模式：仅在没有真实 API 配置时使用模板补全
-        if (TEST_MODE && !apiConfig) {
-            if (isStream) {
-                res.setHeader('Content-Type', 'text/event-stream');
-                res.setHeader('Cache-Control', 'no-cache');
-                res.setHeader('Connection', 'keep-alive');
-                res.setHeader('X-Accel-Buffering', 'no');
-                let completion = generateTestMultilineCompletion(body.prefix, body.language);
-                if (!completion) {
-                    completion = generateDefaultMultilineCompletion(body.prefix, body.language);
+            if (TEST_MODE) {
+                console.log('[AI Completion] No real API config, using test mode template');
+                if (isStream) {
+                    res.setHeader('Content-Type', 'text/event-stream');
+                    res.setHeader('Cache-Control', 'no-cache');
+                    res.setHeader('Connection', 'keep-alive');
+                    res.setHeader('X-Accel-Buffering', 'no');
+                    let completion = generateTestMultilineCompletion(body.prefix, body.language);
+                    if (!completion) {
+                        completion = generateDefaultMultilineCompletion(body.prefix, body.language);
+                    }
+                    streamMockCompletion(res, completion);
+                } else {
+                    const result = generateTestCompletion(body.prefix, body.language);
+                    res.json({
+                        items: result.suggestions.map((s, i) => ({
+                            insertText: s.text,
+                            isMultiline: s.text.includes('\n'),
+                            completionId: `test-${i}`,
+                        })),
+                    });
                 }
-                streamMockCompletion(res, completion);
             } else {
-                const result = generateTestCompletion(body.prefix, body.language);
-                res.json({
-                    items: result.suggestions.map((s, i) => ({
-                        insertText: s.text,
-                        isMultiline: s.text.includes('\n'),
-                        completionId: `test-${i}`,
-                    })),
-                });
+                console.log('[AI Completion] Skipped: no real API config available');
+                if (isStream) {
+                    res.setHeader('Content-Type', 'text/event-stream');
+                    res.setHeader('Cache-Control', 'no-cache');
+                    res.setHeader('Connection', 'keep-alive');
+                    res.write(`event: done\ndata: {"fullText":""}\n\n`);
+                    res.end();
+                } else {
+                    res.json({ items: [] });
+                }
             }
             return;
         }
 
+        // 发出真实 AI 请求
         const client = createOpenAIClient(apiConfig);
         const model = apiConfig.modelId || config.ai.fimModel;
 
-        console.log(`[AI Completion] Real API call: model=${model}, baseUrl=${apiConfig.baseUrl}`);
+        console.log(`[AI Completion] Sending AI request: model=${model}, baseUrl=${apiConfig.baseUrl}`);
         const lastLine = body.prefix.split('\n').pop() || '';
-        console.log(`[AI Completion] Prompt last line: ${lastLine.substring(0, 80)}`);
+        console.log(`[AI Completion] Prompt snippet: prefix=${body.prefix.substring(0, 60).replace(/\n/g, '\\n')}, lastLine=${lastLine.substring(0, 80)}`);
 
         // 非流式
         if (!isStream) {
@@ -214,7 +217,6 @@ router.post('/', async (req, res) => {
 
 // ============ 测试模式辅助函数 ============
 
-// 测试模式：模拟流式发送补全
 function streamMockCompletion(res: express.Response, completion: string) {
     if (!completion) {
         res.write(`event: done\ndata: {"fullText":""}\n\n`);

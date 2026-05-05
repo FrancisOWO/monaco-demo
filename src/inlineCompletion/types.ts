@@ -233,7 +233,7 @@ export interface IPromptBuilder {
      * 简易版：只取 prefix（光标前内容），suffix 和 context 为空
      * 完整版：取 prefix + suffix + neighborFiles + diagnostics 等
      */
-    buildPrompt(context: CompletionRequestContext): PromptInfo;
+    buildPrompt(context: CompletionRequestContext): PromptInfo | Promise<PromptInfo>;
 }
 
 /** LLM 客户端接口 */

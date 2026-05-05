@@ -93,6 +93,32 @@ export class CascadingPromptFactory implements IPromptFactory {
     }
 
     async buildPrompt(context: CompletionRequestContext): Promise<PromptInfo> {
+        // 前置填充：如果 context.prompt 为空，从编辑器读取 prefix/suffix
+        // Provider 传入的 requestContext.prompt 是空对象，
+        // 组件从 context.prompt 读取数据，所以必须先填充
+        if (!context.prompt?.prefix && !context.prompt?.suffix) {
+            const model = this.editor.getModel();
+            if (model) {
+                const position = context.position;
+                context.prompt = {
+                    prefix: model.getValueInRange({
+                        startLineNumber: 1,
+                        startColumn: 1,
+                        endLineNumber: position.lineNumber,
+                        endColumn: position.column,
+                    }),
+                    suffix: model.getValueInRange({
+                        startLineNumber: position.lineNumber,
+                        startColumn: position.column,
+                        endLineNumber: model.getLineCount(),
+                        endColumn: model.getLineMaxColumn(model.getLineCount()),
+                    }),
+                    context: [],
+                    isFimEnabled: true,
+                };
+            }
+        }
+
         const maxPromptLength = this.getMaxPromptLength();
         const allocation = this.getAllocation();
 

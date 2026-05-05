@@ -36,7 +36,7 @@ export class SimpleGhostTextController implements IGhostTextController {
         this.currentRequestId = context.requestId;
 
         // 1. 构建 Prompt
-        const prompt = this.promptBuilder.buildPrompt(context);
+        const prompt = await this.promptBuilder.buildPrompt(context);
 
         // 2. 检查最小字符数（空文件也需要能触发模板补全）
         if (prompt.prefix.trim().length === 0) {
