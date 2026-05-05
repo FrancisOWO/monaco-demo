@@ -22,49 +22,31 @@
 
 ```
 monaco-start/
-├── docs/                  # 设计文档与规划
-├── e2e/                   # Playwright 端到端测试方案
-├── example/               # 演示页面与示例资产
-├── python-mcp/            # Python MCP 示例工程
-├── playwright-mcp/        # Playwright MCP 测试示例
-├── server/                # 后端服务与语言服务器桥接
+├── docs/                     # 设计文档与规划
+├── e2e/                      # Playwright 端到端测试方案
+├── example/                  # 演示页面与示例资产
+├── plan/                     # 项目规划文档
+├── playwright-mcp/           # Playwright MCP 测试示例
+├── python-mcp/               # Python MCP 示例工程
+├── server/                   # 后端服务与语言服务器桥接
 │   ├── src/
-│   │   ├── index.ts
-│   │   ├── server.ts              # Express + WebSocket 服务器
-│   │   ├── language-servers.ts    # 多语言服务器注册表
-│   │   ├── lang-detector.ts       # PATH 自动检测 clangd/gopls
-│   │   ├── lsp-proxy.ts           # LSP Content-Length 帧解析
-│   │   ├── lsp-api.ts             # LSP 检测与配置 API
-│   │   ├── config-manager.ts      # 用户目录配置管理
-│   │   ├── ai-completion.ts
-│   │   ├── ai-chat.ts
-│   │   ├── editor-control.ts
-│   │   ├── pyright-launcher.ts
-│   │   └── config.ts
 │   └── test/
-├── shared/                # 共享模块与扩展集成代码
-├── src/                   # 前端源码
-│   ├── completions/
+├── shared/                   # 共享模块与扩展集成代码
+├── src/                      # 前端源码
 │   ├── chat/
+│   ├── completions/
 │   ├── file-system/
 │   ├── inlineCompletion/
 │   ├── lsp/
-│   │   ├── lsp-client.js          # 通用 LSP 客户端工厂
-│   │   ├── language-configs.js     # Python/C++/Go 语言配置
-│   │   ├── lsp-manager.js         # LSP Manager（全局+语言开关）
-│   │   ├── python-client.js       # Python LSP 向后兼容包装器
-│   │   ├── document-sync.js       # 多语言文档同步
-│   │   └── __tests__/             # LSP 测试套件
 │   ├── mcp/
 │   ├── sample-code/
 │   ├── styles/
 │   ├── ui/
-│   ├── utils/
-│   └── main.js
-├── test/                  # 根级测试配置与辅助代码
-├── ts-mcp/                # TypeScript MCP 示例工程
-├── vite.config.js         # Vite 配置
-├── package.json           # 依赖与项目脚本
+│   └── utils/
+├── test/                     # 根级测试配置与辅助代码
+├── ts-mcp/                   # TypeScript MCP 示例工程
+├── vite.config.js            # Vite 配置
+├── package.json              # 依赖与项目脚本
 └── README.md
 ```
 
@@ -83,15 +65,16 @@ monaco-start/
 pnpm install
 ```
 
-2. 编译后端服务器：
+2. 启动后端服务器：
 
+开发模式（推荐）：
 ```bash
-pnpm run server:build
+pnpm run server:dev
 ```
 
-3. 启动后端服务器：
-
+或生产模式（先编译再启动）：
 ```bash
+pnpm run server:build
 pnpm run server:start
 ```
 
@@ -113,7 +96,7 @@ pnpm run dev
 start-client.bat
 ```
 
-默认前端地址：`http://localhost:5173`
+默认前端地址：`http://localhost:8080`
 
 > 注意：后端服务默认监听 `http://localhost:3000`，AI / LSP / MCP 相关功能依赖后端运行。
 
@@ -192,6 +175,12 @@ curl http://localhost:3000/lsp/detect
 - `pnpm run test:e2e`：Playwright 端到端测试
 - `pnpm run test:e2e:ui`：Playwright GUI 模式
 
+## Windows 便捷脚本
+
+- `start-server.bat`：启动后端服务器
+- `start-client.bat`：启动前端开发服务器
+- `build-and-start.bat`：构建并启动整个应用
+
 ## 主要功能说明
 
 ### 编辑器功能
@@ -251,12 +240,14 @@ Language Server Process (Pyright / clangd / gopls)
 
 - `src/`：前端主应用代码
 - `server/`：后端 Express + WebSocket 服务，带多语言 LSP 和 AI API
-- `docs/`：文档与架构设计说明
-- `e2e/`：端到端测试相关
+- `docs/`：设计文档与规划
+- `plan/`：项目规划文档
+- `e2e/`：端到端测试方案
 - `python-mcp/`、`ts-mcp/`：MCP 示例工程
-- `playwright-mcp/`：Playwright 结合 MCP 的测试示例
-- `shared/`：可复用共享模块
-- `wiki/`：项目知识库与文档站点
+- `playwright-mcp/`：Playwright MCP 测试示例
+- `shared/`：共享模块与扩展集成代码
+- `example/`：演示页面与示例资产
+- `test/`：根级测试配置与辅助代码
 
 ## 测试
 
@@ -287,7 +278,7 @@ pnpm run server:dev
 
 ## 相关文档
 
-- `docs/plan-ai-completion.md`
+- `docs/inlineCompletion/` — Ghost Text 补全相关文档（架构、缓存、防抖、投机请求）
 - `docs/summary-lsp-test-fix.md`
 - `wiki/` 下的架构、API 与组件说明
 
