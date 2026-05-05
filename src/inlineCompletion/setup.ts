@@ -13,6 +13,7 @@ import { SimpleGhostTextController } from './ghostTextController.js';
 import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
 import { registerAICompletionHotkeys } from './registerHotkeys.js';
 import { aiCompletionConfig, setPipelineMode } from './aiCompletionConfig.js';
+import { PipelineMode } from './types.js';
 import { getLogger } from '../utils/logger.js';
 
 // 完整版组件
@@ -47,10 +48,10 @@ export function setupInlineCompletion(
     // 先清理之前的资源
     dispose();
 
-    if (aiCompletionConfig.pipelineMode === 'mock') {
+    if (aiCompletionConfig.pipelineMode === PipelineMode.Mock) {
         setupSimplePipeline(monacoInstance, editor);
         logger.info('Mock pipeline setup — using template completions');
-    } else if (aiCompletionConfig.pipelineMode === 'simple') {
+    } else if (aiCompletionConfig.pipelineMode === PipelineMode.Simple) {
         setupSimplePipeline(monacoInstance, editor);
     } else {
         setupFullPipeline(monacoInstance, editor);
@@ -80,10 +81,11 @@ function setupSimplePipeline(
 
     const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
-    monacoInstance.languages.registerInlineCompletionsProvider(
+    const providerDisposable = monacoInstance.languages.registerInlineCompletionsProvider(
         { pattern: '**/*' },
         provider,
     );
+    disposeCallbacks.push(() => providerDisposable.dispose());
 
     editor.onDidChangeModelContent(() => {
         controller.cancelCurrentRequest();
@@ -172,10 +174,11 @@ function setupFullPipeline(
     // 9. Monaco Provider
     const provider = new MonacoInlineCompletionsProvider(controller, editor);
 
-    monacoInstance.languages.registerInlineCompletionsProvider(
+    const providerDisposable = monacoInstance.languages.registerInlineCompletionsProvider(
         { pattern: '**/*' },
         provider,
     );
+    disposeCallbacks.push(() => providerDisposable.dispose());
 
     editor.onDidChangeModelContent(() => {
         controller.cancelCurrentRequest();
@@ -209,7 +212,7 @@ function createClientFromConfig(
     fimAdapter?: any,
     modelSelector?: any,
 ) {
-    if (aiCompletionConfig.pipelineMode === 'mock') {
+    if (aiCompletionConfig.pipelineMode === PipelineMode.Mock) {
         return new MockAICompletionClient(aiCompletionConfig.mock);
     }
     return new AICompletionClient(fimAdapter, modelSelector);
@@ -301,7 +304,7 @@ function getClientLabel(): string {
  * 切换管线模式（运行时动态切换）
  * 切换后需要重新调用 setupInlineCompletion 才生效
  */
-export function switchPipelineMode(mode: 'mock' | 'simple' | 'full') {
+export function switchPipelineMode(mode: PipelineMode) {
     setPipelineMode(mode);
     logger.info(`Pipeline mode switched to: ${mode} (will take effect on next setup)`);
 }

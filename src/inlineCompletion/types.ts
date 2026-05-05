@@ -93,6 +93,13 @@ export enum BlockMode {
     MoreMultiline = 'moremultiline',
 }
 
+/** 补全管线模式 */
+export enum PipelineMode {
+    Mock = 'mock',
+    Simple = 'simple',
+    Full = 'full',
+}
+
 /** Prompt 信息 */
 export interface PromptInfo {
     /** 光标前内容 */

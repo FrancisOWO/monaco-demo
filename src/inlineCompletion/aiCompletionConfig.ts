@@ -4,14 +4,14 @@
  * apiKey/endpoint 由后端代理处理，前端不持有
  */
 
-import { FimFormat, type FimModelConfig } from './types.js';
+import { FimFormat, PipelineMode, type FimModelConfig } from './types.js';
 
 const endpoint = '/ai/completion' as string;
 
 /** AI 补全配置 */
 export const aiCompletionConfig = {
     /** 管线模式：'mock' 模板补全 | 'simple' 简易 AI 补全 | 'full' 完整 AI 补全 */
-    pipelineMode: 'mock' as 'mock' | 'simple' | 'full',
+    pipelineMode: PipelineMode.Simple as PipelineMode,
 
     /** 是否启用流式补全（true → SSE 流式，false → 非流式 JSON） */
     streamEnabled: false,
@@ -102,6 +102,6 @@ export const aiCompletionConfig = {
 /**
  * 切换管线模式
  */
-export function setPipelineMode(mode: 'mock' | 'simple' | 'full') {
+export function setPipelineMode(mode: PipelineMode) {
     aiCompletionConfig.pipelineMode = mode;
 }

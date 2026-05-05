@@ -113,7 +113,9 @@ router.post('/', async (req, res) => {
         const client = createOpenAIClient(apiConfig);
         const model = apiConfig.modelId || config.ai.fimModel;
 
-        console.log(`[AI Completion] Real API call: model=${model}, baseUrl=${apiConfig.baseUrl}, prefix=${body.prefix.substring(0, 80).replace(/\n/g, '\\n')}...`);
+        console.log(`[AI Completion] Real API call: model=${model}, baseUrl=${apiConfig.baseUrl}`);
+        const lastLine = body.prefix.split('\n').pop() || '';
+        console.log(`[AI Completion] Prompt last line: ${lastLine.substring(0, 80)}`);
 
         // 非流式
         if (!isStream) {
@@ -136,7 +138,8 @@ router.post('/', async (req, res) => {
                 }))
                 .filter(item => item.insertText.trim().length > 0);
 
-            console.log(`[AI Completion] Non-stream response: ${items.length} item(s), text=${items[0]?.insertText?.substring(0, 80).replace(/\n/g, '\\n') || '(empty)'}...`);
+            const preview = (items[0]?.insertText || '').split('\n')[0]?.substring(0, 40) || '(empty)';
+            console.log(`[AI Completion] Non-stream response: ${items.length} item(s), first line: ${preview}`);
             res.json({ items });
             return;
         }
@@ -170,7 +173,8 @@ router.post('/', async (req, res) => {
             }
 
             res.write(`event: done\ndata: ${JSON.stringify({ fullText })}\n\n`);
-            console.log(`[AI Completion] Stream done: ${fullText.length} chars, text=${fullText.substring(0, 80).replace(/\n/g, '\\n')}...`);
+            const preview = fullText.split('\n')[0]?.substring(0, 40) || '(empty)';
+            console.log(`[AI Completion] Stream done: ${fullText.length} chars, first line: ${preview}`);
             res.end();
         } catch (error: any) {
             console.error('[AI Completion Stream] Error:', error);
