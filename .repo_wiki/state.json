@@ -2,79 +2,104 @@
   "version": "1.0.0",
   "baseline_commit": "5fdb7d8d18bc5433e3a2a3f6735e028c44ac1b4a",
   "initialized_at": "2026-04-22T17:55:00Z",
-  "last_updated": "2026-04-23T13:50:00Z",
+  "last_updated": "2026-05-05T13:00:00Z",
+  "last_commit": "cba6b1d98d47423766cf360325587f05e5f8ea8b",
   "pages": {
     "index.md": {
       "title": "Home",
-      "path": "docs/index.md",
-      "last_generated": "2026-04-23T13:50:00Z",
-      "source_files": ["vite.config.js", "package.json"]
+      "path": "wiki/index.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["package.json", "vite.config.js"]
     },
     "getting-started/local-dev.md": {
       "title": "Local Development",
-      "path": "docs/getting-started/local-dev.md",
-      "last_generated": "2026-04-23T13:50:00Z",
+      "path": "wiki/getting-started/local-dev.md",
+      "last_generated": "2026-05-05T13:00:00Z",
       "source_files": ["package.json"]
     },
     "getting-started/configuration.md": {
       "title": "Configuration",
-      "path": "docs/getting-started/configuration.md",
-      "last_generated": "2026-04-23T13:50:00Z",
-      "source_files": ["vite.config.js"]
+      "path": "wiki/getting-started/configuration.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["vite.config.js", "server/src/config.ts", "server/src/config-manager.ts"]
     },
     "architecture/overview.md": {
       "title": "Architecture Overview",
-      "path": "docs/architecture/overview.md",
-      "last_generated": "2026-04-23T13:50:00Z",
-      "source_files": ["vite.config.js"]
+      "path": "wiki/architecture/overview.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["server/src/server.ts", "server/src/language-servers.ts", "server/src/ai-completion.ts", "server/src/ai-chat.ts", "server/src/editor-control.ts"]
     },
     "architecture/data-flow.md": {
       "title": "Data Flow",
-      "path": "docs/architecture/data-flow.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "path": "wiki/architecture/data-flow.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["src/lsp/lsp-client.js", "src/inlineCompletion/monacoInlineCompletionsProvider.ts", "src/chat/chat-stream-client.js", "server/src/mcp/editor-mcp-server.ts"]
     },
     "components/monaco-editor.md": {
       "title": "Monaco Editor",
-      "path": "docs/components/monaco-editor.md",
-      "last_generated": "2026-04-23T13:50:00Z",
-      "source_files": ["src/main.js", "vite.config.js"]
+      "path": "wiki/components/monaco-editor.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["src/main.js", "vite.config.js", "src/lsp/language-configs.js"]
     },
     "components/lsp-server.md": {
       "title": "LSP Server",
-      "path": "docs/components/lsp-server.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "path": "wiki/components/lsp-server.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["server/src/language-servers.ts", "server/src/lsp-proxy.ts", "server/src/lsp-api.ts", "server/src/lang-detector.ts", "src/lsp/lsp-manager.js", "src/lsp/lsp-client.js"]
     },
     "components/websocket-handler.md": {
       "title": "WebSocket Handler",
-      "path": "docs/components/websocket-handler.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "path": "wiki/components/websocket-handler.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["server/src/server.ts", "server/src/editor-control.ts", "server/src/lsp-proxy.ts"]
+    },
+    "components/ai-completion.md": {
+      "title": "AI Completion",
+      "path": "wiki/components/ai-completion.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["src/inlineCompletion/setup.ts", "src/inlineCompletion/monacoInlineCompletionsProvider.ts", "server/src/ai-completion.ts"]
+    },
+    "components/ai-chat.md": {
+      "title": "AI Chat",
+      "path": "wiki/components/ai-chat.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["src/chat/chat-store.js", "src/chat/chat-panel.js", "server/src/ai-chat.ts"]
+    },
+    "components/mcp.md": {
+      "title": "MCP & Editor Control",
+      "path": "wiki/components/mcp.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["server/src/editor-control.ts", "server/src/mcp/editor-mcp-server.ts", "server/src/mcp/editor-tools.ts", "server/src/mcp/mcp-client-manager.ts", "src/mcp/editor-mcp-client.js"]
+    },
+    "components/file-system.md": {
+      "title": "File System",
+      "path": "wiki/components/file-system.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["src/file-system/file-store.js", "src/file-system/fs-access.js", "src/ui/sidebar.js", "src/mcp/editor-mcp-client.js"]
     },
     "api/endpoints.md": {
       "title": "API Endpoints",
-      "path": "docs/api/endpoints.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "path": "wiki/api/endpoints.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["server/src/server.ts", "server/src/ai-completion.ts", "server/src/ai-chat.ts", "server/src/lsp-api.ts", "server/src/config-api.ts"]
     },
     "operations/build-and-test.md": {
       "title": "Build & Test",
-      "path": "docs/operations/build-and-test.md",
-      "last_generated": "2026-04-23T13:50:00Z",
-      "source_files": ["package.json"]
+      "path": "wiki/operations/build-and-test.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["package.json", "jest.config.js", "playwright.config.ts"]
     },
     "operations/deploy.md": {
       "title": "Deployment",
-      "path": "docs/operations/deploy.md",
-      "last_generated": "2026-04-22T17:55:00Z",
-      "source_files": []
+      "path": "wiki/operations/deploy.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": ["server/src/config.ts", "package.json"]
     },
     "glossary.md": {
       "title": "Glossary",
-      "path": "docs/glossary.md",
-      "last_generated": "2026-04-23T13:50:00Z",
-      "source_files": ["vite.config.js"]
+      "path": "wiki/glossary.md",
+      "last_generated": "2026-05-05T13:00:00Z",
+      "source_files": []
     }
   }
 }

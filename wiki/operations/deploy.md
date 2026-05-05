@@ -1,7 +1,7 @@
 ---
 generated_by: repo-wiki-agent
 baseline_commit: "5fdb7d8d18bc5433e3a2a3f6735e028c44ac1b4a"
-last_updated: "2026-04-22"
+last_updated: "2026-05-05"
 managed_sections:
   - "## Overview"
   - "## Build for Production"
@@ -15,7 +15,7 @@ managed_sections:
 
 ## Overview
 
-部署分为前端静态资源和后端服务器两部分。
+部署分为前端静态资源和后端服务器两部分。后端服务需要访问语言服务器（Pyright/clangd/gopls）和 AI API。
 
 ## Build for Production
 
@@ -88,7 +88,9 @@ app.use(express.static('public'));
 ```bash
 NODE_ENV=production
 PORT=3000
-LSP_TIMEOUT=5000
+CLANGD_PATH=/usr/local/bin/clangd   # 可选
+GOPLS_PATH=/usr/local/bin/gopls     # 可选
+MY_MONACO_PATH=/custom/config/dir    # 可选，用户配置目录
 ```
 
 **PM2 配置** (进程管理):
@@ -112,6 +114,7 @@ module.exports = {
 
 ## Team Notes
 
-- 确保 Python 和 Pyright 在服务器上已安装
+- 确保语言服务器（Pyright/clangd/gopls）在部署环境中已安装
 - WebSocket 可能需要特殊配置 (Nginx proxy)
 - 考虑使用 PM2 管理 Node 进程
+- AI 功能需要配置 OpenAI API endpoint 和 key

@@ -1,5 +1,5 @@
 site_name: Monaco Editor Demo Wiki
-site_description: Monaco Editor 示例项目文档，支持 Python LSP 集成
+site_description: Monaco Editor 示例项目文档，支持多语言 LSP、AI 补全、AI 聊天和 MCP 编辑器控制
 
 nav:
   - Home: index.md
@@ -13,6 +13,10 @@ nav:
       - Monaco Editor: components/monaco-editor.md
       - LSP Server: components/lsp-server.md
       - WebSocket Handler: components/websocket-handler.md
+      - AI Completion: components/ai-completion.md
+      - AI Chat: components/ai-chat.md
+      - MCP & Editor Control: components/mcp.md
+      - File System: components/file-system.md
   - API:
       - Endpoints: api/endpoints.md
   - Operations:

@@ -1,10 +1,10 @@
 ---
 generated_by: repo-wiki-agent
 baseline_commit: "5fdb7d8d18bc5433e3a2a3f6735e028c44ac1b4a"
-last_updated: "2026-04-22"
+last_updated: "2026-05-05"
 managed_sections:
   - "## REST Endpoints"
-  - "## WebSocket Events"
+  - "## WebSocket Endpoints"
   - "## LSP Methods"
   - "## Error Responses"
 ---
@@ -21,88 +21,113 @@ managed_sections:
 GET /health
 ```
 
-**Response**:
+**Response** (`server/src/server.ts:36`):
 ```json
 {
   "status": "ok",
   "version": "1.0.0",
-  "timestamp": "2024-01-15T10:30:00Z"
+  "timestamp": "..."
 }
 ```
 
-### LSP Server Status
+### AI Completion
 
 ```
-GET /lsp/status
+POST /ai/completion
 ```
 
-**Response**:
+**Request Body** (`server/src/ai-completion.ts:47`):
 ```json
 {
-  "connected": true,
-  "processId": 12345,
-  "workspace": "/path/to/workspace"
+  "prefix": "def hello():",
+  "suffix": "",
+  "language": "python",
+  "stream": true,
+  "strategy": "singleLine",
+  "position": { "line": 5, "character": 15 }
 }
 ```
 
-## WebSocket Events
+**Response**: SSE stream (text/event-stream) 或 JSON（非流式模式）
 
-### Connection
+### AI Chat
 
-```javascript
-const ws = new WebSocket('ws://localhost:3000/lsp');
-
-ws.onopen = () => {
-  console.log('Connected to LSP server');
-};
-
-ws.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  handleLSPMessage(message);
-};
-
-ws.onclose = () => {
-  console.log('Disconnected from LSP server');
-};
+```
+POST /ai/chat/message
 ```
 
-### Message Format
-
-**Outgoing** (Client → Server):
+**Request Body** (`server/src/ai-chat.ts:73`):
 ```json
 {
-  "jsonrpc": "2.0",
-  "id": 1,
-  "method": "textDocument/completion",
-  "params": {
-    "textDocument": {
-      "uri": "file:///test.py"
-    },
-    "position": {
-      "line": 10,
-      "character": 5
-    }
-  }
+  "messages": [...],
+  "context": [...],
+  "mode": "ask",
+  "apiConfig": { ... }
 }
 ```
 
-**Incoming** (Server → Client):
-```json
-{
-  "jsonrpc": "2.0",
-  "id": 1,
-  "result": {
-    "items": [
-      {
-        "label": "print",
-        "kind": 3,
-        "detail": "function",
-        "documentation": "Prints the values..."
-      }
-    ]
-  }
-}
+**Response**: SSE stream (text/event-stream)
+
 ```
+GET /ai/chat/context/file?path=xxx
+```
+
+获取文件上下文信息
+
+```
+GET /ai/chat/registry/skills
+GET /ai/chat/registry/mcp
+```
+
+获取 Skill 和 MCP 工具注册表
+
+### LSP API
+
+```
+GET  /lsp/detect   — 检测语言服务器可用性
+GET  /lsp/config   — 获取 LSP 配置
+POST /lsp/config   — 更新 LSP 配置
+```
+
+(`server/src/lsp-api.ts:37,50,76`)
+
+### Config API
+
+```
+GET/POST /config/completion-api-configs — AI 补全 API 配置
+GET/POST /config/chat-api-configs       — AI 聊天 API 配置
+GET/POST /config/conversation-history   — 对话历史
+DELETE   /config/conversation-history/item?id=xxx — 软删除对话
+GET/POST /config/settings               — 通用设置
+GET/POST /config/mcp-servers            — MCP 服务器配置
+POST     /config/mcp-servers/add        — 添加 MCP 服务器
+DELETE   /config/mcp-servers/remove?name=xxx — 删除 MCP 服务器
+GET      /config/info                   — 配置目录信息
+```
+
+(`server/src/config-api.ts`)
+
+### Editor Control
+
+```
+GET  /editor-control/status   — 编辑器 WebSocket 连接状态
+POST /editor-control/command  — 向编辑器发送命令
+```
+
+(`server/src/server.ts:55,59`)
+
+```
+GET /workspace-root — 获取工作区文件 URI
+```
+
+## WebSocket Endpoints
+
+| 端点 | 说明 |
+|------|------|
+| `ws://localhost:3000/pyright` | Python LSP (Pyright) |
+| `ws://localhost:3000/clangd` | C++ LSP (clangd) |
+| `ws://localhost:3000/gopls` | Go LSP (gopls) |
+| `ws://localhost:3000/editor-control` | MCP 编辑器控制桥 |
 
 ## LSP Methods
 
@@ -127,17 +152,7 @@ ws.onclose = () => {
 
 **Returns**: Hover
 
-### textDocument/definition
-
-跳转到定义。
-
-**Params**:
-- `textDocument.uri`: 文件 URI
-- `position`: 光标位置
-
-**Returns**: Location | Location[]
-
-### textDocument/diagnostics
+### textDocument/publishDiagnostics
 
 诊断通知 (服务器 → 客户端)。
 
@@ -170,6 +185,6 @@ ws.onclose = () => {
 
 ## Team Notes
 
-- WebSocket 连接在 `/lsp` 路径
-- 所有消息使用 JSON-RPC 2.0 格式
-- 诊断通知是服务器主动推送的
+- LSP WebSocket 连接在不同路径（/pyright, /clangd, /gopls）
+- AI 补全和聊天使用 SSE 流式响应
+- 所有配置 API 数据持久化到用户目录 `~/.monaco-demo/`
