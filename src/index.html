@@ -242,51 +242,13 @@
                 <button class="chat-modal-close" id="chat-settings-close" title="关闭">✕</button>
             </div>
             <div class="chat-modal-tabs">
-                <button class="chat-modal-tab active" data-tab="completion-api">补全配置</button>
-                <button class="chat-modal-tab" data-tab="chat-api">对话配置</button>
+                <button class="chat-modal-tab active" data-tab="chat-api">对话配置</button>
+                <button class="chat-modal-tab" data-tab="completion-api">补全配置</button>
                 <button class="chat-modal-tab" data-tab="mcp">MCP 服务器</button>
             </div>
             <div class="chat-modal-body">
-                <!-- 补全配置 Tab -->
-                <div class="chat-modal-tab-content active" data-tab-content="completion-api">
-                    <div class="chat-settings-section">
-                        <div class="chat-settings-section-title">选择配置</div>
-                        <div class="chat-config-selector">
-                            <div id="chat-completion-config-select" class="custom-dropdown">
-                                <div class="custom-dropdown-trigger">
-                                    <span class="custom-dropdown-label"></span>
-                                    <span class="custom-dropdown-arrow">⌵</span>
-                                </div>
-                                <div class="custom-dropdown-list"></div>
-                            </div>
-                            <button class="chat-config-btn" id="chat-completion-config-add" title="添加配置">＋</button>
-                            <button class="chat-config-btn chat-config-btn-danger" id="chat-completion-config-delete" title="删除当前配置">删除</button>
-                        </div>
-                    </div>
-                    <div class="chat-settings-section" id="chat-completion-config-form-section">
-                        <div class="chat-settings-section-title">配置详情</div>
-                        <form class="chat-settings-form" autocomplete="off">
-                            <div class="chat-settings-field">
-                                <label for="chat-completion-config-name">配置名称</label>
-                                <input type="text" id="chat-completion-config-name" placeholder="例如: DeepSeek FIM" autocomplete="off" />
-                            </div>
-                            <div class="chat-settings-field">
-                                <label for="chat-completion-config-modelid">模型 ID</label>
-                                <input type="text" id="chat-completion-config-modelid" placeholder="例如: deepseek-coder, codestral" autocomplete="off" />
-                            </div>
-                            <div class="chat-settings-field">
-                                <label for="chat-completion-config-baseurl">Base URL</label>
-                                <input type="url" id="chat-completion-config-baseurl" placeholder="https://api.example.com/v1" autocomplete="off" />
-                            </div>
-                            <div class="chat-settings-field">
-                                <label for="chat-completion-config-apikey">API Key</label>
-                                <input type="password" id="chat-completion-config-apikey" placeholder="sk-..." autocomplete="new-password" />
-                            </div>
-                        </form>
-                    </div>
-                </div>
                 <!-- 对话配置 Tab -->
-                <div class="chat-modal-tab-content" data-tab-content="chat-api">
+                <div class="chat-modal-tab-content active" data-tab-content="chat-api">
                     <div class="chat-settings-section">
                         <div class="chat-settings-section-title">选择配置</div>
                         <div class="chat-config-selector">
@@ -319,6 +281,44 @@
                             <div class="chat-settings-field">
                                 <label for="chat-chat-config-apikey">API Key</label>
                                 <input type="password" id="chat-chat-config-apikey" placeholder="sk-..." autocomplete="new-password" />
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <!-- 补全配置 Tab -->
+                <div class="chat-modal-tab-content" data-tab-content="completion-api">
+                    <div class="chat-settings-section">
+                        <div class="chat-settings-section-title">选择配置</div>
+                        <div class="chat-config-selector">
+                            <div id="chat-completion-config-select" class="custom-dropdown">
+                                <div class="custom-dropdown-trigger">
+                                    <span class="custom-dropdown-label"></span>
+                                    <span class="custom-dropdown-arrow">⌵</span>
+                                </div>
+                                <div class="custom-dropdown-list"></div>
+                            </div>
+                            <button class="chat-config-btn" id="chat-completion-config-add" title="添加配置">＋</button>
+                            <button class="chat-config-btn chat-config-btn-danger" id="chat-completion-config-delete" title="删除当前配置">删除</button>
+                        </div>
+                    </div>
+                    <div class="chat-settings-section" id="chat-completion-config-form-section">
+                        <div class="chat-settings-section-title">配置详情</div>
+                        <form class="chat-settings-form" autocomplete="off">
+                            <div class="chat-settings-field">
+                                <label for="chat-completion-config-name">配置名称</label>
+                                <input type="text" id="chat-completion-config-name" placeholder="例如: DeepSeek FIM" autocomplete="off" />
+                            </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-completion-config-modelid">模型 ID</label>
+                                <input type="text" id="chat-completion-config-modelid" placeholder="例如: deepseek-coder, codestral" autocomplete="off" />
+                            </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-completion-config-baseurl">Base URL</label>
+                                <input type="url" id="chat-completion-config-baseurl" placeholder="https://api.example.com/v1" autocomplete="off" />
+                            </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-completion-config-apikey">API Key</label>
+                                <input type="password" id="chat-completion-config-apikey" placeholder="sk-..." autocomplete="new-password" />
                             </div>
                         </form>
                     </div>
