@@ -113,6 +113,12 @@ window.addEventListener('error', (event) => {
 });
 
 window.addEventListener('unhandledrejection', (event) => {
+    // Monaco editor 内部取消操作时会抛出 Canceled 错误，属于正常行为，静默处理
+    const reason = event.reason;
+    if (reason && (reason.name === 'Canceled' || reason instanceof Error && reason.message === 'Canceled')) {
+        event.preventDefault();
+        return;
+    }
     logger.error('Unhandled promise rejection:', event.reason);
     showApp();
 });
