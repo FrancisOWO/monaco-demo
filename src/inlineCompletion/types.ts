@@ -320,7 +320,7 @@ export interface IStrategyManager {
     determineStrategy(
         context: CompletionRequestContext,
         prompt: PromptInfo,
-        hasAcceptedCurrent: boolean,
+        consecutiveAcceptCount: number,
     ): Promise<CompletionStrategy>;
 }
 
@@ -347,8 +347,8 @@ export interface ICurrentGhostText {
     /** 清除当前补全 */
     clear(): void;
 
-    /** 检查当前补全是否已被完整接受 */
-    hasAcceptedCurrentCompletion(prefix: string, suffix: string): boolean;
+    /** 检查当前补全是否已被完整接受，返回连续接受次数 */
+    hasAcceptedCurrentCompletion(prefix: string, suffix: string): number;
 
     /** 获取当前补全（完整版） */
     getCurrent?(): { prefix: string; suffix: string; choices: CompletionResult[] } | undefined;

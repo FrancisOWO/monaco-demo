@@ -26,6 +26,8 @@ export interface StrategyManagerConfig {
     lookAheadSmall: number;
     /** 接受后固定行数 */
     multilineAfterAcceptLines: number;
+    /** 连续接受补全多少次后触发多行策略 */
+    consecutiveAcceptThreshold: number;
 }
 
 /** 策略管理器 */
@@ -43,6 +45,7 @@ export class StrategyManager implements IStrategyManager {
             lookAheadLarge: 7,
             lookAheadSmall: 3,
             multilineAfterAcceptLines: 1,
+            consecutiveAcceptThreshold: 3,
             ...config,
         };
     }
@@ -50,7 +53,7 @@ export class StrategyManager implements IStrategyManager {
     async determineStrategy(
         context: CompletionRequestContext,
         prompt: PromptInfo,
-        hasAcceptedCurrent: boolean,
+        consecutiveAcceptCount: number,
     ): Promise<CompletionStrategy> {
         const model = this.editor.getModel();
         if (!model) {
@@ -70,7 +73,7 @@ export class StrategyManager implements IStrategyManager {
 
         // 2. MoreMultiline 特殊规则：仅接受后触发
         if (blockMode === BlockMode.MoreMultiline && this.blockTrimmerRegistry.isSupported(languageId)) {
-            if (!hasAcceptedCurrent) {
+            if (consecutiveAcceptCount < this.config.consecutiveAcceptThreshold) {
                 return this.singleLineStrategy(blockMode);
             }
             const blockPosition = await this.blockTrimmerRegistry.getBlockPositionType(document, position);
@@ -97,8 +100,8 @@ export class StrategyManager implements IStrategyManager {
             requestMultiline = score > 0.5;
         }
 
-        // 6. 接受后强制多行
-        if (hasAcceptedCurrent && !requestMultiline) {
+        // 6. 连续接受达到阈值后强制多行
+        if (consecutiveAcceptCount >= this.config.consecutiveAcceptThreshold && !requestMultiline) {
             return this.afterAcceptStrategy(blockMode);
         }
 

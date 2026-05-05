@@ -22,6 +22,8 @@ interface GhostTextEntry {
  */
 export class CurrentGhostText implements ICurrentGhostText {
     private current: GhostTextEntry | undefined;
+    /** 连续接受补全的次数 */
+    private consecutiveAcceptCount: number = 0;
 
     /**
      * 设置当前显示的补全
@@ -95,14 +97,18 @@ export class CurrentGhostText implements ICurrentGhostText {
      */
     clear(): void {
         this.current = undefined;
+        this.consecutiveAcceptCount = 0;
     }
 
     /**
      * 检查当前补全是否已被完整接受
+     * 返回连续接受补全的次数（0 表示未接受）
      */
-    hasAcceptedCurrentCompletion(prefix: string, suffix: string): boolean {
+    hasAcceptedCurrentCompletion(prefix: string, suffix: string): number {
         if (!this.current) {
-            return false;
+            // 没有当前补全 → 重置计数
+            this.consecutiveAcceptCount = 0;
+            return 0;
         }
 
         // 如果用户输入超过了原始补全的范围，说明已接受
@@ -110,7 +116,13 @@ export class CurrentGhostText implements ICurrentGhostText {
         const originalText = this.current.originalTexts[0] ?? '';
 
         // 检查是否完全匹配（用户输入包含了整个补全）
-        return prefix === originalPrefix + originalText && suffix === this.current.suffix;
+        const accepted = prefix === originalPrefix + originalText && suffix === this.current.suffix;
+        if (accepted) {
+            this.consecutiveAcceptCount++;
+        } else {
+            this.consecutiveAcceptCount = 0;
+        }
+        return this.consecutiveAcceptCount;
     }
 
     /**

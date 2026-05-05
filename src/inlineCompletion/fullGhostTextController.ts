@@ -114,14 +114,14 @@ export class FullGhostTextController implements IGhostTextController {
         }
 
         // 3. 判定策略
-        const hasAccepted = this.currentGhostText.hasAcceptedCurrentCompletion(
+        const consecutiveAcceptCount = this.currentGhostText.hasAcceptedCurrentCompletion(
             prompt.prefix,
             prompt.suffix,
         );
         const strategy = await this.strategyManager.determineStrategy(
             context,
             prompt,
-            hasAccepted,
+            consecutiveAcceptCount,
         );
 
         // 3. Typing-as-Suggested → 0ms
