@@ -146,6 +146,7 @@ const editor = monaco.editor.create(document.getElementById('editor-container'),
     lineNumbers: 'on',
     scrollBeyondLastLine: false,
     find: { addExtraSpaceOnTop: false },
+    inlineSuggest: { keepOnBlur: true },
 });
 
 // 立刻显示页面，不依赖可选模块
