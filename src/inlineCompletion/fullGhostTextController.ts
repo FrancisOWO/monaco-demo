@@ -7,6 +7,7 @@
 import type * as monaco from 'monaco-editor';
 import {
     CompletionSource,
+    InlineCompletionTriggerKind,
     BlockMode,
     CompletionLifecycleKind,
     type CompletionResult,
@@ -43,6 +44,8 @@ export class FullGhostTextController implements IGhostTextController {
     private currentRequestId: string = '';
     private cancelledRequests = new Set<string>();
     private debouncedGetCompletions: ReturnType<typeof debounceCancellable>;
+    private lastPrefix: string = '';
+    private isDeletionMode: boolean = false;
 
     constructor(
         private promptFactory: IPromptFactory,
@@ -95,7 +98,22 @@ export class FullGhostTextController implements IGhostTextController {
         // 1. 构建 Prompt
         const prompt = await this.promptFactory.buildPrompt(context);
 
-        // 2. 判定策略
+        // 2. 删除检测：prefix 缩短 → 删除模式（跳过缓存和请求）
+        //    prefix 增长 → 用户输入新内容 → 清除删除模式
+        if (this.lastPrefix && prompt.prefix.length < this.lastPrefix.length) {
+            this.isDeletionMode = true;
+        }
+        if (this.isDeletionMode && prompt.prefix.length > this.lastPrefix.length) {
+            this.isDeletionMode = false;
+        }
+        this.lastPrefix = prompt.prefix;
+
+        // 删除模式：不使用缓存、不发送请求（手动触发除外）
+        if (this.isDeletionMode && context.triggerKind === InlineCompletionTriggerKind.Automatic) {
+            return [];
+        }
+
+        // 3. 判定策略
         const hasAccepted = this.currentGhostText.hasAcceptedCurrentCompletion(
             prompt.prefix,
             prompt.suffix,

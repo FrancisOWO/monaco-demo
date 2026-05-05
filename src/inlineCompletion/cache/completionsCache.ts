@@ -1,13 +1,14 @@
 /**
  * CompletionsCache
- * LRU Radix Trie 缓存实现
+ * 精确 prefix 匹配 + LRU 淘汰缓存实现
+ * 不做前缀扩展/截断匹配——forward typing 由 CurrentGhostText 处理，
+ * backward matching（删除场景）不应命中缓存
  */
 
 import type {
     CompletionResult,
     ICompletionsCache,
 } from '../types.js';
-import { RadixTrie } from './radixTrie.js';
 
 interface CacheEntry {
     suffix: string;
@@ -26,51 +27,42 @@ interface CacheEntry {
 }
 
 /**
- * LRU Radix Trie 缓存
- * 支持前缀匹配查找和 LRU 淘汰
+ * LRU 精确匹配缓存
+ * 只在 prefix 精确匹配时返回缓存结果，不做前缀模糊匹配
  */
 export class LRURadixTrieCache implements ICompletionsCache {
-    private cache: RadixTrie<CacheEntry[]>;
+    private cache = new Map<string, CacheEntry[]>();
     private maxSize: number;
-    private currentSize: number;
-    private accessOrder: Map<string, number>;
+    private accessOrder = new Map<string, number>();
 
     constructor(maxSize = 100) {
-        this.cache = new RadixTrie<CacheEntry[]>();
         this.maxSize = maxSize;
-        this.currentSize = 0;
-        this.accessOrder = new Map<string, number>();
     }
 
     /**
-     * 查找匹配前缀的所有缓存项
+     * 精确 prefix 匹配查找缓存
      */
     findAll(prefix: string, suffix: string): CompletionResult[] {
-        const results: CompletionResult[] = [];
+        const entries = this.cache.get(prefix);
+        if (!entries) {
+            return [];
+        }
+
         const now = Date.now();
+        const results: CompletionResult[] = [];
 
-        // 在 Trie 中查找所有匹配 prefix 的节点
-        const matches = this.cache.findAll(prefix);
+        for (const entry of entries) {
+            if (entry.suffix === suffix) {
+                entry.lastAccessed = now;
+                this.accessOrder.set(entry.completionId, now);
 
-        for (const match of matches) {
-            const remainingKey = match.remainingKey;
-            const entries = match.value;
-
-            // 过滤匹配 suffix 的条目
-            for (const entry of entries) {
-                if (entry.suffix === suffix) {
-                    // 更新访问时间
-                    entry.lastAccessed = now;
-                    this.accessOrder.set(entry.completionId, now);
-
-                    results.push({
-                        insertText: entry.insertText,
-                        range: entry.range,
-                        completionId: entry.completionId,
-                        source: entry.source as any,
-                        isMultiline: entry.isMultiline,
-                    });
-                }
+                results.push({
+                    insertText: entry.insertText,
+                    range: entry.range,
+                    completionId: entry.completionId,
+                    source: entry.source as any,
+                    isMultiline: entry.isMultiline,
+                });
             }
         }
 
@@ -82,22 +74,14 @@ export class LRURadixTrieCache implements ICompletionsCache {
      */
     append(prefix: string, suffix: string, result: CompletionResult): void {
         // 检查缓存是否已满，执行 LRU 淘汰
-        if (this.currentSize >= this.maxSize) {
+        if (this.cache.size >= this.maxSize && !this.cache.has(prefix)) {
             this.evictLRU();
         }
 
         const now = Date.now();
-        const entries = this.cache.findAll(prefix);
+        const existing = this.cache.get(prefix) ?? [];
 
-        // 查找是否已有相同 prefix 的条目
-        let existingEntries: CacheEntry[] | undefined;
-        for (const match of entries) {
-            if (match.remainingKey === '') {
-                existingEntries = match.value;
-                break;
-            }
-        }
-
+        const existingIndex = existing.findIndex(e => e.completionId === result.completionId);
         const newEntry: CacheEntry = {
             suffix,
             insertText: result.insertText,
@@ -108,21 +92,13 @@ export class LRURadixTrieCache implements ICompletionsCache {
             lastAccessed: now,
         };
 
-        if (existingEntries) {
-            // 检查是否已存在相同的 completionId
-            const existingIndex = existingEntries.findIndex(e => e.completionId === result.completionId);
-            if (existingIndex === -1) {
-                existingEntries.push(newEntry);
-            } else {
-                // 更新现有条目
-                existingEntries[existingIndex] = newEntry;
-            }
+        if (existingIndex === -1) {
+            existing.push(newEntry);
         } else {
-            // 创建新条目
-            this.cache.insert(prefix, [newEntry]);
-            this.currentSize++;
+            existing[existingIndex] = newEntry;
         }
 
+        this.cache.set(prefix, existing);
         this.accessOrder.set(result.completionId, now);
     }
 
@@ -131,7 +107,6 @@ export class LRURadixTrieCache implements ICompletionsCache {
      */
     clear(): void {
         this.cache.clear();
-        this.currentSize = 0;
         this.accessOrder.clear();
     }
 
@@ -139,7 +114,7 @@ export class LRURadixTrieCache implements ICompletionsCache {
      * 获取缓存大小
      */
     getSize(): number {
-        return this.currentSize;
+        return this.cache.size;
     }
 
     /**
@@ -163,13 +138,23 @@ export class LRURadixTrieCache implements ICompletionsCache {
 
         if (oldestKey) {
             this.accessOrder.delete(oldestKey);
-            this.currentSize--;
+            // 从所有 prefix 条目中移除该 completionId
+            for (const [prefix, entries] of this.cache) {
+                const idx = entries.findIndex(e => e.completionId === oldestKey);
+                if (idx !== -1) {
+                    entries.splice(idx, 1);
+                    if (entries.length === 0) {
+                        this.cache.delete(prefix);
+                    }
+                    break;
+                }
+            }
         }
     }
 }
 
 /**
- * 简单的内存缓存实现（作为备选）
+ * 简单的内存缓存实现（精确匹配）
  */
 export class SimpleCompletionsCache implements ICompletionsCache {
     private cache = new Map<string, CacheEntry[]>();
@@ -181,20 +166,21 @@ export class SimpleCompletionsCache implements ICompletionsCache {
 
     findAll(prefix: string, suffix: string): CompletionResult[] {
         const results: CompletionResult[] = [];
+        const entries = this.cache.get(prefix);
 
-        for (const [key, entries] of this.cache) {
-            if (key.endsWith(prefix) || prefix.endsWith(key)) {
-                for (const entry of entries) {
-                    if (entry.suffix === suffix) {
-                        results.push({
-                            insertText: entry.insertText,
-                            range: entry.range,
-                            completionId: entry.completionId,
-                            source: entry.source as any,
-                            isMultiline: entry.isMultiline,
-                        });
-                    }
-                }
+        if (!entries) {
+            return [];
+        }
+
+        for (const entry of entries) {
+            if (entry.suffix === suffix) {
+                results.push({
+                    insertText: entry.insertText,
+                    range: entry.range,
+                    completionId: entry.completionId,
+                    source: entry.source as any,
+                    isMultiline: entry.isMultiline,
+                });
             }
         }
 
