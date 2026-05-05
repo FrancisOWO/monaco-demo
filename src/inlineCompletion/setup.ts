@@ -6,14 +6,13 @@
 import type * as monaco from 'monaco-editor';
 import { ConsoleTelemetryEmitter } from './telemetryEmitter.js';
 import { SimplePromptBuilder } from './promptBuilder.js';
-import { SimpleAICompletionClient } from './llm/simpleAICompletionClient.js';
-import { StandardAICompletionClient } from './llm/standardAICompletionClient.js';
+import { AICompletionClient } from './llm/aiCompletionClient.js';
 import { MockAICompletionClient } from './llm/mockAICompletionClient.js';
 import { SimplePostProcessor } from './postProcessor.js';
 import { SimpleGhostTextController } from './ghostTextController.js';
 import { MonacoInlineCompletionsProvider } from './monacoInlineCompletionsProvider.js';
 import { registerAICompletionHotkeys } from './registerHotkeys.js';
-import { aiCompletionConfig, setClientMode, setPipelineMode } from './aiCompletionConfig.js';
+import { aiCompletionConfig, setPipelineMode } from './aiCompletionConfig.js';
 import { getLogger } from '../utils/logger.js';
 
 // 完整版组件
@@ -48,10 +47,13 @@ export function setupInlineCompletion(
     // 先清理之前的资源
     dispose();
 
-    if (aiCompletionConfig.pipelineMode === 'full') {
-        setupFullPipeline(monacoInstance, editor);
-    } else {
+    if (aiCompletionConfig.pipelineMode === 'mock') {
         setupSimplePipeline(monacoInstance, editor);
+        logger.info('Mock pipeline setup — using template completions');
+    } else if (aiCompletionConfig.pipelineMode === 'simple') {
+        setupSimplePipeline(monacoInstance, editor);
+    } else {
+        setupFullPipeline(monacoInstance, editor);
     }
 }
 
@@ -200,20 +202,17 @@ function setupFullPipeline(
 
 /**
  * 根据统一配置创建 AI 补全客户端
- * 支持注入 FIM 适配器和模型选择器
+ * mock → MockAICompletionClient（模板补全）
+ * simple/full → AICompletionClient（真实 AI 补全）
  */
 function createClientFromConfig(
     fimAdapter?: any,
     modelSelector?: any,
 ) {
-    const { clientMode, mock } = aiCompletionConfig;
-    if (clientMode === 'mock') {
-        return new MockAICompletionClient(mock);
+    if (aiCompletionConfig.pipelineMode === 'mock') {
+        return new MockAICompletionClient(aiCompletionConfig.mock);
     }
-    if (clientMode === 'simple') {
-        return new SimpleAICompletionClient(fimAdapter, modelSelector);
-    }
-    return new StandardAICompletionClient(fimAdapter, modelSelector);
+    return new AICompletionClient(fimAdapter, modelSelector);
 }
 
 /**
@@ -288,29 +287,21 @@ function setupAutoTrigger(editor: monaco.editor.ICodeEditor) {
 }
 
 /**
- * 获取当前客户端标签
+ * 获取当前管线标签
  */
 function getClientLabel(): string {
     return {
         mock: 'MockAICompletionClient',
-        simple: 'SimpleAICompletionClient',
-        standard: 'StandardAICompletionClient',
-    }[aiCompletionConfig.clientMode] ?? 'StandardAICompletionClient';
-}
-
-/**
- * 切换客户端模式（运行时动态切换）
- */
-export function switchClientMode(mode: 'mock' | 'simple' | 'standard') {
-    setClientMode(mode);
-    logger.info(`Client mode switched to: ${mode}`);
+        simple: 'AICompletionClient (simple)',
+        full: 'AICompletionClient (full)',
+    }[aiCompletionConfig.pipelineMode] ?? 'AICompletionClient';
 }
 
 /**
  * 切换管线模式（运行时动态切换）
  * 切换后需要重新调用 setupInlineCompletion 才生效
  */
-export function switchPipelineMode(mode: 'simple' | 'full') {
+export function switchPipelineMode(mode: 'mock' | 'simple' | 'full') {
     setPipelineMode(mode);
     logger.info(`Pipeline mode switched to: ${mode} (will take effect on next setup)`);
 }

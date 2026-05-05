@@ -4,7 +4,7 @@
  */
 
 import { configService } from './config-service.js';
-import { setClientMode } from '../inlineCompletion/aiCompletionConfig.js';
+import { setPipelineMode } from '../inlineCompletion/aiCompletionConfig.js';
 
 const logger = { info: (...args) => console.log('[ChatStore]', ...args) };
 
@@ -565,8 +565,8 @@ export function deleteCompletionApiConfig(id) {
 export function syncCompletionClientMode() {
     const isMock = chatState.currentCompletionConfigId === 'mock';
     const newMode = isMock ? 'mock' : 'simple';
-    setClientMode(newMode);
-    logger.info(`Completion client mode synced to: ${newMode}`);
+    setPipelineMode(newMode);
+    logger.info(`Completion pipeline mode synced to: ${newMode}`);
 }
 
 /**

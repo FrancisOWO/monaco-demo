@@ -1,6 +1,6 @@
 /**
  * AI 补全统一配置
- * clientMode、pipeline 模式、models 参数、自动触发等非敏感配置在此管理
+ * pipelineMode、models 参数、自动触发等非敏感配置在此管理
  * apiKey/endpoint 由后端代理处理，前端不持有
  */
 
@@ -10,11 +10,11 @@ const endpoint = '/ai/completion' as string;
 
 /** AI 补全配置 */
 export const aiCompletionConfig = {
-    /** 客户端模式：'mock' 伪模型 | 'simple' 非流式 | 'standard' 流式 */
-    clientMode: 'mock' as 'mock' | 'simple' | 'standard',
+    /** 管线模式：'mock' 模板补全 | 'simple' 简易 AI 补全 | 'full' 完整 AI 补全 */
+    pipelineMode: 'mock' as 'mock' | 'simple' | 'full',
 
-    /** 管线模式：'simple' 使用简易版组件 | 'full' 使用完整版管线 */
-    pipelineMode: 'simple' as 'simple' | 'full',
+    /** 是否启用流式补全（true → SSE 流式，false → 非流式 JSON） */
+    streamEnabled: false,
 
     /** 伪模型配置（mock 模式使用） */
     mock: {
@@ -100,15 +100,8 @@ export const aiCompletionConfig = {
 };
 
 /**
- * 切换客户端模式
- */
-export function setClientMode(mode: 'mock' | 'simple' | 'standard') {
-    aiCompletionConfig.clientMode = mode;
-}
-
-/**
  * 切换管线模式
  */
-export function setPipelineMode(mode: 'simple' | 'full') {
+export function setPipelineMode(mode: 'mock' | 'simple' | 'full') {
     aiCompletionConfig.pipelineMode = mode;
 }
