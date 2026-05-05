@@ -82,8 +82,8 @@ router.post('/', async (req, res) => {
             return;
         }
 
-        // 测试模式
-        if (TEST_MODE) {
+        // 测试模式：仅在没有真实 API 配置时使用模板补全
+        if (TEST_MODE && !apiConfig) {
             if (isStream) {
                 res.setHeader('Content-Type', 'text/event-stream');
                 res.setHeader('Cache-Control', 'no-cache');

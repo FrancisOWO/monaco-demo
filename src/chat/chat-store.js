@@ -91,7 +91,7 @@ export function on(event, callback) {
     }
 }
 
-function emit(event) {
+export function emit(event) {
     callbacks[event]?.forEach(cb => cb());
 }
 
@@ -562,7 +562,7 @@ export function deleteCompletionApiConfig(id) {
  * 同步补全客户端模式
  * 当 currentCompletionConfigId 指向 mock 时使用 mock 客户端，否则使用 simple
  */
-function syncCompletionClientMode() {
+export function syncCompletionClientMode() {
     const isMock = chatState.currentCompletionConfigId === 'mock';
     const newMode = isMock ? 'mock' : 'simple';
     setClientMode(newMode);

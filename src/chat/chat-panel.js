@@ -560,6 +560,11 @@ function setupSettingsPanel() {
             return;
         }
 
+        // 保存成功后同步补全客户端模式，确保 mock ↔ simple 切换生效
+        chatStore.syncCompletionClientMode();
+        // 触发配置变更事件，让行内补全 provider 重新初始化
+        chatStore.emit('onCurrentConfigChanged');
+
         // 保存成功：更新快照，表单值与快照一致则按钮禁用
         loadCompletionConfigToForm(editingCompletionConfigId);
         loadChatConfigToForm(editingChatConfigId);
