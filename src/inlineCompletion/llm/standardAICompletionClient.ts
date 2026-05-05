@@ -22,6 +22,9 @@ import type {
 import { aiCompletionConfig } from '../aiCompletionConfig.js';
 import { createFimAdapter } from '../prompt/fimAdapter.js';
 import { DefaultModelSelector } from './modelSelector.js';
+import { getLogger } from '../../utils/logger.js';
+
+const logger = getLogger('StandardAI');
 
 /**
  * 流式补全客户端 — fetch POST + SSE 解析 (stream=true)
@@ -82,6 +85,8 @@ export class StandardAICompletionClient implements IAICompletionClient {
         // 格式化 Prompt 为模型特定的 FIM 格式
         const formattedPrompt = this.fimAdapter.format(prompt, strategy);
 
+        logger.info(`Stream request: model=${modelConfig.modelId}, endpoint=${modelConfig.endpoint}, lang=${context.languageId}, multiline=${strategy.requestMultiline}`);
+
         const response = await fetch(modelConfig.endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -106,6 +111,7 @@ export class StandardAICompletionClient implements IAICompletionClient {
         });
 
         if (!response.ok) {
+            logger.warn(`Stream response not OK: status=${response.status} ${response.statusText}`);
             // 后端无真实配置，返回空结果
             const emptyResult: CompletionResult = {
                 insertText: '',
@@ -190,6 +196,8 @@ export class StandardAICompletionClient implements IAICompletionClient {
 
         // 等待第一个 token
         await firstTokenPromise;
+
+        logger.info(`Stream first token: ${fullText.length} chars so far, text=${fullText.substring(0, 60).replace(/\n/g, '\\n')}...`);
 
         const firstResult: CompletionResult = {
             insertText: fullText,

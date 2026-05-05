@@ -68,8 +68,11 @@ router.post('/', async (req, res) => {
         const apiConfig = getCurrentApiConfig();
         const isStream = body.stream ?? false;
 
+        console.log(`[AI Completion] Request: lang=${body.language}, stream=${isStream}, config=${apiConfig ? apiConfig.name : 'none'}, testMode=${TEST_MODE}`);
+
         // 无真实配置 → 返回空结果
         if (!apiConfig) {
+            console.log('[AI Completion] No real API config, returning empty');
             if (isStream) {
                 res.setHeader('Content-Type', 'text/event-stream');
                 res.setHeader('Cache-Control', 'no-cache');
@@ -110,6 +113,8 @@ router.post('/', async (req, res) => {
         const client = createOpenAIClient(apiConfig);
         const model = apiConfig.modelId || config.ai.fimModel;
 
+        console.log(`[AI Completion] Real API call: model=${model}, baseUrl=${apiConfig.baseUrl}, prefix=${body.prefix.substring(0, 80).replace(/\n/g, '\\n')}...`);
+
         // 非流式
         if (!isStream) {
             const response = await client.completions.create({
@@ -131,6 +136,7 @@ router.post('/', async (req, res) => {
                 }))
                 .filter(item => item.insertText.trim().length > 0);
 
+            console.log(`[AI Completion] Non-stream response: ${items.length} item(s), text=${items[0]?.insertText?.substring(0, 80).replace(/\n/g, '\\n') || '(empty)'}...`);
             res.json({ items });
             return;
         }
@@ -164,6 +170,7 @@ router.post('/', async (req, res) => {
             }
 
             res.write(`event: done\ndata: ${JSON.stringify({ fullText })}\n\n`);
+            console.log(`[AI Completion] Stream done: ${fullText.length} chars, text=${fullText.substring(0, 80).replace(/\n/g, '\\n')}...`);
             res.end();
         } catch (error: any) {
             console.error('[AI Completion Stream] Error:', error);

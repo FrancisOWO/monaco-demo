@@ -14,6 +14,9 @@ import type {
     IPostProcessor,
     ITelemetryEmitter,
 } from './types.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('GhostText');
 
 /** 简易 Ghost Text 控制器 */
 export class SimpleGhostTextController implements IGhostTextController {
@@ -40,6 +43,8 @@ export class SimpleGhostTextController implements IGhostTextController {
             return [];
         }
 
+        logger.info(`Request: lang=${context.languageId}, prefix=${prompt.prefix.substring(0, 50).replace(/\n/g, '\\n')}...`);
+
         // 3. 调用 LLM
         this.telemetryEmitter.emit({
             eventType: 'completion.issued',
@@ -59,6 +64,7 @@ export class SimpleGhostTextController implements IGhostTextController {
             if (e instanceof DOMException && e.name === 'AbortError') {
                 return [];
             }
+            logger.error('Completion failed:', e);
             this.telemetryEmitter.emit({
                 eventType: 'completion.failed',
                 requestId: context.requestId,
@@ -81,6 +87,7 @@ export class SimpleGhostTextController implements IGhostTextController {
             .filter((r): r is CompletionResult => r !== undefined);
 
         // 5. 遥测
+        logger.info(`Result: ${processed.length} item(s)${processed.length > 0 ? `, text=${processed[0].insertText.substring(0, 60).replace(/\n/g, '\\n')}...` : ''}`);
         this.telemetryEmitter.emit({
             eventType: 'completion.received',
             requestId: context.requestId,

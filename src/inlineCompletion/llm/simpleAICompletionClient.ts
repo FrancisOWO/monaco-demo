@@ -22,6 +22,9 @@ import type {
 import { aiCompletionConfig } from '../aiCompletionConfig.js';
 import { createFimAdapter } from '../prompt/fimAdapter.js';
 import { DefaultModelSelector } from './modelSelector.js';
+import { getLogger } from '../../utils/logger.js';
+
+const logger = getLogger('SimpleAI');
 
 /** 非流式补全客户端 — fetch POST /ai/completion (stream=false) */
 export class SimpleAICompletionClient implements IAICompletionClient {
@@ -57,6 +60,8 @@ export class SimpleAICompletionClient implements IAICompletionClient {
         // 格式化 Prompt
         const formattedPrompt = this.fimAdapter.format(prompt, strategy);
 
+        logger.info(`Request: model=${modelConfig.modelId}, endpoint=${modelConfig.endpoint}, lang=${context.languageId}, multiline=${strategy.requestMultiline}`);
+
         try {
             const response = await fetch(modelConfig.endpoint, {
                 method: 'POST',
@@ -81,14 +86,18 @@ export class SimpleAICompletionClient implements IAICompletionClient {
             });
 
             if (!response.ok) {
+                logger.warn(`Response not OK: status=${response.status} ${response.statusText}`);
                 return [];
             }
 
             const data = await response.json();
 
             if (!data.items || data.items.length === 0) {
+                logger.info('Response: empty items');
                 return [];
             }
+
+            logger.info(`Response: ${data.items.length} item(s), text=${(data.items[0]?.insertText || '').substring(0, 60).replace(/\n/g, '\\n')}...`);
 
             return data.items.slice(0, n).map((item: any, index: number): CompletionResult => ({
                 insertText: item.insertText,
@@ -107,7 +116,7 @@ export class SimpleAICompletionClient implements IAICompletionClient {
             if (error instanceof DOMException && error.name === 'AbortError') {
                 return [];
             }
-            console.error('[SimpleAICompletionClient] Error:', error);
+            logger.error('Error:', error);
             return [];
         }
     }
