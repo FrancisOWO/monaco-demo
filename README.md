@@ -45,6 +45,7 @@ monaco-start/
 │   └── utils/
 ├── test/                     # 根级测试配置与辅助代码
 ├── ts-mcp/                   # TypeScript MCP 示例工程
+├── wiki/                     # 架构、API 与组件文档
 ├── vite.config.js            # Vite 配置
 ├── package.json              # 依赖与项目脚本
 └── README.md
@@ -84,7 +85,7 @@ pnpm run server:start
 start-server.bat
 ```
 
-4. 启动前端开发服务器：
+3. 启动前端开发服务器：
 
 ```bash
 pnpm run dev
@@ -226,7 +227,7 @@ Language Server Process (Pyright / clangd / gopls)
 
 - `server/src/language-servers.ts` — 语言服务器注册表（python/cpp/go 配置）+ 通用启动函数
 - `server/src/lsp-proxy.ts` — Content-Length 字节解析共享模块，所有语言服务器 WebSocket 端点共用
-- `server/src/lang-detector.ts` — PATH 自动检测 clangd/gopls 可用性
+- `server/src/lang-detector.ts` — PATH 自动检测 clangd/gopls 可用性（环境变量 `CLANGD_PATH`/`GOPLS_PATH` 在 `server/src/config.ts` 中读取）
 - `server/src/lsp-api.ts` — `/lsp/detect` 和 `/lsp/config` HTTP API
 - `server/src/config-manager.ts` — 用户目录配置管理（`~/.monaco-demo/settings.json`）
 
@@ -248,6 +249,7 @@ Language Server Process (Pyright / clangd / gopls)
 - `shared/`：共享模块与扩展集成代码
 - `example/`：演示页面与示例资产
 - `test/`：根级测试配置与辅助代码
+- `wiki/`：架构、API 与组件文档
 
 ## 测试
 
