@@ -7,7 +7,7 @@ import { buildTree, expandNode, collapseNode } from '../file-system/file-tree.js
 import { openFileFromHandle, setActiveFile, activeFilePath, openFiles } from '../file-system/file-store.js';
 import { readFileContent } from '../file-system/fs-access.js';
 import { addFileContext, openPanel } from '../chat/chat-store.js';
-import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelection, isDiffViewOpen, closeDiffView } from '../ui/diff-viewer.js';
+import { selectFileForDiff, getDiffSelectedFile, openDiffView, closeDiffView, clearDiffSelection, isDiffViewOpen, isDiffViewExist, hideDiffView } from '../ui/diff-viewer.js';
 
 const logger = getLogger('Sidebar');
 
@@ -136,10 +136,10 @@ function renderNode(node, depth, editor) {
                 updateMultiSelectHighlight();
                 return;
             }
-            // 普通点击：清空多选，关闭 diff 视图，打开文件
+            // 普通点击：清空多选，隐藏 diff 视图（不销毁），打开文件
             multiSelectedPaths.clear();
             updateMultiSelectHighlight();
-            if (isDiffViewOpen()) closeDiffView();
+            if (isDiffViewExist()) hideDiffView();
             await openFileFromHandle(node.handle, node.path, editor);
             // 更新高亮
             updateActiveHighlight();

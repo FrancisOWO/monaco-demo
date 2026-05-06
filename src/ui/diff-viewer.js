@@ -40,7 +40,14 @@ export function getDiffSelectedFile() {
 }
 
 /**
- * 判断 Diff 视图是否打开
+ * 判断 Diff 视图是否存在（editor 未销毁）
+ */
+export function isDiffViewExist() {
+    return diffEditor !== null;
+}
+
+/**
+ * 判断 Diff 视图是否打开（overlay 可见）
  */
 export function isDiffViewOpen() {
     const overlay = document.getElementById('diff-overlay');
@@ -122,14 +129,43 @@ export function openDiffView(original, modified) {
 }
 
 /**
- * 关闭 Diff 视图
+ * 隐藏 Diff 视图（不销毁 editor，切换到其他文件时可恢复）
+ */
+export function hideDiffView() {
+    if (!diffEditor) return;
+    const overlay = document.getElementById('diff-overlay');
+    overlay.classList.add('hidden');
+    // 恢复编辑器容器
+    document.getElementById('editor-container').classList.remove('hidden');
+    const welcome = document.getElementById('welcome-page');
+    if (welcome && openFiles.size > 0) {
+        welcome.classList.add('hidden');
+    } else if (welcome) {
+        welcome.classList.remove('hidden');
+    }
+    emit('onTabsChanged');
+}
+
+/**
+ * 恢复显示 Diff 视图（从其他文件切回时）
+ */
+export function showDiffView() {
+    if (!diffEditor) return;
+    document.getElementById('editor-container').classList.add('hidden');
+    document.getElementById('welcome-page').classList.add('hidden');
+    document.getElementById('diff-header').classList.add('hidden');
+    document.getElementById('diff-overlay').classList.remove('hidden');
+    emit('onTabsChanged');
+}
+
+/**
+ * 关闭 Diff 视图（销毁 editor，彻底关闭）
  */
 export function closeDiffView() {
     const overlay = document.getElementById('diff-overlay');
     overlay.classList.add('hidden');
     // 恢复编辑器容器和欢迎页
     document.getElementById('editor-container').classList.remove('hidden');
-    document.getElementById('diff-header').classList.remove('hidden');
     const welcome = document.getElementById('welcome-page');
     if (welcome && openFiles.size > 0) {
         welcome.classList.add('hidden');

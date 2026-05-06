@@ -5,7 +5,7 @@
 import { getLogger } from '../utils/logger.js';
 import { openFiles, activeFilePath, setActiveFile, closeFile, forceCloseFile, getActiveFile } from '../file-system/file-store.js';
 import { showDialog } from './dialogs.js';
-import { selectFileForDiff, getDiffSelectedFile, openDiffView, closeDiffView, clearDiffSelection, isDiffViewOpen, getDiffTabLabel } from './diff-viewer.js';
+import { selectFileForDiff, getDiffSelectedFile, openDiffView, closeDiffView, clearDiffSelection, isDiffViewOpen, isDiffViewExist, hideDiffView, showDiffView, getDiffTabLabel } from './diff-viewer.js';
 import { addFileContext, openPanel } from '../chat/chat-store.js';
 
 const logger = getLogger('Tab Bar');
@@ -58,9 +58,9 @@ export function renderTabs(editor) {
                 return;
             }
             multiSelectedPaths.clear();
-            // 点击文件 tab 时先关闭 diff 视图
-            if (isDiffViewOpen()) {
-                closeDiffView();
+            // 点击文件 tab 时隐藏 diff 视图（不销毁）
+            if (isDiffViewExist()) {
+                hideDiffView();
             }
             setActiveFile(path, editor);
             renderTabs(editor);
@@ -77,11 +77,11 @@ export function renderTabs(editor) {
     }
 
     // Diff 视图打开时，追加一个特殊的 diff tab 作为活跃标签页
-    if (isDiffViewOpen()) {
+    if (isDiffViewExist()) {
         const diffLabel = getDiffTabLabel();
         if (diffLabel) {
             const diffTab = document.createElement('div');
-            diffTab.className = 'tab active';
+            diffTab.className = isDiffViewOpen() ? 'tab active' : 'tab';
             const diffName = document.createElement('span');
             diffName.className = 'tab-name';
             diffName.textContent = diffLabel;
@@ -95,6 +95,12 @@ export function renderTabs(editor) {
             });
             diffTab.appendChild(diffName);
             diffTab.appendChild(diffClose);
+            // 点击 diff tab 恢复 diff 视图
+            diffTab.addEventListener('click', (e) => {
+                if (e.ctrlKey || e.shiftKey) return;
+                showDiffView();
+                renderTabs(editor);
+            });
             tabBar.appendChild(diffTab);
         }
     }
