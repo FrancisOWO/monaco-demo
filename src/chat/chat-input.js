@@ -455,6 +455,19 @@ function insertMention(item) {
     input.setSelectionRange(newPos, newPos);
     input.focus();
 
+    // 选择 mention 时立即添加到上下文，chip 立即渲染
+    if (item.category === 'file') {
+        const openFile = openFiles.get(item.path);
+        if (openFile) {
+            chatStore.addFileContext(item.path, openFile.name, openFile.model.getValue());
+        }
+    } else if (item.category === 'skill') {
+        chatStore.addSkillContext(item.skillId || item.id, item.skillName || item.name);
+    } else if (item.category === 'mcp') {
+        const [server, toolId] = (item.mcpToolId || item.path).split('/');
+        chatStore.addMcpContext(item.mcpServer || server, toolId, item.mcpToolName || item.name);
+    }
+
     hideMentionPopup();
 }
 

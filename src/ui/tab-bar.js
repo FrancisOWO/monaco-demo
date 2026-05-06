@@ -6,7 +6,7 @@ import { getLogger } from '../utils/logger.js';
 import { openFiles, activeFilePath, setActiveFile, closeFile, forceCloseFile, getActiveFile } from '../file-system/file-store.js';
 import { showDialog } from './dialogs.js';
 import { selectFileForDiff, getDiffSelectedFile, openDiffView, closeDiffView, clearDiffSelection, isDiffViewOpen, isDiffViewExist, hideDiffView, showDiffView, getDiffTabLabel } from './diff-viewer.js';
-import { addFileContext, openPanel } from '../chat/chat-store.js';
+import { addFileContext, addUserMessage, openPanel } from '../chat/chat-store.js';
 
 const logger = getLogger('Tab Bar');
 
@@ -250,6 +250,7 @@ function showTabContextMenu(e, path, editor) {
     if (addChatItem) {
         addChatItem.addEventListener('click', () => {
             addFileContext(path, name, content);
+            addUserMessage(`引用了文件 ${name}`);
             openPanel();
             closeMenu();
         });

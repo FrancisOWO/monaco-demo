@@ -28,6 +28,7 @@ let setupChatPanel = () => {};
 let addSelectionContext = () => {};
 let openPanel = () => {};
 let chatStoreOn = () => {};
+let addUserMessage = () => {};
 let setupDiffViewer = () => {};
 let setupEditorMcpClient = () => {};
 
@@ -64,7 +65,7 @@ async function loadOptionalModules() {
         {
             name: 'chatStore',
             importFn: () => import('./chat/chat-store.js'),
-            onLoad: (m) => { addSelectionContext = m.addSelectionContext; openPanel = m.openPanel; chatStoreOn = m.on; },
+            onLoad: (m) => { addSelectionContext = m.addSelectionContext; addUserMessage = m.addUserMessage; openPanel = m.openPanel; chatStoreOn = m.on; },
         },
         {
             name: 'diffViewer',
@@ -739,6 +740,7 @@ editor.addAction({
             content,
             { startLine: selection.startLineNumber, endLine: selection.endLineNumber }
         );
+        addUserMessage(`引用了 ${activeFile.name} 的选中内容 (${selection.startLineNumber}-${selection.endLineNumber} 行)`);
         openPanel();
     },
 });

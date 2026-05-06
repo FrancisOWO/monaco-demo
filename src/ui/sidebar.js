@@ -6,7 +6,7 @@ import { getLogger } from '../utils/logger.js';
 import { buildTree, expandNode, collapseNode } from '../file-system/file-tree.js';
 import { openFileFromHandle, setActiveFile, activeFilePath, openFiles } from '../file-system/file-store.js';
 import { readFileContent } from '../file-system/fs-access.js';
-import { addFileContext, openPanel } from '../chat/chat-store.js';
+import { addFileContext, addUserMessage, openPanel } from '../chat/chat-store.js';
 import { selectFileForDiff, getDiffSelectedFile, openDiffView, closeDiffView, clearDiffSelection, isDiffViewOpen, isDiffViewExist, hideDiffView } from '../ui/diff-viewer.js';
 
 const logger = getLogger('Sidebar');
@@ -311,6 +311,7 @@ function showFileContextMenu(e, node) {
                 const content = await readFileContent(node.handle);
                 addFileContext(node.path, node.name, content);
             }
+            addUserMessage(`引用了文件 ${node.name}`);
             openPanel();
             closeMenu();
         });
