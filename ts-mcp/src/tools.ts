@@ -95,7 +95,10 @@ export class EditorTools {
     return JSON.stringify(result);
   }
 
-  async exportContext(outputDir?: string): Promise<string> {
+  /** Call editor.exportContext and write temp file. Shared core for tool and resource. */
+  private async fetchExportContext(outputDir?: string): Promise<{
+    markdown: string; summary: Array<Record<string, unknown>>; count: number; filePath: string;
+  }> {
     const result = await this.client.command('editor.exportContext') as Record<string, unknown>;
     const markdown = String(result.markdown || '');
     const summary = result.summary as Array<Record<string, unknown>>;
@@ -106,7 +109,6 @@ export class EditorTools {
       baseDir = outputDir;
     } else if (result.workspaceRoot) {
       const wsRoot = String(result.workspaceRoot);
-      // Virtual paths like /D:/Users/... → D:/Users/... (strip leading /)
       baseDir = /^\/[A-Za-z]:/.test(wsRoot) ? wsRoot.substring(1) : wsRoot;
     } else {
       baseDir = process.cwd();
@@ -114,14 +116,20 @@ export class EditorTools {
 
     const tempDir = path.join(baseDir, 'temp');
     await fs.mkdir(tempDir, { recursive: true });
-    const outputPath = path.join(tempDir, 'editor-context.md');
-    await fs.writeFile(outputPath, markdown, 'utf8');
+    await fs.writeFile(path.join(tempDir, 'editor-context.md'), markdown, 'utf8');
 
-    return JSON.stringify({
-      filePath: 'temp/editor-context.md',
-      count: result.count,
-      summary,
-    });
+    return { markdown, summary, count: Number(result.count), filePath: 'temp/editor-context.md' };
+  }
+
+  async exportContext(outputDir?: string): Promise<string> {
+    const { filePath, count, summary } = await this.fetchExportContext(outputDir);
+    return JSON.stringify({ filePath, count, summary });
+  }
+
+  /** Return assembled context markdown (also writes temp file). Used by MCP resource. */
+  async exportContextMarkdown(): Promise<string> {
+    const { markdown } = await this.fetchExportContext();
+    return markdown;
   }
 
   async addContext(params: { type: string; path: string; name: string; content: string; range?: { startLine: number; endLine: number } }): Promise<string> {

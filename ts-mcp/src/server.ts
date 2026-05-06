@@ -96,13 +96,13 @@ server.addTool({
 });
 
 server.addResource({
-  uri: 'editor://context',
+  uri: '//context',
   name: 'Editor Chat Context',
-  description: 'Current AI chat context items assembled in the editor (files, selections, skills, MCP tools)',
-  mimeType: 'application/json',
+  description: 'Assembled editor AI chat context as markdown (files, selections, skills, MCP tools). Use @my-editor-stdio://context to reference.',
+  mimeType: 'text/markdown',
   async load() {
-    const items = await tools.getContext();
-    return { text: items };
+    const markdown = await tools.exportContextMarkdown();
+    return { text: markdown };
   },
 });
 
