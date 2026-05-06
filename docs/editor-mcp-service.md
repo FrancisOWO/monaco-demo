@@ -134,6 +134,23 @@ MCP_TRANSPORT=sse MCP_PORT=3002 python-mcp/.venv/Scripts/python.exe -m editor_mc
 
 > **注意**：stdio 模式中 `args` 里的路径需使用绝对路径，因为 Claude Code 的 stdio 子进程工作目录不一定在项目根目录。
 
+## 资源
+
+### `//context`
+
+编辑器 AI 对话面板中已组装的上下文项，以 markdown 格式返回完整内容（文件、选中代码、Skill、MCP 工具），同时写入 `temp/editor-context.md` 供后续引用。
+
+引用方式：`@my-editor-stdio://context`
+
+获取方式：
+
+| 方式 | 引用 | 返回 |
+|------|------|------|
+| MCP 资源 | `@my-editor-stdio://context` | markdown 内容直接注入对话 |
+| MCP 工具 | `/my-editor-pull-context` 或 `export_context` | JSON 摘要 + 写入 `temp/editor-context.md` |
+
+两种方式均调用相同的 `editor.exportContext` 命令，都会写入临时文件。资源方式更简洁（一步引用），工具方式额外返回摘要表格。
+
 ## 工具清单
 
 ### `editor_status`
