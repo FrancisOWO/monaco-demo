@@ -1,4 +1,6 @@
-.claude/
+# .claude 目录除 skills 外都忽略
+.claude/*
+!.claude/skills/
 .qoder/
 .trae/
 .vscode/
@@ -22,3 +24,6 @@ python-mcp/**/__pycache__/
 
 # 编译产物
 */dist/
+
+# 临时文件（MCP 上下文等）
+temp/
