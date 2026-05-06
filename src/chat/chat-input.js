@@ -150,6 +150,23 @@ async function sendMessage() {
         }
     }
 
+    // 确保所有文件上下文都有内容（未打开文件可能 content 为空）
+    for (const ctx of chatStore.getContextItems()) {
+        if (ctx.type === 'file' && !ctx.content) {
+            try {
+                const openFile = openFiles.get(ctx.path);
+                if (openFile) {
+                    chatStore.updateFileContent(ctx.path, openFile.model.getValue());
+                } else {
+                    const fileData = await fetchFileContext(ctx.path);
+                    chatStore.updateFileContent(fileData.path, fileData.content);
+                }
+            } catch (e) {
+                console.warn('[ChatInput] Failed to fill file content for:', ctx.path, e);
+            }
+        }
+    }
+
     // 添加用户消息
     chatStore.addUserMessage(text);
 
@@ -460,6 +477,12 @@ function insertMention(item) {
         const openFile = openFiles.get(item.path);
         if (openFile) {
             chatStore.addFileContext(item.path, openFile.name, openFile.model.getValue());
+        } else {
+            // 未打开的文件：先用弹窗数据即时添加 chip，再异步补充内容
+            chatStore.addFileContext(item.path, item.name, '');
+            fetchFileContext(item.path).then(fileData => {
+                chatStore.updateFileContent(fileData.path, fileData.content);
+            }).catch(e => console.warn('[ChatInput] Failed to fetch file content:', e));
         }
     } else if (item.category === 'skill') {
         chatStore.addSkillContext(item.skillId || item.id, item.skillName || item.name);

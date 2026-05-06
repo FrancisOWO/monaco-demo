@@ -127,6 +127,10 @@ function renderNode(node, depth, editor) {
         item.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (e.ctrlKey || e.shiftKey) {
+                // 首次进入多选模式时，自动加入当前活动文件
+                if (multiSelectedPaths.size === 0 && activeFilePath && node.path !== activeFilePath) {
+                    multiSelectedPaths.add(activeFilePath);
+                }
                 // 多选模式：toggle 选中
                 if (multiSelectedPaths.has(node.path)) {
                     multiSelectedPaths.delete(node.path);

@@ -49,6 +49,10 @@ export function renderTabs(editor) {
         // 点击文件 tab：关闭 diff 视图并切换到该文件 / Ctrl/Shift 多选
         tab.addEventListener('click', (e) => {
             if (e.ctrlKey || e.shiftKey) {
+                // 首次进入多选模式时，自动加入当前活动 tab
+                if (multiSelectedPaths.size === 0 && activeFilePath && path !== activeFilePath) {
+                    multiSelectedPaths.add(activeFilePath);
+                }
                 if (multiSelectedPaths.has(path)) {
                     multiSelectedPaths.delete(path);
                 } else {

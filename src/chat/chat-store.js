@@ -217,6 +217,18 @@ export function addFileContext(path, name, content) {
 }
 
 /**
+ * 更新已有文件上下文的 content（用于异步补充未打开文件的内容）
+ * @param {string} path 文件路径
+ * @param {string} content 文件内容
+ */
+export function updateFileContent(path, content) {
+    const item = chatState.contextItems.find(i => i.path === path && i.type === 'file');
+    if (item) {
+        item.content = content;
+    }
+}
+
+/**
  * 添加选中内容上下文
  * @param {string} path 文件路径
  * @param {string} name 文件名
