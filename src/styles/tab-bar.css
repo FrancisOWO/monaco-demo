@@ -101,3 +101,35 @@ body[data-theme="dark"] .tab-close:hover {
 body[data-theme="dark"] .tab.dirty .tab-name::after {
     background: #4fc3f7;
 }
+
+/* Tab context menu */
+#tab-context-menu {
+    position: fixed;
+    background: #fff;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 200;
+    padding: 4px 0;
+    min-width: 180px;
+    font-size: 13px;
+}
+
+#tab-context-menu.hidden {
+    display: none;
+}
+
+.context-menu-separator {
+    height: 1px;
+    background: #e0e0e0;
+    margin: 4px 8px;
+}
+
+body[data-theme="dark"] #tab-context-menu {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+body[data-theme="dark"] .context-menu-separator {
+    background: #555;
+}

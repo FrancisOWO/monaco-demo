@@ -5,6 +5,8 @@
 import { getLogger } from '../utils/logger.js';
 import { openFiles, activeFilePath, setActiveFile, closeFile, forceCloseFile, getActiveFile } from '../file-system/file-store.js';
 import { showDialog } from './dialogs.js';
+import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelection } from './diff-viewer.js';
+import { addFileContext, openPanel } from '../chat/chat-store.js';
 
 const logger = getLogger('Tab Bar');
 
@@ -45,6 +47,13 @@ export function renderTabs(editor) {
             renderTabs(editor);
         });
 
+        // 右键上下文菜单
+        tab.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showTabContextMenu(e, path, editor);
+        });
+
         tabBar.appendChild(tab);
     }
 }
@@ -67,6 +76,188 @@ async function handleTabClose(path, editor) {
         forceCloseFile(path, editor);
     } else {
         closeFile(path, editor);
+    }
+
+    renderTabs(editor);
+}
+
+/**
+ * 显示 Tab 右键菜单（Diff / AI 上下文 / 关闭操作）
+ */
+function showTabContextMenu(e, path, editor) {
+    const descriptor = openFiles.get(path);
+    if (!descriptor) return;
+
+    // 关闭另一个菜单，防止并存
+    document.getElementById('chat-context-menu').classList.add('hidden');
+
+    const menu = document.getElementById('tab-context-menu');
+    const selected = getDiffSelectedFile();
+    const content = descriptor.model.getValue();
+    const language = descriptor.language;
+    const name = descriptor.name;
+
+    let menuHtml = '';
+
+    // Diff 区
+    if (selected) {
+        menuHtml += `<div class="context-menu-item" data-action="compare-with">
+            与 "${selected.name}" 对比
+        </div>`;
+        menuHtml += `<div class="context-menu-item" data-action="clear-diff-selection">
+            取消 Diff 选择
+        </div>`;
+    } else {
+        menuHtml += `<div class="context-menu-item" data-action="select-for-diff">
+            选择用于 Diff 对比
+        </div>`;
+    }
+
+    menuHtml += '<div class="context-menu-separator"></div>';
+
+    // 添加到 AI 对话上下文
+    menuHtml += `<div class="context-menu-item" data-action="add-to-chat">
+        添加到 AI 对话上下文
+    </div>`;
+
+    menuHtml += '<div class="context-menu-separator"></div>';
+
+    // 标签操作
+    menuHtml += `<div class="context-menu-item" data-action="close">
+        关闭
+    </div>`;
+    menuHtml += `<div class="context-menu-item" data-action="close-others">
+        关闭其他
+    </div>`;
+    menuHtml += `<div class="context-menu-item" data-action="close-all">
+        关闭所有
+    </div>`;
+
+    menu.innerHTML = menuHtml;
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+    menu.classList.remove('hidden');
+
+    const closeMenu = () => {
+        menu.classList.add('hidden');
+        document.removeEventListener('click', closeMenu);
+    };
+
+    // 选择用于 Diff（第一个文件）
+    const selectDiffItem = menu.querySelector('[data-action="select-for-diff"]');
+    if (selectDiffItem) {
+        selectDiffItem.addEventListener('click', () => {
+            selectFileForDiff(path, name, content, language);
+            closeMenu();
+        });
+    }
+
+    // 与已选文件对比（第二个文件）
+    const compareItem = menu.querySelector('[data-action="compare-with"]');
+    if (compareItem) {
+        compareItem.addEventListener('click', () => {
+            openDiffView(selected, { path, name, content, language });
+            closeMenu();
+        });
+    }
+
+    // 取消 Diff 选择
+    const clearItem = menu.querySelector('[data-action="clear-diff-selection"]');
+    if (clearItem) {
+        clearItem.addEventListener('click', () => {
+            clearDiffSelection();
+            closeMenu();
+        });
+    }
+
+    // 添加到 AI 对话上下文
+    const addChatItem = menu.querySelector('[data-action="add-to-chat"]');
+    if (addChatItem) {
+        addChatItem.addEventListener('click', () => {
+            addFileContext(path, name, content);
+            openPanel();
+            closeMenu();
+        });
+    }
+
+    // 关闭当前标签
+    const closeItem = menu.querySelector('[data-action="close"]');
+    if (closeItem) {
+        closeItem.addEventListener('click', async () => {
+            await handleTabClose(path, editor);
+            closeMenu();
+        });
+    }
+
+    // 关闭其他标签
+    const closeOthersItem = menu.querySelector('[data-action="close-others"]');
+    if (closeOthersItem) {
+        closeOthersItem.addEventListener('click', async () => {
+            await closeOtherTabs(path, editor);
+            closeMenu();
+        });
+    }
+
+    // 关闭所有标签
+    const closeAllItem = menu.querySelector('[data-action="close-all"]');
+    if (closeAllItem) {
+        closeAllItem.addEventListener('click', async () => {
+            await closeAllTabs(editor);
+            closeMenu();
+        });
+    }
+
+    setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+/**
+ * 关闭除指定文件外的所有 tab
+ */
+async function closeOtherTabs(keepPath, editor) {
+    const pathsToClose = [...openFiles.keys()].filter(p => p !== keepPath);
+
+    for (const p of pathsToClose) {
+        const descriptor = openFiles.get(p);
+        if (!descriptor) continue;
+
+        if (descriptor.isDirty) {
+            const confirmed = await showDialog(
+                `文件 "${descriptor.name}" 有未保存的更改。\n是否不保存并关闭？`,
+                { confirmLabel: '不保存关闭', cancelLabel: '取消' }
+            );
+            if (!confirmed) continue;
+            forceCloseFile(p, editor);
+        } else {
+            closeFile(p, editor);
+        }
+    }
+
+    if (openFiles.has(keepPath)) {
+        setActiveFile(keepPath, editor);
+    }
+    renderTabs(editor);
+}
+
+/**
+ * 关闭所有 tab
+ */
+async function closeAllTabs(editor) {
+    const pathsToClose = [...openFiles.keys()];
+
+    for (const p of pathsToClose) {
+        const descriptor = openFiles.get(p);
+        if (!descriptor) continue;
+
+        if (descriptor.isDirty) {
+            const confirmed = await showDialog(
+                `文件 "${descriptor.name}" 有未保存的更改。\n是否不保存并关闭？`,
+                { confirmLabel: '不保存关闭', cancelLabel: '取消' }
+            );
+            if (!confirmed) continue;
+            forceCloseFile(p, editor);
+        } else {
+            closeFile(p, editor);
+        }
     }
 
     renderTabs(editor);

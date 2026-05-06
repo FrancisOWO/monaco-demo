@@ -199,6 +199,9 @@ export function getFileTreeRoot() {
  * 显示文件右键菜单（添加到 AI Chat 上下文 / 选择用于 Diff）
  */
 function showFileContextMenu(e, node) {
+    // 关闭另一个菜单，防止并存
+    document.getElementById('tab-context-menu').classList.add('hidden');
+
     const menu = document.getElementById('chat-context-menu');
     const selected = getDiffSelectedFile();
     let menuHtml = `<div class="context-menu-item" data-action="add-to-chat">
