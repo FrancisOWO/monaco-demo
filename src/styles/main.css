@@ -30,6 +30,10 @@ body.panel-visible #workspace {
     display: none !important;
 }
 
+.hidden {
+    display: none;
+}
+
 #bottom-panel {
     height: 180px;
     border-top: 1px solid;

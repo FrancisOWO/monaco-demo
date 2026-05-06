@@ -85,9 +85,10 @@ export function openDiffView(original, modified) {
     diffModifiedName = modified.name;
 
     overlay.classList.remove('hidden');
-    // 隐藏编辑器容器和欢迎页
+    // 隐藏编辑器容器、欢迎页、diff-header
     document.getElementById('editor-container').classList.add('hidden');
     document.getElementById('welcome-page').classList.add('hidden');
+    document.getElementById('diff-header').classList.add('hidden');
 
     // 创建 DiffEditor
     const container = document.getElementById('diff-editor-container');
@@ -128,6 +129,7 @@ export function closeDiffView() {
     overlay.classList.add('hidden');
     // 恢复编辑器容器和欢迎页
     document.getElementById('editor-container').classList.remove('hidden');
+    document.getElementById('diff-header').classList.remove('hidden');
     const welcome = document.getElementById('welcome-page');
     if (welcome && openFiles.size > 0) {
         welcome.classList.add('hidden');

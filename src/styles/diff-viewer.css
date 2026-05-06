@@ -1,14 +1,11 @@
 /* Diff Viewer Overlay 样式 */
 
 #diff-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
     background: #fff;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 0;
 }
 
 #diff-overlay.hidden {
