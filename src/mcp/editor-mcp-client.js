@@ -58,7 +58,7 @@ export function createEditorMcpCommandHandler(editor) {
             }
 
             case 'editor.newFile': {
-                const descriptor = createExternalNewFile({
+                const descriptor = await createExternalNewFile({
                     path: params.path ? String(params.path) : undefined,
                     name: params.name ? String(params.name) : undefined,
                     language: params.language ? String(params.language) : 'python',

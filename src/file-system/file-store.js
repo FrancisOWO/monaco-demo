@@ -280,8 +280,9 @@ export function createNewFile(language, editor) {
 
 /**
  * 创建由 MCP/自动化控制的新文件。
+ * 如果已打开工作区目录（rootDirectoryHandle），自动保存落盘并获得 handle。
  */
-export function createExternalNewFile({ name, path, language = 'python', content }, editor) {
+export async function createExternalNewFile({ name, path, language = 'python', content }, editor) {
     const ext = getExtension(language);
     const fileName = name || `untitled-${untitledIndex++}${ext}`;
     const filePath = path || '/' + fileName;
@@ -294,8 +295,17 @@ export function createExternalNewFile({ name, path, language = 'python', content
         language,
     }, editor);
 
-    descriptor.isDirty = true;
-    descriptor.savedContent = '';
+    // 自动保存到工作区目录（如果已打开项目文件夹）
+    if (rootDirectoryHandle) {
+        const fileHandle = await createFileInDirectory(rootDirectoryHandle, fileName, initialContent);
+        descriptor.handle = fileHandle;
+        descriptor.savedContent = initialContent;
+        descriptor.isDirty = false;
+    } else {
+        descriptor.isDirty = true;
+        descriptor.savedContent = '';
+    }
+
     emit('onTabsChanged');
     return descriptor;
 }
@@ -480,41 +490,52 @@ export async function saveActiveFile(editor) {
     const content = descriptor.model.getValue();
 
     if (!descriptor.handle) {
-        // untitled 文件，使用 showSaveFilePicker
-        const handle = await saveNewFile(descriptor.name, content);
-        if (!handle) return; // 用户取消
-
-        // 需要用新路径重建 model
-        descriptor.model.dispose();
-        const newPath = '/' + handle.name;
-        const newLanguage = detectLanguage(handle.name);
-        const newModel = createFileModel(newPath, content, newLanguage);
-
-        openFiles.delete(descriptor.path);
-        const newDescriptor = {
-            path: newPath,
-            name: handle.name,
-            handle,
-            model: newModel,
-            isDirty: false,
-            language: newLanguage,
-            savedContent: content,
-            viewState: null,
-        };
-
-        // 监听内容变化 → 标记脏
-        newModel.onDidChangeContent(() => {
-            newDescriptor.isDirty = newModel.getValue() !== newDescriptor.savedContent;
+        // 有工作区目录时，直接保存到项目目录，不弹窗
+        if (rootDirectoryHandle) {
+            const fileHandle = await createFileInDirectory(rootDirectoryHandle, descriptor.name, content);
+            descriptor.handle = fileHandle;
+            descriptor.savedContent = content;
+            descriptor.isDirty = false;
             emit('onTabsChanged');
-        });
+            emit('onFileTreeChanged');
+            logger.info('File saved to workspace:', descriptor.name);
+        } else {
+            // 无工作区，弹出系统保存对话框
+            const handle = await saveNewFile(descriptor.name, content);
+            if (!handle) return; // 用户取消
 
-        openFiles.set(newPath, newDescriptor);
-        activeFilePath = newPath;
-        editor.setModel(newModel);
+            // 需要用新路径重建 model
+            descriptor.model.dispose();
+            const newPath = '/' + handle.name;
+            const newLanguage = detectLanguage(handle.name);
+            const newModel = createFileModel(newPath, content, newLanguage);
 
-        emit('onTabsChanged');
-        emit('onActiveFileChanged');
-        logger.info('Untitled file saved as:', handle.name);
+            openFiles.delete(descriptor.path);
+            const newDescriptor = {
+                path: newPath,
+                name: handle.name,
+                handle,
+                model: newModel,
+                isDirty: false,
+                language: newLanguage,
+                savedContent: content,
+                viewState: null,
+            };
+
+            // 监听内容变化 → 标记脏
+            newModel.onDidChangeContent(() => {
+                newDescriptor.isDirty = newModel.getValue() !== newDescriptor.savedContent;
+                emit('onTabsChanged');
+            });
+
+            openFiles.set(newPath, newDescriptor);
+            activeFilePath = newPath;
+            editor.setModel(newModel);
+
+            emit('onTabsChanged');
+            emit('onActiveFileChanged');
+            logger.info('Untitled file saved as:', handle.name);
+        }
     } else {
         // 已有 handle，直接写入
         await writeFileContent(descriptor.handle, content);
