@@ -161,14 +161,6 @@ export interface FimModelConfig {
     priority: number;
 }
 
-/** FIM 适配器接口 */
-export interface IFimAdapter {
-    /** 将 PromptInfo 格式化为模型特定的 FIM prompt 字符串 */
-    format(prompt: PromptInfo, strategy: CompletionStrategy): string;
-    /** 该适配器对应的 FIM 格式 */
-    readonly formatType: FimFormat;
-}
-
 /** 补全模型选择器接口 */
 export interface IModelSelector {
     /** 根据上下文选择最佳补全模型配置 */

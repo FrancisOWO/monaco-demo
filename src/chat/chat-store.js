@@ -36,6 +36,7 @@ const chatState = {
             baseUrl: '',
             modelId: '',
             apiKey: '',
+            fimFormat: '',
             isBuiltIn: true,
         },
     ], // 补全 API 配置列表
@@ -523,6 +524,7 @@ export function addCompletionApiConfig(config) {
         baseUrl: config.baseUrl || '',
         modelId: config.modelId || '',
         apiKey: config.apiKey || '',
+        fimFormat: config.fimFormat || '',
         isBuiltIn: false,
     };
     chatState.completionApiConfigs.push(newConfig);

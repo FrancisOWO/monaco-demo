@@ -175,6 +175,8 @@ export interface CompletionApiConfig {
     baseUrl: string;
     apiKey: string;
     modelId: string;
+    /** FIM 格式：'codex'|'codellama'|'deepseek'|'starcoder'|'qwen'，空值表示原生 FIM */
+    fimFormat?: string;
     isBuiltIn?: boolean;
 }
 

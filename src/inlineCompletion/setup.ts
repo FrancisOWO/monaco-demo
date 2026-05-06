@@ -29,7 +29,6 @@ import { CurrentGhostText } from './cache/currentGhostText.js';
 import { SpeculativeRequestCache } from './cache/speculativeRequestCache.js';
 import { AsyncCompletionsManager } from './cache/asyncCompletionsManager.js';
 import { FullTelemetryEmitter } from './telemetry/fullTelemetryEmitter.js';
-import { createFimAdapter } from './prompt/fimAdapter.js';
 import { DefaultModelSelector } from './llm/modelSelector.js';
 
 const logger = getLogger('InlineCompletion');
@@ -127,10 +126,8 @@ function setupFullPipeline(
         prompt: { prefix: '', suffix: '', context: [], isFimEnabled: false },
         versionId: 1,
     });
-    const fimAdapter = createFimAdapter(defaultModel.fimFormat);
-
-    // 3. AI 客户端（带 FIM 适配器和模型选择器）
-    const aiCompletionClient = createClientFromConfig(fimAdapter, modelSelector);
+    // 3. AI 客户端（模型选择器）
+    const aiCompletionClient = createClientFromConfig(modelSelector);
 
     // 4. Prompt 工厂（级联预算）
     const contextProviderRegistry = new ContextProviderRegistry();
@@ -198,7 +195,7 @@ function setupFullPipeline(
 
     logger.info('Full pipeline setup complete');
     logger.info(`AI completion client: ${getClientLabel()}`);
-    logger.info(`Default model: ${defaultModel.modelId} (FIM: ${defaultModel.fimFormat})`);
+    logger.info(`Default model: ${defaultModel.modelId}`);
     logger.info(`Max prompt tokens: ${defaultModel.maxPromptTokens}`);
     logger.info(`Auto-trigger: ${aiCompletionConfig.autoTrigger.enabled ? 'Enabled' : 'Disabled'}`);
 }
@@ -209,13 +206,12 @@ function setupFullPipeline(
  * simple/full → AICompletionClient（真实 AI 补全）
  */
 function createClientFromConfig(
-    fimAdapter?: any,
     modelSelector?: any,
 ) {
     if (aiCompletionConfig.pipelineMode === PipelineMode.Mock) {
         return new MockAICompletionClient(aiCompletionConfig.mock);
     }
-    return new AICompletionClient(fimAdapter, modelSelector);
+    return new AICompletionClient(modelSelector);
 }
 
 /**

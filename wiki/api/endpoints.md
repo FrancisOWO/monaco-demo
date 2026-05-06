@@ -36,15 +36,16 @@ GET /health
 POST /ai/completion
 ```
 
-**Request Body** (`server/src/ai-completion.ts:47`):
+**Request Body** (`server/src/ai-completion.ts:48`):
 ```json
 {
   "prefix": "def hello():",
   "suffix": "",
+  "context": [],
   "language": "python",
   "stream": true,
-  "strategy": "singleLine",
-  "position": { "line": 5, "character": 15 }
+  "strategy": { "requestMultiline": false, "maxTokens": 64, "stopTokens": ["\n"] },
+  "position": { "lineNumber": 5, "column": 15 }
 }
 ```
 

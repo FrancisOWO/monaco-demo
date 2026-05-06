@@ -59,15 +59,19 @@ managed_sections:
    ↓
 3. GhostTextController builds prompt (prefix + suffix)
    ↓
-4. HTTP POST /ai/completion (prefix, suffix, language, stream)
+4. HTTP POST /ai/completion (prefix, suffix, context, language, stream)
    ↓
-5. Backend proxies to OpenAI API (FIM format)
+5. Backend assembles FIM prompt based on config:
+   - Manual FIM (qwen/deepseek/codellama/starcoder/codex): wrap in <|fim_prefix|>...<|fim_suffix|>...<|fim_middle|>
+   - Native FIM: pass prefix + suffix directly via OpenAI suffix parameter
    ↓
-6. SSE stream returns completion text
+6. Backend proxies assembled prompt to OpenAI API
    ↓
-7. PostProcessor trims/reformats completion
+7. SSE stream returns completion text
    ↓
-8. Monaco displays ghost text inline
+8. PostProcessor trims/reformats completion
+   ↓
+9. Monaco displays ghost text inline
 ```
 
 ### AI Chat Flow

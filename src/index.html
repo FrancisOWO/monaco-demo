@@ -320,6 +320,17 @@
                                 <label for="chat-completion-config-apikey">API Key</label>
                                 <input type="password" id="chat-completion-config-apikey" placeholder="sk-..." autocomplete="new-password" />
                             </div>
+                            <div class="chat-settings-field">
+                                <label for="chat-completion-config-fimformat">FIM 格式</label>
+                                <select id="chat-completion-config-fimformat">
+                                    <option value="">Native (OpenAI suffix 参数)</option>
+                                    <option value="qwen">Qwen</option>
+                                    <option value="deepseek">DeepSeek</option>
+                                    <option value="codellama">CodeLlama</option>
+                                    <option value="codex">Codex</option>
+                                    <option value="starcoder">StarCoder</option>
+                                </select>
+                            </div>
                         </form>
                     </div>
                 </div>

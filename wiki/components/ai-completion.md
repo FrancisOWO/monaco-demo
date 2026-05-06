@@ -28,10 +28,10 @@ MonacoInlineCompletionsProvider (debounced 500ms)
 GhostTextController (Simple / Full)
     ↓
 PromptBuilder → LLMClient → PostProcessor
-    ↓ (HTTP POST /ai/completion, SSE)
+    ↓ (HTTP POST /ai/completion, prefix+suffix)
 Express Server (ai-completion.ts)
-    ↓
-OpenAI API (FIM format)
+    ↓ (FIM 组装: 手动 FIM 模板 或 原生 prefix+suffix)
+OpenAI API
 ```
 
 ## Frontend Modules
@@ -56,7 +56,6 @@ OpenAI API (FIM format)
 ### Prompt 构建
 
 - `src/inlineCompletion/prompt/cascadingPromptFactory.ts` — 级联 prompt 工厂
-- `src/inlineCompletion/prompt/fimAdapter.ts` — FIM 格式适配器
 - `src/inlineCompletion/prompt/trimLastLine.ts` — 末行裁剪
 - `src/inlineCompletion/promptBuilder.ts` — 简单管线 prompt 构建器
 
@@ -94,17 +93,24 @@ OpenAI API (FIM format)
 
 **端点**: `POST /ai/completion`
 
-**请求体** (`server/src/ai-completion.ts:47`):
+**请求体** (`server/src/ai-completion.ts:48`):
 ```typescript
 interface CompletionRequestBody {
-  prefix: string;      // 光标前代码
-  suffix: string;      // 光标后代码
-  language: string;    // 编程语言
-  stream?: boolean;    // 是否流式
-  strategy?: string;   // singleLine / multiLine
-  position?: { line: number; character: number };
+  prefix: string;       // 光标前代码
+  suffix?: string;      // 光标后代码
+  context?: string[];   // 额外上下文文件
+  language: string;     // 编程语言
+  stream?: boolean;     // 是否流式
+  strategy: { requestMultiline, maxTokens, stopTokens };
+  position: { lineNumber, column };
 }
 ```
+
+**FIM 组装**: 后端根据 `CompletionApiConfig.fimFormat` 决定如何调用 OpenAI API：
+- `fimFormat` 为空 → 原生 FIM：`prompt=prefix, suffix=suffix`（模型支持 OpenAI suffix 参数）
+- `fimFormat` 有值（如 `qwen`/`deepseek`）→ 手动 FIM：组装 `<|fim_prefix|>...<|fim_suffix|>...<|fim_middle|>` 模板传入 `prompt`，`suffix=undefined`
+
+**服务端 FIM 适配器**: `server/src/fimAdapter.ts` — 提供 `formatFimPrompt()` 工厂函数，支持 Codex/CodeLlama/DeepSeek/StarCoder/Qwen 五种手动 FIM 格式
 
 **响应**: SSE 流式（`text/event-stream`）或 JSON
 

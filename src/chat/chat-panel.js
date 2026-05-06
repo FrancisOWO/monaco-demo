@@ -207,13 +207,14 @@ function setupSettingsPanel() {
     const completionBaseUrlInput = document.getElementById('chat-completion-config-baseurl');
     const completionModelIdInput = document.getElementById('chat-completion-config-modelid');
     const completionApiKeyInput = document.getElementById('chat-completion-config-apikey');
+    const completionFimFormatInput = document.getElementById('chat-completion-config-fimformat');
     let editingCompletionConfigId = null;
     let editingChatConfigId = null;
     let dirty = false;
     saveBtn.disabled = true;
 
     // 保存初始值，用于判断表单是否真正发生了变化
-    let completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+    let completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '', fimFormat: '' };
     let chatSnapshot = { name: '', baseUrl: '', chatModel: '', apiKey: '' };
 
     function checkDirty() {
@@ -221,7 +222,8 @@ function setupSettingsPanel() {
             completionNameInput.value !== completionSnapshot.name ||
             completionBaseUrlInput.value !== completionSnapshot.baseUrl ||
             completionModelIdInput.value !== completionSnapshot.modelId ||
-            completionApiKeyInput.value !== completionSnapshot.apiKey;
+            completionApiKeyInput.value !== completionSnapshot.apiKey ||
+            completionFimFormatInput.value !== completionSnapshot.fimFormat;
         const chatChanged =
             chatNameInput.value !== chatSnapshot.name ||
             chatBaseUrlInput.value !== chatSnapshot.baseUrl ||
@@ -287,7 +289,8 @@ function setupSettingsPanel() {
             completionBaseUrlInput.value = '';
             completionModelIdInput.value = '';
             completionApiKeyInput.value = '';
-            completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+            completionFimFormatInput.value = '';
+            completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '', fimFormat: '' };
         } else {
             completionFormSection.classList.remove('disabled');
             completionMockInfo?.classList.remove('visible');
@@ -296,11 +299,13 @@ function setupSettingsPanel() {
             completionBaseUrlInput.value = config.baseUrl || '';
             completionModelIdInput.value = config.modelId || '';
             completionApiKeyInput.value = config.apiKey || '';
+            completionFimFormatInput.value = config.fimFormat || '';
             completionSnapshot = {
                 name: config.name || '',
                 baseUrl: config.baseUrl || '',
                 modelId: config.modelId || '',
                 apiKey: config.apiKey || '',
+                fimFormat: config.fimFormat || '',
             };
         }
         checkDirty();
@@ -327,7 +332,7 @@ function setupSettingsPanel() {
         }
         // 重新加载，让快照反映已持久化的状态，然后对比当前表单值
         loadCompletionConfigToForm(newId);
-        completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+        completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '', fimFormat: '' };
         checkDirty();
     });
 
@@ -340,7 +345,7 @@ function setupSettingsPanel() {
             renderCompletionConfigSelect();
             loadCompletionConfigToForm(chatStore.getCurrentCompletionConfigId());
             // 删除后配置列表已变，标记为脏
-            completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '' };
+            completionSnapshot = { name: '', baseUrl: '', modelId: '', apiKey: '', fimFormat: '' };
             checkDirty();
         }
     });
@@ -467,12 +472,18 @@ function setupSettingsPanel() {
 
     // ============ 表单变化监听 ============
 
-    [completionNameInput, completionBaseUrlInput, completionModelIdInput, completionApiKeyInput,
+    [completionNameInput, completionBaseUrlInput, completionModelIdInput, completionApiKeyInput, completionFimFormatInput,
      chatNameInput, chatBaseUrlInput, chatModelInput, chatApiKeyInput].forEach(input => {
         input.addEventListener('input', () => {
             checkDirty();
             updateSaveBtnState();
         });
+    });
+
+    // select 元素用 change 事件
+    completionFimFormatInput.addEventListener('change', () => {
+        checkDirty();
+        updateSaveBtnState();
     });
 
     // ============ 面板可见性与保存 ============
@@ -528,6 +539,7 @@ function setupSettingsPanel() {
                 baseUrl: completionBaseUrlInput.value.trim(),
                 modelId: completionModelIdInput.value.trim(),
                 apiKey: completionApiKeyInput.value.trim(),
+                fimFormat: completionFimFormatInput.value,
             });
             renderCompletionConfigSelect();
         }

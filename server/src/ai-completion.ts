@@ -11,6 +11,7 @@ import express, { Router } from 'express';
 import OpenAI from 'openai';
 import { config } from './config';
 import { configManager, CompletionApiConfig } from './config-manager';
+import { formatFimPrompt } from './fimAdapter';
 
 const router: Router = express.Router();
 
@@ -47,6 +48,7 @@ function createOpenAIClient(apiConfig: CompletionApiConfig): OpenAI {
 interface CompletionRequestBody {
     prefix: string;
     suffix?: string;
+    context?: string[];
     language: string;
     stream?: boolean;
     strategy: {
@@ -138,7 +140,14 @@ router.post('/', async (req, res) => {
         const client = createOpenAIClient(apiConfig);
         const model = apiConfig.modelId || config.ai.fimModel;
 
-        console.log(`[AI Completion] Sending AI request: model=${model}, baseUrl=${apiConfig.baseUrl}`);
+        // FIM 组装：根据配置决定手动组装模板还是原生 FIM
+        const fimResult = formatFimPrompt(apiConfig.fimFormat, {
+            prefix: body.prefix,
+            suffix: body.suffix || '',
+            context: body.context || [],
+        });
+
+        console.log(`[AI Completion] Sending AI request: model=${model}, baseUrl=${apiConfig.baseUrl}, fimFormat=${apiConfig.fimFormat || 'native'}`);
         const lastLine = body.prefix.split('\n').pop() || '';
         console.log(`[AI Completion] Prompt snippet: prefix=${body.prefix.substring(0, 60).replace(/\n/g, '\\n')}, lastLine=${lastLine.substring(0, 80)}`);
 
@@ -146,8 +155,8 @@ router.post('/', async (req, res) => {
         if (!isStream) {
             const response = await client.completions.create({
                 model,
-                prompt: body.prefix,
-                suffix: body.suffix || undefined,
+                prompt: fimResult.prompt,
+                suffix: fimResult.suffix,
                 max_tokens: body.strategy?.maxTokens ?? 64,
                 stop: body.strategy?.stopTokens?.length > 0 ? body.strategy.stopTokens : undefined,
                 temperature: 0.01,
@@ -179,8 +188,8 @@ router.post('/', async (req, res) => {
         try {
             const stream = await client.completions.create({
                 model,
-                prompt: body.prefix,
-                suffix: body.suffix || undefined,
+                prompt: fimResult.prompt,
+                suffix: fimResult.suffix,
                 max_tokens: body.strategy?.maxTokens ?? 128,
                 stop: body.strategy?.stopTokens?.length > 0 ? body.strategy.stopTokens : undefined,
                 temperature: 0.01,
