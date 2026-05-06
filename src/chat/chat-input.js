@@ -72,13 +72,13 @@ export function setupChatInput(editor) {
         if (mentionPopupActive) {
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
-                selectedMentionIndex = Math.min(selectedMentionIndex + 1, filteredItems.length - 1);
+                selectedMentionIndex = (selectedMentionIndex + 1) % filteredItems.length;
                 updateMentionHighlight();
                 return;
             }
             if (e.key === 'ArrowUp') {
                 e.preventDefault();
-                selectedMentionIndex = Math.max(selectedMentionIndex - 1, 0);
+                selectedMentionIndex = (selectedMentionIndex - 1 + filteredItems.length) % filteredItems.length;
                 updateMentionHighlight();
                 return;
             }
