@@ -5,7 +5,7 @@
 import { getLogger } from '../utils/logger.js';
 import { openFiles, activeFilePath, setActiveFile, closeFile, forceCloseFile, getActiveFile } from '../file-system/file-store.js';
 import { showDialog } from './dialogs.js';
-import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelection } from './diff-viewer.js';
+import { selectFileForDiff, getDiffSelectedFile, openDiffView, closeDiffView, clearDiffSelection, isDiffViewOpen, getDiffTabLabel } from './diff-viewer.js';
 import { addFileContext, openPanel } from '../chat/chat-store.js';
 
 const logger = getLogger('Tab Bar');
@@ -20,6 +20,30 @@ export function renderTabs(editor) {
     const tabBar = document.getElementById('tab-bar');
     if (!tabBar) return;
     tabBar.innerHTML = '';
+
+    // Diff 视图打开时，显示一个特殊的 diff tab
+    if (isDiffViewOpen()) {
+        const diffLabel = getDiffTabLabel();
+        if (diffLabel) {
+            const diffTab = document.createElement('div');
+            diffTab.className = 'tab active';
+            const diffName = document.createElement('span');
+            diffName.className = 'tab-name';
+            diffName.textContent = diffLabel;
+            const diffClose = document.createElement('button');
+            diffClose.className = 'tab-close';
+            diffClose.textContent = '×';
+            diffClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeDiffView();
+                renderTabs(editor);
+            });
+            diffTab.appendChild(diffName);
+            diffTab.appendChild(diffClose);
+            tabBar.appendChild(diffTab);
+            return; // diff 视图下只显示这一个 tab
+        }
+    }
 
     for (const [path, descriptor] of openFiles) {
         const tab = document.createElement('div');

@@ -66,7 +66,7 @@ export function on(event, callback) {
     }
 }
 
-function emit(event) {
+export function emit(event) {
     callbacks[event].forEach(cb => cb());
 }
 

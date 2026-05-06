@@ -6,6 +6,7 @@
 
 import * as monaco from 'monaco-editor';
 import { showToast } from './dialogs.js';
+import { openFiles, emit } from '../file-system/file-store.js';
 
 let diffEditor = null;
 let diffOriginalModel = null;
@@ -14,6 +15,10 @@ let renderSideBySide = true; // 默认并排模式
 
 /** 当前选中的第一个文件（等待第二个文件选择） */
 let diffSelectedFile = null; // { path, name, content, language }
+
+/** Diff 视图打开时的文件名，供 tab bar 显示 */
+let diffOriginalName = null;
+let diffModifiedName = null;
 
 /**
  * 选择第一个文件用于 Diff
@@ -32,6 +37,24 @@ export function selectFileForDiff(path, name, content, language) {
  */
 export function getDiffSelectedFile() {
     return diffSelectedFile;
+}
+
+/**
+ * 判断 Diff 视图是否打开
+ */
+export function isDiffViewOpen() {
+    const overlay = document.getElementById('diff-overlay');
+    return overlay && !overlay.classList.contains('hidden');
+}
+
+/**
+ * 获取 Diff 视图的文件名（供 tab bar 显示）
+ */
+export function getDiffTabLabel() {
+    if (diffOriginalName && diffModifiedName) {
+        return `${diffOriginalName} ↔ ${diffModifiedName}`;
+    }
+    return null;
 }
 
 /**
@@ -58,8 +81,13 @@ export function openDiffView(original, modified) {
 
     headerLeft.textContent = original.name;
     headerRight.textContent = modified.name;
+    diffOriginalName = original.name;
+    diffModifiedName = modified.name;
 
     overlay.classList.remove('hidden');
+    // 隐藏编辑器容器和欢迎页
+    document.getElementById('editor-container').classList.add('hidden');
+    document.getElementById('welcome-page').classList.add('hidden');
 
     // 创建 DiffEditor
     const container = document.getElementById('diff-editor-container');
@@ -87,6 +115,9 @@ export function openDiffView(original, modified) {
 
     // 清除选中状态
     diffSelectedFile = null;
+
+    // 更新 tab bar 显示 diff tab
+    emit('onTabsChanged');
 }
 
 /**
@@ -95,6 +126,14 @@ export function openDiffView(original, modified) {
 export function closeDiffView() {
     const overlay = document.getElementById('diff-overlay');
     overlay.classList.add('hidden');
+    // 恢复编辑器容器和欢迎页
+    document.getElementById('editor-container').classList.remove('hidden');
+    const welcome = document.getElementById('welcome-page');
+    if (welcome && openFiles.size > 0) {
+        welcome.classList.add('hidden');
+    } else if (welcome) {
+        welcome.classList.remove('hidden');
+    }
 
     // 销毁 DiffEditor 和 model
     if (diffEditor) {
@@ -109,6 +148,11 @@ export function closeDiffView() {
         diffModifiedModel.dispose();
         diffModifiedModel = null;
     }
+    diffOriginalName = null;
+    diffModifiedName = null;
+
+    // 更新 tab bar 恢复正常 tabs
+    emit('onTabsChanged');
 }
 
 /**

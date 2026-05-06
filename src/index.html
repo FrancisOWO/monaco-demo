@@ -134,6 +134,17 @@
         <div id="editor-area">
             <div id="tab-bar"></div>
             <div id="editor-container"></div>
+            <!-- Diff Viewer (replaces editor-container when visible) -->
+            <div id="diff-overlay" class="hidden">
+                <div id="diff-header">
+                    <span id="diff-header-original">原始文件</span>
+                    <span class="diff-header-arrow" id="diff-arrow-char"></span>
+                    <span id="diff-header-modified">修改文件</span>
+                    <button id="diff-mode-btn"></button>
+                    <button id="diff-close-btn" title="关闭 (Esc)"></button>
+                </div>
+                <div id="diff-editor-container"></div>
+            </div>
             <div id="welcome-page" class="welcome-page">
                 <div class="welcome-content">
                     <div class="welcome-logo">M</div>
@@ -381,18 +392,6 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Diff Viewer overlay -->
-    <div id="diff-overlay" class="hidden">
-        <div id="diff-header">
-            <span id="diff-header-original">原始文件</span>
-            <span class="diff-header-arrow" id="diff-arrow-char"></span>
-            <span id="diff-header-modified">修改文件</span>
-            <button id="diff-mode-btn"></button>
-            <button id="diff-close-btn" title="关闭 (Esc)"></button>
-        </div>
-        <div id="diff-editor-container"></div>
     </div>
 
     <!-- Toast -->
