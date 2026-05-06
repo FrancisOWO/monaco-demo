@@ -79,12 +79,59 @@ export class EditorTools {
     return JSON.stringify(result);
   }
 
+  /**
+   * 从编辑器虚拟文件系统或磁盘解析文件内容。
+   * 先尝试 editor.getFileContent（支持未落盘的虚拟文件），找不到再回退磁盘。
+   */
+  private async resolveFileContent(filePath: string, language?: string): Promise<{
+    path: string; content: string; name: string; language?: string;
+  }> {
+    const pathsToTry = [normalizeEditorPath(filePath), filePath];
+    for (const tryPath of pathsToTry) {
+      try {
+        const snapshot = await this.client.command('editor.getFileContent', { path: tryPath }) as Record<string, unknown>;
+        return {
+          path: String(snapshot.path || tryPath),
+          content: String(snapshot.content || ''),
+          name: String(snapshot.name || fileName(filePath)),
+          language: snapshot.language ? String(snapshot.language) : undefined,
+        };
+      } catch (e) {
+        // "File is not open" → 路径不匹配，尝试下一个格式
+        if (e instanceof Error && e.message.includes('File is not open')) {
+          continue;
+        }
+        throw e;
+      }
+    }
+    // 编辑器中未找到，回退磁盘
+    const content = await fs.readFile(filePath, 'utf8');
+    return {
+      path: normalizeEditorPath(filePath),
+      content,
+      name: fileName(filePath),
+      language,
+    };
+  }
+
   async compareFiles(originalPath: string, modifiedPath: string, language?: string): Promise<string> {
-    const originalContent = await fs.readFile(originalPath, 'utf8');
-    const modifiedContent = await fs.readFile(modifiedPath, 'utf8');
+    const [original, modified] = await Promise.all([
+      this.resolveFileContent(originalPath, language),
+      this.resolveFileContent(modifiedPath, language),
+    ]);
     const result = await this.client.command('editor.diffFiles', {
-      original: filePayload(originalPath, originalContent, language),
-      modified: filePayload(modifiedPath, modifiedContent, language),
+      original: {
+        path: original.path,
+        name: original.name,
+        content: original.content,
+        language: language || original.language,
+      },
+      modified: {
+        path: modified.path,
+        name: modified.name,
+        content: modified.content,
+        language: language || modified.language,
+      },
     });
     return JSON.stringify(result);
   }

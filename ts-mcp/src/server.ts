@@ -79,10 +79,10 @@ server.addTool({
 
 server.addTool({
   name: 'compare_files',
-  description: 'Open Monaco Diff view for two local files.',
+  description: 'Open Monaco Diff view for two files. Supports both virtual editor files (not on disk) and local disk files.',
   parameters: z.object({
-    originalPath: z.string().describe('Absolute path to the original file'),
-    modifiedPath: z.string().describe('Absolute path to the modified file'),
+    originalPath: z.string().describe('Path to the original file (virtual or absolute)'),
+    modifiedPath: z.string().describe('Path to the modified file (virtual or absolute)'),
     language: z.string().optional().describe('Language identifier for diff highlighting'),
   }),
   execute: async (args) => tools.compareFiles(args.originalPath, args.modifiedPath, args.language),

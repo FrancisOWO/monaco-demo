@@ -118,7 +118,7 @@ External MCP Server (e.g., python-mcp, ts-mcp)
 | edit_file | 编辑文件（搜索替换） |
 | get_file_content | 获取文件内容 |
 | delete_file | 删除文件 |
-| compare_files | 比较两个文件 |
+| compare_files | 比较两个文件（支持虚拟/磁盘文件） |
 
 ### AI Chat 内置工具
 

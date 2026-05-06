@@ -100,13 +100,54 @@ class EditorTools:
         modified_path: str,
         language: str | None = None,
     ) -> dict[str, Any]:
-        original_content = Path(original_path).read_text(encoding="utf-8")
-        modified_content = Path(modified_path).read_text(encoding="utf-8")
+        original = await self._resolve_file_content(original_path, language)
+        modified = await self._resolve_file_content(modified_path, language)
 
         return await self.client.command(
             "editor.diffFiles",
             {
-                "original": file_payload(original_path, original_content, language),
-                "modified": file_payload(modified_path, modified_content, language),
+                "original": {
+                    "path": original["path"],
+                    "name": original["name"],
+                    "content": original["content"],
+                    "language": language or original.get("language"),
+                },
+                "modified": {
+                    "path": modified["path"],
+                    "name": modified["name"],
+                    "content": modified["content"],
+                    "language": language or modified.get("language"),
+                },
             },
         )
+
+    async def _resolve_file_content(
+        self, file_path: str, language: str | None = None
+    ) -> dict[str, Any]:
+        """从编辑器虚拟文件系统或磁盘解析文件内容。
+        先尝试 editor.getFileContent（支持未落盘的虚拟文件），找不到再回退磁盘。
+        """
+        paths_to_try = [normalize_editor_path(file_path), file_path]
+        for try_path in paths_to_try:
+            try:
+                snapshot = await self.client.command(
+                    "editor.getFileContent", {"path": try_path}
+                )
+                return {
+                    "path": str(snapshot.get("path", try_path)),
+                    "content": str(snapshot.get("content", "")),
+                    "name": str(snapshot.get("name") or Path(file_path).name),
+                    "language": snapshot.get("language"),
+                }
+            except Exception as e:
+                if "File is not open" in str(e):
+                    continue
+                raise
+        # 编辑器中未找到，回退磁盘
+        content = Path(file_path).read_text(encoding="utf-8")
+        return {
+            "path": normalize_editor_path(file_path),
+            "content": content,
+            "name": Path(file_path).name,
+            "language": language,
+        }

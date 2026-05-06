@@ -83,7 +83,7 @@ export const EDITOR_TOOLS: McpToolDefinition[] = [
     },
     {
         name: 'compare_files',
-        description: '读取两个本地文件，并在编辑器中打开 Monaco Diff 视图。',
+        description: '对比两个文件并在编辑器中打开 Monaco Diff 视图。支持编辑器中的虚拟文件（未落盘）和磁盘文件。',
         inputSchema: {
             type: 'object',
             required: ['originalPath', 'modifiedPath'],
@@ -110,6 +110,41 @@ function textResult(value: unknown) {
             type: 'text',
             text: JSON.stringify(value, null, 2),
         }],
+    };
+}
+
+/**
+ * 从编辑器虚拟文件系统或磁盘解析文件内容。
+ * 先尝试 editor.getFileContent（支持未落盘的虚拟文件），找不到再回退磁盘。
+ */
+async function resolveFileContent(
+    client: EditorCommandClient,
+    filePath: string,
+    language?: string,
+): Promise<{ path: string; content: string; name: string; language?: string }> {
+    const pathsToTry = [normalizeEditorPath(filePath), filePath];
+    for (const tryPath of pathsToTry) {
+        try {
+            const snapshot = await client.command('editor.getFileContent', { path: tryPath }) as Record<string, unknown>;
+            return {
+                path: String(snapshot.path || tryPath),
+                content: String(snapshot.content || ''),
+                name: String(snapshot.name || fileName(filePath)),
+                language: snapshot.language ? String(snapshot.language) : undefined,
+            };
+        } catch (e) {
+            if (e instanceof Error && e.message.includes('File is not open')) {
+                continue;
+            }
+            throw e;
+        }
+    }
+    const content = await fs.readFile(filePath, 'utf8');
+    return {
+        path: normalizeEditorPath(filePath),
+        content,
+        name: fileName(filePath),
+        language,
     };
 }
 
@@ -178,23 +213,23 @@ export async function callEditorTool(
         case 'compare_files': {
             const originalPath = String(args.originalPath || '');
             const modifiedPath = String(args.modifiedPath || '');
-            const [originalContent, modifiedContent] = await Promise.all([
-                fs.readFile(originalPath, 'utf8'),
-                fs.readFile(modifiedPath, 'utf8'),
-            ]);
             const language = args.language ? String(args.language) : undefined;
+            const [original, modified] = await Promise.all([
+                resolveFileContent(client, originalPath, language),
+                resolveFileContent(client, modifiedPath, language),
+            ]);
             return textResult(await client.command('editor.diffFiles', {
                 original: {
-                    path: normalizeEditorPath(originalPath),
-                    name: fileName(originalPath),
-                    content: originalContent,
-                    language,
+                    path: original.path,
+                    name: original.name,
+                    content: original.content,
+                    language: language || original.language,
                 },
                 modified: {
-                    path: normalizeEditorPath(modifiedPath),
-                    name: fileName(modifiedPath),
-                    content: modifiedContent,
-                    language,
+                    path: modified.path,
+                    name: modified.name,
+                    content: modified.content,
+                    language: language || modified.language,
                 },
             }));
         }
