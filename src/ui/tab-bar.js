@@ -10,6 +10,8 @@ import { addFileContext, openPanel } from '../chat/chat-store.js';
 
 const logger = getLogger('Tab Bar');
 
+const multiSelectedPaths = new Set();
+
 /**
  * 渲染所有 tab
  * @param {monaco.editor} editor
@@ -24,6 +26,7 @@ export function renderTabs(editor) {
         tab.className = 'tab';
         if (path === activeFilePath) tab.classList.add('active');
         if (descriptor.isDirty) tab.classList.add('dirty');
+        if (multiSelectedPaths.has(path)) tab.classList.add('multi-selected');
         tab.dataset.path = path;
 
         const name = document.createElement('span');
@@ -41,8 +44,18 @@ export function renderTabs(editor) {
         tab.appendChild(name);
         tab.appendChild(close);
 
-        // 点击 tab 切换活跃文件
-        tab.addEventListener('click', () => {
+        // 点击 tab 切换活跃文件 / Ctrl/Shift 多选
+        tab.addEventListener('click', (e) => {
+            if (e.ctrlKey || e.shiftKey) {
+                if (multiSelectedPaths.has(path)) {
+                    multiSelectedPaths.delete(path);
+                } else {
+                    multiSelectedPaths.add(path);
+                }
+                updateMultiSelectHighlight();
+                return;
+            }
+            multiSelectedPaths.clear();
             setActiveFile(path, editor);
             renderTabs(editor);
         });
@@ -97,23 +110,50 @@ function showTabContextMenu(e, path, editor) {
     const language = descriptor.language;
     const name = descriptor.name;
 
+    const inMultiSelect = multiSelectedPaths.has(path);
+
+    // 右键点击非选中 tab 时清空多选
+    if (!inMultiSelect && multiSelectedPaths.size > 0) {
+        multiSelectedPaths.clear();
+        updateMultiSelectHighlight();
+    }
+
     let menuHtml = '';
 
-    // Diff 区
-    if (selected) {
-        menuHtml += `<div class="context-menu-item" data-action="compare-with">
-            与 "${selected.name}" 对比
+    // 多选模式：恰好 2 个 tab 时显示一键对比
+    if (inMultiSelect && multiSelectedPaths.size === 2) {
+        menuHtml += `<div class="context-menu-item" data-action="multi-compare">
+            对比选中文件
         </div>`;
-        menuHtml += `<div class="context-menu-item" data-action="clear-diff-selection">
-            取消 Diff 选择
+        menuHtml += `<div class="context-menu-item" data-action="clear-multi-selection">
+            取消多选
         </div>`;
-    } else {
-        menuHtml += `<div class="context-menu-item" data-action="select-for-diff">
-            选择用于 Diff 对比
+    } else if (inMultiSelect && multiSelectedPaths.size > 2) {
+        menuHtml += `<div class="context-menu-item" data-action="clear-multi-selection">
+            取消多选 (${multiSelectedPaths.size} 个文件)
         </div>`;
     }
 
-    menuHtml += '<div class="context-menu-separator"></div>';
+    if (menuHtml) {
+        menuHtml += '<div class="context-menu-separator"></div>';
+    }
+
+    // 单文件 Diff（非多选时）
+    if (!inMultiSelect) {
+        if (selected) {
+            menuHtml += `<div class="context-menu-item" data-action="compare-with">
+                与 "${selected.name}" 对比
+            </div>`;
+            menuHtml += `<div class="context-menu-item" data-action="clear-diff-selection">
+                取消 Diff 选择
+            </div>`;
+        } else {
+            menuHtml += `<div class="context-menu-item" data-action="select-for-diff">
+                选择用于 Diff 对比
+            </div>`;
+        }
+        menuHtml += '<div class="context-menu-separator"></div>';
+    }
 
     // 添加到 AI 对话上下文
     menuHtml += `<div class="context-menu-item" data-action="add-to-chat">
@@ -207,7 +247,50 @@ function showTabContextMenu(e, path, editor) {
         });
     }
 
+    // 多选对比（恰好 2 个 tab）
+    const multiCompareItem = menu.querySelector('[data-action="multi-compare"]');
+    if (multiCompareItem) {
+        multiCompareItem.addEventListener('click', () => {
+            const paths = [...multiSelectedPaths];
+            const descA = openFiles.get(paths[0]);
+            const descB = openFiles.get(paths[1]);
+            if (descA && descB) {
+                openDiffView(
+                    { path: paths[0], name: descA.name, content: descA.model.getValue(), language: descA.language },
+                    { path: paths[1], name: descB.name, content: descB.model.getValue(), language: descB.language },
+                );
+            }
+            multiSelectedPaths.clear();
+            updateMultiSelectHighlight();
+            closeMenu();
+        });
+    }
+
+    // 取消多选
+    const clearMultiItem = menu.querySelector('[data-action="clear-multi-selection"]');
+    if (clearMultiItem) {
+        clearMultiItem.addEventListener('click', () => {
+            multiSelectedPaths.clear();
+            updateMultiSelectHighlight();
+            closeMenu();
+        });
+    }
+
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+/**
+ * 更新多选高亮状态
+ */
+function updateMultiSelectHighlight() {
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+        if (multiSelectedPaths.has(tab.dataset.path)) {
+            tab.classList.add('multi-selected');
+        } else {
+            tab.classList.remove('multi-selected');
+        }
+    });
 }
 
 /**

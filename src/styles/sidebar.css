@@ -69,6 +69,12 @@
     background: rgba(0, 122, 204, 0.15);
 }
 
+.tree-item.multi-selected {
+    background: rgba(0, 122, 204, 0.08);
+    outline: 1px solid rgba(0, 122, 204, 0.4);
+    outline-offset: -1px;
+}
+
 .tree-icon {
     width: 16px;
     text-align: center;
@@ -160,6 +166,11 @@ body[data-theme="dark"] .tree-item:hover {
 
 body[data-theme="dark"] .tree-item.active {
     background: rgba(0, 122, 204, 0.25);
+}
+
+body[data-theme="dark"] .tree-item.multi-selected {
+    background: rgba(0, 122, 204, 0.12);
+    outline-color: rgba(0, 122, 204, 0.5);
 }
 
 #sidebar-resize-handle:hover,

@@ -37,6 +37,12 @@
     background: rgba(0, 0, 0, 0.03);
 }
 
+.tab.multi-selected {
+    background: rgba(0, 122, 204, 0.08);
+    outline: 1px solid rgba(0, 122, 204, 0.4);
+    outline-offset: -1px;
+}
+
 .tab.active::after {
     content: '';
     position: absolute;
@@ -92,6 +98,11 @@ body[data-theme="dark"] .tab:hover {
 
 body[data-theme="dark"] .tab.active {
     background: rgba(255, 255, 255, 0.04);
+}
+
+body[data-theme="dark"] .tab.multi-selected {
+    background: rgba(0, 122, 204, 0.12);
+    outline-color: rgba(0, 122, 204, 0.5);
 }
 
 body[data-theme="dark"] .tab-close:hover {

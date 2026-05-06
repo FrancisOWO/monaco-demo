@@ -12,6 +12,7 @@ import { selectFileForDiff, getDiffSelectedFile, openDiffView, clearDiffSelectio
 const logger = getLogger('Sidebar');
 
 let fileTreeRoot = null;
+const multiSelectedPaths = new Set();
 
 /**
  * 渲染文件树
@@ -117,9 +118,27 @@ function renderNode(node, depth, editor) {
             item.classList.add('active');
         }
 
-        // 点击打开文件
+        // 多选高亮
+        if (multiSelectedPaths.has(node.path)) {
+            item.classList.add('multi-selected');
+        }
+
+        // 点击打开文件 / Ctrl/Shift 多选
         item.addEventListener('click', async (e) => {
             e.stopPropagation();
+            if (e.ctrlKey || e.shiftKey) {
+                // 多选模式：toggle 选中
+                if (multiSelectedPaths.has(node.path)) {
+                    multiSelectedPaths.delete(node.path);
+                } else {
+                    multiSelectedPaths.add(node.path);
+                }
+                updateMultiSelectHighlight();
+                return;
+            }
+            // 普通点击：清空多选，打开文件
+            multiSelectedPaths.clear();
+            updateMultiSelectHighlight();
             await openFileFromHandle(node.handle, node.path, editor);
             // 更新高亮
             updateActiveHighlight();
@@ -148,6 +167,20 @@ function updateActiveHighlight() {
             item.classList.add('active');
         } else {
             item.classList.remove('active');
+        }
+    });
+}
+
+/**
+ * 更新多选高亮状态
+ */
+function updateMultiSelectHighlight() {
+    const items = document.querySelectorAll('.tree-item.file');
+    items.forEach(item => {
+        if (multiSelectedPaths.has(item.dataset.path)) {
+            item.classList.add('multi-selected');
+        } else {
+            item.classList.remove('multi-selected');
         }
     });
 }
@@ -204,22 +237,55 @@ function showFileContextMenu(e, node) {
 
     const menu = document.getElementById('chat-context-menu');
     const selected = getDiffSelectedFile();
-    let menuHtml = `<div class="context-menu-item" data-action="add-to-chat">
+
+    // 判断是否在多选范围内
+    const inMultiSelect = multiSelectedPaths.has(node.path);
+
+    // 右键点击非选中文件时清空多选
+    if (!inMultiSelect && multiSelectedPaths.size > 0) {
+        multiSelectedPaths.clear();
+        updateMultiSelectHighlight();
+    }
+
+    let menuHtml = '';
+
+    // 多选模式：恰好 2 个文件时显示一键对比
+    if (inMultiSelect && multiSelectedPaths.size === 2) {
+        const paths = [...multiSelectedPaths];
+        menuHtml += `<div class="context-menu-item" data-action="multi-compare">
+            对比选中文件
+        </div>`;
+        menuHtml += `<div class="context-menu-item" data-action="clear-multi-selection">
+            取消多选
+        </div>`;
+    } else if (inMultiSelect && multiSelectedPaths.size > 2) {
+        menuHtml += `<div class="context-menu-item" data-action="clear-multi-selection">
+            取消多选 (${multiSelectedPaths.size} 个文件)
+        </div>`;
+    }
+
+    if (menuHtml) {
+        menuHtml += '<div class="context-menu-separator"></div>';
+    }
+
+    menuHtml += `<div class="context-menu-item" data-action="add-to-chat">
         添加到 AI 对话上下文
     </div>`;
 
-    if (selected) {
-        // 已选了第一个文件，显示"与 xxx 对比"
-        menuHtml += `<div class="context-menu-item" data-action="compare-with">
-            与 "${selected.name}" 对比
-        </div>`;
-        menuHtml += `<div class="context-menu-item" data-action="clear-diff-selection">
-            取消 Diff 选择
-        </div>`;
-    } else {
-        menuHtml += `<div class="context-menu-item" data-action="select-for-diff">
-            选择用于 Diff 对比
-        </div>`;
+    // 单文件 Diff（非多选时）
+    if (!inMultiSelect) {
+        if (selected) {
+            menuHtml += `<div class="context-menu-item" data-action="compare-with">
+                与 "${selected.name}" 对比
+            </div>`;
+            menuHtml += `<div class="context-menu-item" data-action="clear-diff-selection">
+                取消 Diff 选择
+            </div>`;
+        } else {
+            menuHtml += `<div class="context-menu-item" data-action="select-for-diff">
+                选择用于 Diff 对比
+            </div>`;
+        }
     }
 
     menu.innerHTML = menuHtml;
@@ -282,7 +348,62 @@ function showFileContextMenu(e, node) {
         });
     }
 
+    // 多选对比（恰好 2 个文件）
+    const multiCompareItem = menu.querySelector('[data-action="multi-compare"]');
+    if (multiCompareItem) {
+        multiCompareItem.addEventListener('click', async () => {
+            const paths = [...multiSelectedPaths];
+            const fileA = await resolveFileForDiff(paths[0]);
+            const fileB = await resolveFileForDiff(paths[1]);
+            if (fileA && fileB) {
+                openDiffView(fileA, fileB);
+            }
+            multiSelectedPaths.clear();
+            updateMultiSelectHighlight();
+            closeMenu();
+        });
+    }
+
+    // 取消多选
+    const clearMultiItem = menu.querySelector('[data-action="clear-multi-selection"]');
+    if (clearMultiItem) {
+        clearMultiItem.addEventListener('click', () => {
+            multiSelectedPaths.clear();
+            updateMultiSelectHighlight();
+            closeMenu();
+        });
+    }
+
     setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+/**
+ * 根据路径获取文件的 diff 信息（优先从 openFiles 取，否则从磁盘读）
+ */
+async function resolveFileForDiff(path) {
+    const descriptor = openFiles.get(path);
+    if (descriptor) {
+        return { path, name: descriptor.name, content: descriptor.model.getValue(), language: descriptor.language };
+    }
+    const treeNode = findNodeByPath(fileTreeRoot, path);
+    if (!treeNode) return null;
+    const content = await readFileContent(treeNode.handle);
+    const language = detectLangFromName(treeNode.name);
+    return { path, name: treeNode.name, content, language };
+}
+
+/**
+ * 在文件树中按路径查找节点
+ */
+function findNodeByPath(root, targetPath) {
+    if (root.path === targetPath) return root;
+    if (root.children) {
+        for (const child of root.children) {
+            const found = findNodeByPath(child, targetPath);
+            if (found) return found;
+        }
+    }
+    return null;
 }
 
 /**
