@@ -122,11 +122,6 @@ export function initializeUI() {
     }
 
     // Diff viewer elements
-    const diffArrow = document.getElementById('diff-arrow-char');
-    if (diffArrow) {
-        diffArrow.textContent = '→';
-    }
-
     const diffModeBtn = document.getElementById('diff-mode-btn');
     if (diffModeBtn) {
         diffModeBtn.textContent = DIFF_TEXT.MODE_TOGGLE;

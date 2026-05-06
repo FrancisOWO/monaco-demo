@@ -12,29 +12,17 @@
     display: none;
 }
 
-/* Header */
+/* Toolbar（悬浮在 diff-editor-container 右上角） */
 
-#diff-header {
+#diff-toolbar {
+    position: absolute;
+    top: 45px;
+    /* transform: translateY(-50%); */
+    right: 50px;
+    z-index: 10;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 8px 16px;
-    background: #f8f8f8;
-    border-bottom: 1px solid #e0e0e0;
-    font-size: 13px;
-    color: #333;
-    flex-shrink: 0;
-}
-
-#diff-header-original,
-#diff-header-modified {
-    font-weight: 600;
-    color: #007acc;
-}
-
-.diff-header-arrow {
-    color: #999;
-    font-size: 16px;
+    gap: 8px;
 }
 
 #diff-mode-btn {
@@ -45,31 +33,12 @@
     color: #555;
     font-size: 12px;
     cursor: pointer;
-    margin-left: auto;
 }
 
 #diff-mode-btn:hover {
     background: #e8e8e8;
 }
 
-#diff-close-btn {
-    width: 28px;
-    height: 28px;
-    border: none;
-    background: none;
-    color: #666;
-    font-size: 20px;
-    cursor: pointer;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-#diff-close-btn:hover {
-    background: #e0e0e0;
-    color: #333;
-}
 
 /* Editor Container */
 
@@ -77,27 +46,13 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    position: relative;
 }
 
 /* Dark Theme */
 
 body[data-theme="dark"] #diff-overlay {
     background: #1e1e1e;
-}
-
-body[data-theme="dark"] #diff-header {
-    background: #252526;
-    border-bottom-color: #333;
-    color: #d4d4d4;
-}
-
-body[data-theme="dark"] #diff-header-original,
-body[data-theme="dark"] #diff-header-modified {
-    color: #007acc;
-}
-
-body[data-theme="dark"] .diff-header-arrow {
-    color: #666;
 }
 
 body[data-theme="dark"] #diff-mode-btn {
@@ -110,11 +65,3 @@ body[data-theme="dark"] #diff-mode-btn:hover {
     background: #3c3c3c;
 }
 
-body[data-theme="dark"] #diff-close-btn {
-    color: #aaa;
-}
-
-body[data-theme="dark"] #diff-close-btn:hover {
-    background: #3c3c3c;
-    color: #fff;
-}

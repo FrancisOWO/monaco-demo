@@ -83,20 +83,14 @@ export function openDiffView(original, modified) {
 
     // 显示 overlay
     const overlay = document.getElementById('diff-overlay');
-    const headerLeft = document.getElementById('diff-header-original');
-    const headerRight = document.getElementById('diff-header-modified');
-
-    headerLeft.textContent = original.name;
-    headerRight.textContent = modified.name;
     diffOriginalName = original.name;
     diffModifiedName = modified.name;
 
     overlay.classList.remove('hidden');
-    // 隐藏编辑器容器、欢迎页、diff-header
+    // 隐藏编辑器容器、欢迎页
     document.getElementById('editor-container').classList.add('hidden');
     document.getElementById('welcome-page').classList.add('hidden');
-    document.getElementById('diff-header').classList.add('hidden');
-
+    
     // 创建 DiffEditor
     const container = document.getElementById('diff-editor-container');
     // 先清空容器（防止重复创建）
@@ -153,7 +147,6 @@ export function showDiffView() {
     if (!diffEditor) return;
     document.getElementById('editor-container').classList.add('hidden');
     document.getElementById('welcome-page').classList.add('hidden');
-    document.getElementById('diff-header').classList.add('hidden');
     document.getElementById('diff-overlay').classList.remove('hidden');
     emit('onTabsChanged');
 }
@@ -221,9 +214,6 @@ function updateModeToggleUI() {
  * 初始化 Diff 视图事件绑定
  */
 export function setupDiffViewer() {
-    // 关闭按钮
-    document.getElementById('diff-close-btn').addEventListener('click', closeDiffView);
-
     // 模式切换按钮
     document.getElementById('diff-mode-btn').addEventListener('click', toggleDiffRenderMode);
 
