@@ -95,6 +95,35 @@ export class EditorTools {
     return JSON.stringify(result);
   }
 
+  async exportContext(outputDir?: string): Promise<string> {
+    const result = await this.client.command('editor.exportContext') as Record<string, unknown>;
+    const markdown = String(result.markdown || '');
+    const summary = result.summary as Array<Record<string, unknown>>;
+
+    // Determine output directory: use provided outputDir, then workspaceRoot, then cwd
+    let baseDir: string;
+    if (outputDir) {
+      baseDir = outputDir;
+    } else if (result.workspaceRoot) {
+      const wsRoot = String(result.workspaceRoot);
+      // Virtual paths like /D:/Users/... → D:/Users/... (strip leading /)
+      baseDir = /^\/[A-Za-z]:/.test(wsRoot) ? wsRoot.substring(1) : wsRoot;
+    } else {
+      baseDir = process.cwd();
+    }
+
+    const tempDir = path.join(baseDir, 'temp');
+    await fs.mkdir(tempDir, { recursive: true });
+    const outputPath = path.join(tempDir, 'editor-context.md');
+    await fs.writeFile(outputPath, markdown, 'utf8');
+
+    return JSON.stringify({
+      filePath: 'temp/editor-context.md',
+      count: result.count,
+      summary,
+    });
+  }
+
   async addContext(params: { type: string; path: string; name: string; content: string; range?: { startLine: number; endLine: number } }): Promise<string> {
     const result = await this.client.command('editor.addContext', params as Record<string, unknown>);
     return JSON.stringify(result);

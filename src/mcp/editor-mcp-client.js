@@ -135,6 +135,66 @@ export function createEditorMcpCommandHandler(editor) {
                 return { path, deleted: true };
             }
 
+            case 'editor.exportContext': {
+                const items = getContextItems();
+
+                const extToLang = {
+                    '.py': 'python', '.js': 'javascript', '.ts': 'typescript',
+                    '.tsx': 'typescript', '.jsx': 'javascript', '.cpp': 'cpp',
+                    '.c': 'c', '.h': 'c', '.go': 'go', '.rs': 'rust',
+                    '.java': 'java', '.html': 'html', '.css': 'css',
+                    '.json': 'json', '.yaml': 'yaml', '.yml': 'yaml',
+                    '.md': 'markdown', '.sql': 'sql', '.sh': 'bash',
+                    '.xml': 'xml', '.txt': 'text', '.ini': 'ini',
+                };
+
+                function getLang(filePath) {
+                    if (!filePath) return '';
+                    const dotIndex = filePath.lastIndexOf('.');
+                    if (dotIndex === -1) return '';
+                    return extToLang[filePath.substring(dotIndex)] || '';
+                }
+
+                let markdown = '# 编辑器上下文\n\n';
+                const summary = [];
+
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    summary.push({
+                        index: i,
+                        type: item.type,
+                        name: item.name || null,
+                        path: item.path || null,
+                        range: item.range
+                            ? `${item.range.startLine}-${item.range.endLine}`
+                            : null,
+                    });
+
+                    if (item.type === 'file' || item.type === 'selection') {
+                        const lang = getLang(item.path);
+                        const rangeInfo = item.range
+                            ? `, 行 ${item.range.startLine}-${item.range.endLine}`
+                            : '';
+                        markdown += `## ${item.type}: ${item.name} (${item.path}${rangeInfo})\n\n`;
+                        if (item.content) {
+                            markdown += `\`\`\`${lang}\n${item.content}\n\`\`\`\n\n`;
+                        } else {
+                            markdown += '(无内容)\n\n';
+                        }
+                    } else if (item.type === 'skill') {
+                        markdown += `## skill: ${item.skillName}\n\n用户引用了 Skill: ${item.skillName}\n\n`;
+                    } else if (item.type === 'mcp') {
+                        markdown += `## mcp: ${item.mcpServer}/${item.mcpToolName}\n\n用户引用了 MCP 工具: ${item.mcpServer}/${item.mcpToolName}\n\n`;
+                    }
+                }
+
+                if (items.length === 0) {
+                    markdown += '(编辑器中没有上下文)\n';
+                }
+
+                return { workspaceRoot, markdown, summary, count: items.length };
+            }
+
             case 'editor.getContext': {
                 const items = getContextItems();
                 return items.map(item => ({

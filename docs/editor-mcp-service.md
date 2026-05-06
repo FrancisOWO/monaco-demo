@@ -28,7 +28,8 @@
 
 - `server/src/editor-control.ts`：管理浏览器编辑器 WebSocket 连接，转发命令并等待响应。
 - `server/src/server.ts`：提供 `/editor-control` WebSocket，以及 `/editor-control/status`、`/editor-control/command` HTTP 端点。
-- `src/mcp/editor-mcp-client.js`：浏览器侧命令处理器，实际调用 `file-store` 和 `diff-viewer`。
+- `src/mcp/editor-mcp-client.js`：浏览器侧命令处理器，实际调用 `file-store`、`chat-store` 和 `diff-viewer`。
+- `src/chat/chat-store.js`：上下文项存储，提供 `addFileContext`、`addSelectionContext`、`addSkillContext`、`addMcpContext`、`getContextItems` 等函数。
 - `ts-mcp/src/server.ts`：TypeScript FastMCP 服务器入口，通过 `MCP_TRANSPORT` 环境变量选择传输方式。
 - `ts-mcp/src/tools.ts`：TypeScript EditorTools 类。
 - `ts-mcp/src/client.ts`：TypeScript HTTP 客户端。
@@ -227,6 +228,66 @@ MCP_TRANSPORT=sse MCP_PORT=3002 python-mcp/.venv/Scripts/python.exe -m editor_mc
 {
   "path": "D:/workspace/demo/main.py",
   "deleteFromDisk": true
+}
+```
+
+### `get_context`
+
+获取编辑器 AI 对话面板中已组装的上下文项摘要列表（不含完整内容）。
+
+参数：无。
+
+### `get_context_item`
+
+按索引获取单个上下文项的完整内容。
+
+参数：
+
+```json
+{
+  "index": 0
+}
+```
+
+### `add_context`
+
+向编辑器 AI 对话面板添加上下文项。
+
+参数：
+
+```json
+{
+  "type": "file",
+  "path": "/main.py",
+  "name": "main.py",
+  "content": "print('hello')\n"
+}
+```
+
+`type` 为 `selection` 时可附带 `range`：`{ "startLine": 5, "endLine": 10 }`。
+
+### `export_context`
+
+一次性导出所有上下文项到临时 markdown 文件。编辑器侧在单次调用中组装所有内容（文件、选中代码、Skill、MCP 工具），MCP 服务端写入 `temp/editor-context.md`，返回文件路径和摘要表格。
+
+参数：
+
+```json
+{
+  "outputDir": "D:/workspace/demo"
+}
+```
+
+`outputDir` 可选，默认使用编辑器的 `workspaceRoot`。返回示例：
+
+```json
+{
+  "filePath": "temp/editor-context.md",
+  "count": 2,
+  "summary": [
+    { "index": 0, "type": "file", "name": "test.py", "path": "/test.py", "range": null },
+    { "index": 1, "type": "selection", "name": "app.js", "path": "/app.js", "range": "5-10" }
+  ]
 }
 ```
 

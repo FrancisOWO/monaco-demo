@@ -135,6 +135,15 @@ server.addTool({
   execute: async (args) => tools.addContext(args),
 });
 
+server.addTool({
+  name: 'export_context',
+  description: 'Export all editor AI chat context items to a temp markdown file. Assembles files, selections, skills, and MCP tools into temp/editor-context.md. Returns file path and summary table.',
+  parameters: z.object({
+    outputDir: z.string().optional().describe('Project root directory for the temp/ output folder. Defaults to editor workspaceRoot.'),
+  }),
+  execute: async (args) => tools.exportContext(args.outputDir),
+});
+
 const transportType = (process.env.MCP_TRANSPORT || 'stdio') as 'stdio' | 'httpStream';
 const options: Parameters<typeof server.start>[0] = { transportType };
 
