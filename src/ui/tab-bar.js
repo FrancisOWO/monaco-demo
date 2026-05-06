@@ -21,34 +21,12 @@ export function renderTabs(editor) {
     if (!tabBar) return;
     tabBar.innerHTML = '';
 
-    // Diff 视图打开时，显示一个特殊的 diff tab
-    if (isDiffViewOpen()) {
-        const diffLabel = getDiffTabLabel();
-        if (diffLabel) {
-            const diffTab = document.createElement('div');
-            diffTab.className = 'tab active';
-            const diffName = document.createElement('span');
-            diffName.className = 'tab-name';
-            diffName.textContent = diffLabel;
-            const diffClose = document.createElement('button');
-            diffClose.className = 'tab-close';
-            diffClose.textContent = '×';
-            diffClose.addEventListener('click', (e) => {
-                e.stopPropagation();
-                closeDiffView();
-                renderTabs(editor);
-            });
-            diffTab.appendChild(diffName);
-            diffTab.appendChild(diffClose);
-            tabBar.appendChild(diffTab);
-            return; // diff 视图下只显示这一个 tab
-        }
-    }
-
+    // 渲染所有文件标签页
     for (const [path, descriptor] of openFiles) {
         const tab = document.createElement('div');
         tab.className = 'tab';
-        if (path === activeFilePath) tab.classList.add('active');
+        // diff 视图打开时，所有文件 tab 都不 active
+        if (!isDiffViewOpen() && path === activeFilePath) tab.classList.add('active');
         if (descriptor.isDirty) tab.classList.add('dirty');
         if (multiSelectedPaths.has(path)) tab.classList.add('multi-selected');
         tab.dataset.path = path;
@@ -68,7 +46,7 @@ export function renderTabs(editor) {
         tab.appendChild(name);
         tab.appendChild(close);
 
-        // 点击 tab 切换活跃文件 / Ctrl/Shift 多选
+        // 点击文件 tab：关闭 diff 视图并切换到该文件 / Ctrl/Shift 多选
         tab.addEventListener('click', (e) => {
             if (e.ctrlKey || e.shiftKey) {
                 if (multiSelectedPaths.has(path)) {
@@ -80,6 +58,10 @@ export function renderTabs(editor) {
                 return;
             }
             multiSelectedPaths.clear();
+            // 点击文件 tab 时先关闭 diff 视图
+            if (isDiffViewOpen()) {
+                closeDiffView();
+            }
             setActiveFile(path, editor);
             renderTabs(editor);
         });
@@ -92,6 +74,29 @@ export function renderTabs(editor) {
         });
 
         tabBar.appendChild(tab);
+    }
+
+    // Diff 视图打开时，追加一个特殊的 diff tab 作为活跃标签页
+    if (isDiffViewOpen()) {
+        const diffLabel = getDiffTabLabel();
+        if (diffLabel) {
+            const diffTab = document.createElement('div');
+            diffTab.className = 'tab active';
+            const diffName = document.createElement('span');
+            diffName.className = 'tab-name';
+            diffName.textContent = diffLabel;
+            const diffClose = document.createElement('button');
+            diffClose.className = 'tab-close';
+            diffClose.textContent = '×';
+            diffClose.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeDiffView();
+                renderTabs(editor);
+            });
+            diffTab.appendChild(diffName);
+            diffTab.appendChild(diffClose);
+            tabBar.appendChild(diffTab);
+        }
     }
 }
 
