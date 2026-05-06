@@ -117,19 +117,27 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
 
     /**
      * 直接获取补全并转换为 Monaco 格式
+     * 使用编辑器当前光标位置而非闭包中可能过时的 position，
+     * 确保自动缩进等编辑器操作已被反映到 prefix 和 range 中
      */
     private async fetchAndReturn(
         model: monaco.editor.ITextModel,
         position: monaco.Position,
         triggerKind: InlineCompletionTriggerKind,
     ): Promise<monaco.languages.InlineCompletions> {
+        // 使用编辑器当前光标位置，确保自动缩进等延迟操作已生效
+        const currentPosition = this.editor.getPosition();
+        if (!currentPosition || currentPosition.lineNumber !== position.lineNumber) {
+            return { items: [] };
+        }
+
         const requestContext: CompletionRequestContext = {
             requestId: `req-${++this.idCounter}-${Date.now()}`,
             uri: model.uri.toString(),
             languageId: model.getLanguageId(),
             position: {
-                lineNumber: position.lineNumber,
-                column: position.column,
+                lineNumber: currentPosition.lineNumber,
+                column: currentPosition.column,
             },
             triggerKind,
             strategy: triggerKind === InlineCompletionTriggerKind.Automatic
@@ -139,9 +147,9 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
             versionId: model.getVersionId(),
         };
 
-        // 检查是否在行尾
-        const line = model.getLineContent(position.lineNumber);
-        const textAfterCursor = line.substring(position.column - 1);
+        // 使用当前位置检查行尾
+        const line = model.getLineContent(currentPosition.lineNumber);
+        const textAfterCursor = line.substring(currentPosition.column - 1);
         if (textAfterCursor.trim() !== '') {
             return { items: [] };
         }
