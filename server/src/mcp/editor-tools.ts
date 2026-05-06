@@ -101,6 +101,11 @@ function fileName(filePath: string): string {
 }
 
 function normalizeEditorPath(filePath: string): string {
+    // 编辑器虚拟路径（如 /test.py）以 / 开头但不含 Windows 驱动器前缀（/C:/、/D:/），
+    // 这些路径不应被 path.resolve 转成磁盘绝对路径
+    if (filePath.startsWith('/') && !/^\/[A-Za-z]:/.test(filePath)) {
+        return filePath;
+    }
     return path.resolve(filePath).replace(/\\/g, '/');
 }
 

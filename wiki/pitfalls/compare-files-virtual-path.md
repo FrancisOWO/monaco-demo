@@ -48,4 +48,28 @@ compare_files (MCP 调用)
 
 Monaco Web IDE 中的文件可能只存在于虚拟文件系统，MCP 工具不应假定所有文件都能从磁盘读取。涉及文件内容的操作应优先查询编辑器状态，磁盘作为回退。
 
-类似问题也可能出现在 `edit_file`、`delete_file` 等工具中——当前这些工具用 `normalizeEditorPath` 转换路径后发给浏览器，对于虚拟路径格式（如 `/test.py`），`normalizeEditorPath` 会错误地将其转为 Windows 绝对路径（如 `D:/test.py`），导致浏览器端 `openFiles.get('D:/test.py')` 找不到 `/test.py`。这是后续需要修复的更广泛问题。
+### normalizeEditorPath 虚拟路径转换问题（已修复）
+
+之前文档提到：`normalizeEditorPath` 会将虚拟路径（如 `/test.py`）错误地转为 Windows 绝对路径（如 `D:/test.py`），导致浏览器端 `openFiles.get('D:/test.py')` 找不到 `/test.py`。
+
+**根因**：`normalizeEditorPath` 对所有路径都调用 `path.resolve(filePath)`，在 Windows 上 `path.resolve('/test.py')` 解析为当前驱动器根目录 `D:\test.py`。
+
+**修复**：在 `normalizeEditorPath` 中增加判断——以 `/` 开头且不含 Windows 驱动器前缀（如 `/C:/`、`/D:/`）的路径保持不变，不做 `path.resolve`：
+
+```typescript
+// ts-mcp/src/tools.ts
+export function normalizeEditorPath(filePath: string): string {
+  if (filePath.startsWith('/') && !/^\/[A-Za-z]:/.test(filePath)) {
+    return filePath;  // 虚拟路径如 /test.py 不转换
+  }
+  return path.resolve(filePath).replace(/\\/g, '/');
+}
+
+// python-mcp/src/editor_mcp_fastmcp/tools.py
+def normalize_editor_path(file_path: str) -> str:
+    if file_path.startswith("/") and not re.match(r"^/[A-Za-z]:", file_path):
+        return file_path
+    return str(Path(file_path).resolve()).replace("\\", "/")
+```
+
+**影响范围**：此修复不仅解决了 `compare_files` 的 ENOENT 问题，也修复了所有使用 `normalizeEditorPath` 的工具（`edit_file`、`get_file_content`、`delete_file` 等）对虚拟路径的处理。

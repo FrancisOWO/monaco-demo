@@ -3,6 +3,11 @@ import path from 'path';
 import { EditorCommandClient } from './client.js';
 
 export function normalizeEditorPath(filePath: string): string {
+  // 编辑器虚拟路径（如 /test.py）以 / 开头但不含 Windows 驱动器前缀（/C:/、/D:/），
+  // 这些路径不应被 path.resolve 转成磁盘绝对路径
+  if (filePath.startsWith('/') && !/^\/[A-Za-z]:/.test(filePath)) {
+    return filePath;
+  }
   return path.resolve(filePath).replace(/\\/g, '/');
 }
 
@@ -28,8 +33,13 @@ export class EditorTools {
   }
 
   async editorStatus(): Promise<string> {
-    const result = await this.client.status();
-    return JSON.stringify(result);
+    const connectedResult = await this.client.status() as Record<string, unknown>;
+    if (!connectedResult.connected) {
+      return JSON.stringify(connectedResult);
+    }
+    // 编辑器已连接，查询完整状态（包含打开文件列表）
+    const detail = await this.client.command('editor.status') as Record<string, unknown>;
+    return JSON.stringify({ connected: true, ...detail });
   }
 
   async openFolder(folderPath: string): Promise<string> {
@@ -67,6 +77,26 @@ export class EditorTools {
   async getFileContent(filePath?: string): Promise<string> {
     const params = filePath ? { path: normalizeEditorPath(filePath) } : {};
     const result = await this.client.command('editor.getFileContent', params);
+    return JSON.stringify(result);
+  }
+
+  async getSelection(): Promise<string> {
+    const result = await this.client.command('editor.getSelection');
+    return JSON.stringify(result);
+  }
+
+  async getContext(): Promise<string> {
+    const result = await this.client.command('editor.getContext');
+    return JSON.stringify(result);
+  }
+
+  async getContextItem(index: number): Promise<string> {
+    const result = await this.client.command('editor.getContextItem', { index });
+    return JSON.stringify(result);
+  }
+
+  async addContext(params: { type: string; path: string; name: string; content: string; range?: { startLine: number; endLine: number } }): Promise<string> {
+    const result = await this.client.command('editor.addContext', params as Record<string, unknown>);
     return JSON.stringify(result);
   }
 

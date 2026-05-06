@@ -9,6 +9,12 @@ import {
     openFileFromContent,
     updateFileContent,
 } from '../file-system/file-store.js';
+import {
+    addFileContext as chatAddFileContext,
+    addSelectionContext as chatAddSelectionContext,
+    clearContext as chatClearContext,
+    getContextItems,
+} from '../chat/chat-store.js';
 import { openDiffView } from '../ui/diff-viewer.js';
 import { showToast } from '../ui/dialogs.js';
 
@@ -83,6 +89,27 @@ export function createEditorMcpCommandHandler(editor) {
                 return snapshot;
             }
 
+            case 'editor.getSelection': {
+                const selection = editor.getSelection();
+                const model = editor.getModel();
+                if (!selection || !model) throw new Error('No selection available');
+                const selectedText = selection.isEmpty() ? '' : model.getValueInRange(selection);
+                const fileSnapshot = getFileSnapshot();
+                return {
+                    path: fileSnapshot ? fileSnapshot.path : null,
+                    name: fileSnapshot ? fileSnapshot.name : null,
+                    language: fileSnapshot ? fileSnapshot.language : null,
+                    selection: {
+                        startLineNumber: selection.startLineNumber,
+                        startColumn: selection.startColumn,
+                        endLineNumber: selection.endLineNumber,
+                        endColumn: selection.endColumn,
+                    },
+                    selectedText,
+                    isEmpty: selection.isEmpty(),
+                };
+            }
+
             case 'editor.markSaved': {
                 const snapshot = markFileSaved(
                     params.path ? String(params.path) : undefined,
@@ -106,6 +133,57 @@ export function createEditorMcpCommandHandler(editor) {
                 if (!path) throw new Error('File is not open');
                 forceCloseFile(path, editor);
                 return { path, deleted: true };
+            }
+
+            case 'editor.getContext': {
+                const items = getContextItems();
+                return items.map(item => ({
+                    type: item.type,
+                    path: item.path || null,
+                    name: item.name || null,
+                    range: item.range || null,
+                    skillId: item.skillId || null,
+                    skillName: item.skillName || null,
+                    mcpServer: item.mcpServer || null,
+                    mcpToolId: item.mcpToolId || null,
+                    mcpToolName: item.mcpToolName || null,
+                }));
+            }
+
+            case 'editor.getContextItem': {
+                const items = getContextItems();
+                const index = Number(params.index || 0);
+                if (index < 0 || index >= items.length) throw new Error('Index out of range');
+                const item = items[index];
+                return {
+                    type: item.type,
+                    path: item.path,
+                    name: item.name,
+                    content: item.content || null,
+                    range: item.range || null,
+                    skillId: item.skillId || null,
+                    skillName: item.skillName || null,
+                    mcpServer: item.mcpServer || null,
+                    mcpToolId: item.mcpToolId || null,
+                    mcpToolName: item.mcpToolName || null,
+                };
+            }
+
+            case 'editor.addContext': {
+                const type = String(params.type);
+                if (type === 'file') {
+                    chatAddFileContext(String(params.path), String(params.name), String(params.content));
+                } else if (type === 'selection') {
+                    chatAddSelectionContext(String(params.path), String(params.name), String(params.content), params.range);
+                } else {
+                    throw new Error(`Unsupported context type: ${type}`);
+                }
+                return { added: true };
+            }
+
+            case 'editor.clearContext': {
+                chatClearContext();
+                return { cleared: true };
             }
 
             case 'editor.diffFiles': {

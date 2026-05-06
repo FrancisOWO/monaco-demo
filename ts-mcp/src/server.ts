@@ -68,6 +68,13 @@ server.addTool({
 });
 
 server.addTool({
+  name: 'get_selection',
+  description: 'Get the selected text range in the currently active editor file. Returns selection coordinates and the selected text content.',
+  parameters: z.object({}),
+  execute: async () => tools.getSelection(),
+});
+
+server.addTool({
   name: 'delete_file',
   description: 'Close a file in the editor and optionally delete it from disk.',
   parameters: z.object({
@@ -86,6 +93,46 @@ server.addTool({
     language: z.string().optional().describe('Language identifier for diff highlighting'),
   }),
   execute: async (args) => tools.compareFiles(args.originalPath, args.modifiedPath, args.language),
+});
+
+server.addResource({
+  uri: 'editor://context',
+  name: 'Editor Chat Context',
+  description: 'Current AI chat context items assembled in the editor (files, selections, skills, MCP tools)',
+  mimeType: 'application/json',
+  async load() {
+    const items = await tools.getContext();
+    return { text: items };
+  },
+});
+
+server.addTool({
+  name: 'get_context',
+  description: 'Get the list of context items currently assembled in the editor AI chat panel. Returns item summaries (type, path, name, range) without full content.',
+  parameters: z.object({}),
+  execute: async () => tools.getContext(),
+});
+
+server.addTool({
+  name: 'get_context_item',
+  description: 'Get the full content of a specific context item by index. Use get_context first to get the list and indices.',
+  parameters: z.object({
+    index: z.number().describe('Index of the context item (from get_context list)'),
+  }),
+  execute: async (args) => tools.getContextItem(args.index),
+});
+
+server.addTool({
+  name: 'add_context',
+  description: 'Add a context item to the editor AI chat panel from an external agent.',
+  parameters: z.object({
+    type: z.enum(['file', 'selection']).describe('Context item type'),
+    path: z.string().describe('File path'),
+    name: z.string().describe('File name'),
+    content: z.string().describe('Content text'),
+    range: z.object({ startLine: z.number(), endLine: z.number() }).optional().describe('Line range for selection type'),
+  }),
+  execute: async (args) => tools.addContext(args),
 });
 
 const transportType = (process.env.MCP_TRANSPORT || 'stdio') as 'stdio' | 'httpStream';

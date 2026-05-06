@@ -6,7 +6,13 @@ from typing import Any
 from .client import EditorControlClient
 
 
+import re
+
 def normalize_editor_path(file_path: str) -> str:
+    # 编辑器虚拟路径（如 /test.py）以 / 开头但不含 Windows 驱动器前缀（/C:/、/D:/），
+    # 这些路径不应被 resolve 转成磁盘绝对路径
+    if file_path.startswith("/") and not re.match(r"^/[A-Za-z]:", file_path):
+        return file_path
     return str(Path(file_path).resolve()).replace("\\", "/")
 
 
