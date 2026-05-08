@@ -103,7 +103,7 @@ export function openDiffView(original, modified) {
         theme: document.body.dataset.theme === 'dark' ? 'vs-dark' : 'vs',
         fontSize: 14,
         lineNumbers: 'on',
-        scrollBeyondLastLine: false,
+        scrollBeyondLastLine: true,
         find: { addExtraSpaceOnTop: false },
     });
 
