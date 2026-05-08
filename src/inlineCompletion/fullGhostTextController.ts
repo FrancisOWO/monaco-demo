@@ -25,6 +25,9 @@ import {
     type ITelemetryEmitter,
 } from './types.js';
 import { debounceCancellable } from './cache/debounce.js';
+import { getLogger } from '../utils/logger.js';
+
+const logger = getLogger('GhostTextCtrl');
 
 /**
  * 完整版 Ghost Text 控制器配置
@@ -129,23 +132,33 @@ export class FullGhostTextController implements IGhostTextController {
             prompt.suffix,
         );
         if (typingChoices && typingChoices.length > 0) {
-            return this.processAndReturn(
+            const result = this.processAndReturn(
                 typingChoices,
                 context,
                 strategy,
                 CompletionSource.TypingAsSuggested,
             );
+            if (result.length > 0) {
+                return result;
+            }
+            // typing-as-suggested 结果被过滤 → fallthrough 到网络请求
+            logger.info(`typingAsSuggested filtered, falling through to network request`);
         }
 
         // 4. Cache → 0ms
         const cacheChoices = this.completionsCache.findAll(prompt.prefix, prompt.suffix);
         if (cacheChoices && cacheChoices.length > 0) {
-            return this.processAndReturn(
+            const result = this.processAndReturn(
                 cacheChoices,
                 context,
                 strategy,
                 CompletionSource.Cache,
             );
+            if (result.length > 0) {
+                return result;
+            }
+            // cache 结果被过滤 → fallthrough 到网络请求
+            logger.info(`cache filtered, falling through to network request`);
         }
 
         // 5. Async Manager → 复用进行中请求
@@ -156,12 +169,17 @@ export class FullGhostTextController implements IGhostTextController {
             this.config.asyncTimeout,
         );
         if (asyncChoices) {
-            return this.processAndReturn(
+            const result = this.processAndReturn(
                 asyncChoices,
                 context,
                 strategy,
                 CompletionSource.Async,
             );
+            if (result.length > 0) {
+                return result;
+            }
+            // async 结果被过滤 → fallthrough 到网络请求
+            logger.info(`async filtered, falling through to network request`);
         }
 
         // 6. 网络请求（流式）
@@ -183,6 +201,7 @@ export class FullGhostTextController implements IGhostTextController {
 
             if (processed === undefined) {
                 // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
+                logger.info(`streaming: postProcess filtered all → reset acceptCount from ${this.consecutiveAcceptCount} to 0`);
                 this.consecutiveAcceptCount = 0;
                 return [];
             }
@@ -210,6 +229,7 @@ export class FullGhostTextController implements IGhostTextController {
                 this.currentGhostText.setCurrent(prompt.prefix, prompt.suffix, processed);
             } else {
                 // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
+                logger.info(`non-stream: postProcess filtered all → reset acceptCount from ${this.consecutiveAcceptCount} to 0`);
                 this.consecutiveAcceptCount = 0;
             }
 
@@ -240,10 +260,9 @@ export class FullGhostTextController implements IGhostTextController {
             .map(c => this.postProcessor.process(c, documentContent, context.position, strategy))
             .filter((c): c is CompletionResult => c !== undefined);
 
-        if (processed.length === 0) {
-            // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
-            this.consecutiveAcceptCount = 0;
-        }
+        // typing-as-suggested / cache 路径的结果被过滤不应重置 consecutiveAcceptCount，
+        // 因为这只是缓存未命中，不是"隐式拒绝"。
+        // 只有网络请求的结果被过滤才意味着 AI 返回了无效内容。
 
         // 记录当前补全
         this.currentGhostText.setCurrent(
@@ -277,9 +296,11 @@ export class FullGhostTextController implements IGhostTextController {
                 break;
             case CompletionLifecycleKind.Accepted:
                 this.consecutiveAcceptCount++;
+                logger.info(`handleLifecycle accepted: acceptCount=${this.consecutiveAcceptCount}, id=${completionId}`);
                 this.speculativeCache.request(completionId);
                 break;
             case CompletionLifecycleKind.Rejected:
+                logger.info(`handleLifecycle rejected: reset acceptCount from ${this.consecutiveAcceptCount} to 0, id=${completionId}`);
                 this.consecutiveAcceptCount = 0;
                 this.currentGhostText.clear();
                 break;

@@ -181,7 +181,9 @@ router.post('/', async (req, res) => {
 
             const preview = (items[0]?.insertText || '').split('\n')[0]?.substring(0, 40) || '(empty)';
             console.log(`[AI Completion] Non-stream response: ${items.length} item(s), first line: ${preview}`);
-            lastCompletionTime = Date.now();
+            if (items.length > 0) {
+                lastCompletionTime = Date.now();
+            }
             res.json({ items });
             return;
         }
@@ -217,7 +219,9 @@ router.post('/', async (req, res) => {
             res.write(`event: done\ndata: ${JSON.stringify({ fullText })}\n\n`);
             const preview = fullText.split('\n')[0]?.substring(0, 40) || '(empty)';
             console.log(`[AI Completion] Stream done: ${fullText.length} chars, first line: ${preview}`);
-            lastCompletionTime = Date.now();
+            if (fullText.trim().length > 0) {
+                lastCompletionTime = Date.now();
+            }
             res.end();
         } catch (error: any) {
             console.error('[AI Completion Stream] Error:', error);

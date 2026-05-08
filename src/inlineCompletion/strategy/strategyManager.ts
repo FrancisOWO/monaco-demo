@@ -15,6 +15,9 @@ import {
 } from '../types.js';
 import type { IBlockTrimmerRegistry } from '../trim/blockTrimmerRegistry.js';
 import type { IMultilineModel } from '../trim/multilineModel.js';
+import { getLogger } from '../../utils/logger.js';
+
+const logger = getLogger('StrategyManager');
 
 /** 策略管理器配置 */
 export interface StrategyManagerConfig {
@@ -57,6 +60,7 @@ export class StrategyManager implements IStrategyManager {
     ): Promise<CompletionStrategy> {
         const model = this.editor.getModel();
         if (!model) {
+            logger.info(`determineStrategy: no model → singleLine, acceptCount=${consecutiveAcceptCount}`);
             return this.singleLineStrategy(BlockMode.Server);
         }
 
@@ -68,15 +72,18 @@ export class StrategyManager implements IStrategyManager {
 
         // 1. 文件长度限制
         if (lineCount >= this.config.maxFileLines) {
+            logger.info(`determineStrategy: file too long (${lineCount} lines) → singleLine, acceptCount=${consecutiveAcceptCount}`);
             return this.singleLineStrategy(blockMode);
         }
 
         // 2. MoreMultiline 特殊规则：仅接受后触发
         if (blockMode === BlockMode.MoreMultiline && this.blockTrimmerRegistry.isSupported(languageId)) {
             if (consecutiveAcceptCount < this.config.consecutiveAcceptThreshold) {
+                logger.info(`determineStrategy: MoreMultiline, acceptCount=${consecutiveAcceptCount} < ${this.config.consecutiveAcceptThreshold} → singleLine`);
                 return this.singleLineStrategy(blockMode);
             }
             const blockPosition = await this.blockTrimmerRegistry.getBlockPositionType(document, position);
+            logger.info(`determineStrategy: MoreMultiline, acceptCount=${consecutiveAcceptCount} ≥ ${this.config.consecutiveAcceptThreshold} → multiline`);
             return this.multilineStrategy(blockMode, blockPosition);
         }
 
@@ -84,6 +91,7 @@ export class StrategyManager implements IStrategyManager {
         if (['typescript', 'typescriptreact'].includes(languageId)) {
             const line = model.getLineContent(position.lineNumber);
             if (line.trim().length === 0) {
+                logger.info(`determineStrategy: TypeScript empty line → multiline, acceptCount=${consecutiveAcceptCount}`);
                 return this.multilineStrategy(blockMode);
             }
         }
@@ -102,12 +110,15 @@ export class StrategyManager implements IStrategyManager {
 
         // 6. 连续接受达到阈值后强制多行
         if (consecutiveAcceptCount >= this.config.consecutiveAcceptThreshold && !requestMultiline) {
+            logger.info(`determineStrategy: acceptCount=${consecutiveAcceptCount} ≥ ${this.config.consecutiveAcceptThreshold}, requestMultiline=${requestMultiline} → afterAccept`);
             return this.afterAcceptStrategy(blockMode);
         }
 
         if (requestMultiline) {
+            logger.info(`determineStrategy: requestMultiline=true → multiline, acceptCount=${consecutiveAcceptCount}`);
             return this.multilineStrategy(blockMode);
         }
+        logger.info(`determineStrategy: default → singleLine, acceptCount=${consecutiveAcceptCount}, blockMode=${blockMode}, requestMultiline=${requestMultiline}`);
         return this.singleLineStrategy(blockMode);
     }
 
