@@ -68,14 +68,22 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
             });
         }
 
-        // 监听文档内容变化，检测补全被接受
+        // 监听文档内容变化，检测补全被接受或逐字匹配
         this.editor.onDidChangeModelContent(e => {
             if (!this.lastShownInsertText) return;
 
             for (const change of e.changes) {
-                if (change.text.includes(this.lastShownInsertText) ||
-                    this.lastShownInsertText.startsWith(change.text)) {
+                // 完整包含：Tab 接受，整个补全文本一次性插入
+                if (change.text.includes(this.lastShownInsertText)) {
                     this.controller.handleLifecycle(this.lastShownCompletionId, 'accepted' as any);
+                    this.lastShownInsertText = '';
+                    this.lastShownCompletionId = '';
+                    this.onAccept?.();
+                    return;
+                }
+                // 前缀匹配：typing-as-suggested，用户照着 ghost text 打字
+                // 只重置冷却期（下次网络请求不被拦截），不触发投机请求
+                if (this.lastShownInsertText.startsWith(change.text)) {
                     this.lastShownInsertText = '';
                     this.lastShownCompletionId = '';
                     this.onAccept?.();
