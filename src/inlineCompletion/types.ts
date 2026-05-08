@@ -252,6 +252,11 @@ export interface IAICompletionClient {
      * 取消进行中的请求
      */
     cancelRequest(requestId: string): void;
+
+    /**
+     * 通知客户端用户接受了补全，用于重置服务端冷却期
+     */
+    notifyAccept?(): void;
 }
 
 /** 后处理器接口 */

@@ -78,7 +78,7 @@ function setupSimplePipeline(
         editor,
     );
 
-    const provider = new MonacoInlineCompletionsProvider(controller, editor);
+    const provider = new MonacoInlineCompletionsProvider(controller, editor, () => aiCompletionClient.notifyAccept?.());
 
     const providerDisposable = monacoInstance.languages.registerInlineCompletionsProvider(
         { pattern: '**/*' },
@@ -169,7 +169,7 @@ function setupFullPipeline(
     );
 
     // 9. Monaco Provider
-    const provider = new MonacoInlineCompletionsProvider(controller, editor);
+    const provider = new MonacoInlineCompletionsProvider(controller, editor, () => aiCompletionClient.notifyAccept?.());
 
     const providerDisposable = monacoInstance.languages.registerInlineCompletionsProvider(
         { pattern: '**/*' },

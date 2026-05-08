@@ -60,6 +60,8 @@ interface CompletionRequestBody {
         lineNumber: number;
         column: number;
     };
+    /** 上次补全被用户接受的时间戳，用于重置冷却期 */
+    lastAcceptTime?: number;
 }
 
 // ============ 统一补全路由 ============
@@ -82,7 +84,12 @@ router.post('/', async (req, res) => {
         }
 
         // 冷却期：上次补全返回后 2s 内，直接返回空结果
+        // 但如果用户已接受了上次补全，冷却期重置——接受后需要立即补全
         const now = Date.now();
+        if (body.lastAcceptTime && body.lastAcceptTime > lastCompletionTime) {
+            console.log(`[AI Completion] Cooldown reset: lastAcceptTime=${body.lastAcceptTime} > lastCompletionTime=${lastCompletionTime}`);
+            lastCompletionTime = 0;
+        }
         if (apiConfig && now - lastCompletionTime < COOLDOWN_MS) {
             console.log(`[AI Completion] Skipped: cooldown active, ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left`);
             if (isStream) {

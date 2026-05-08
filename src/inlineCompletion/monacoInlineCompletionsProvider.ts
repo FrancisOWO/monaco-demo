@@ -47,11 +47,16 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
     private idCounter = 0;
     private isComposing = false;
     private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+    private lastShownInsertText: string = '';
+    private onAccept: (() => void) | undefined;
 
     constructor(
         private controller: IGhostTextController,
         private editor: monaco.editor.ICodeEditor,
+        onAccept?: () => void,
     ) {
+        this.onAccept = onAccept;
+
         const editorDom = editor.getDomNode();
         if (editorDom) {
             editorDom.addEventListener('compositionstart', () => {
@@ -61,6 +66,21 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
                 this.isComposing = false;
             });
         }
+
+        // 监听文档内容变化，检测补全被接受
+        this.editor.onDidChangeModelContent(e => {
+            if (!this.lastShownInsertText) return;
+
+            // 检查变更是否包含上次展示的补全文本（Tab 接受或逐字接受后的最终插入）
+            for (const change of e.changes) {
+                if (change.text.includes(this.lastShownInsertText) ||
+                    this.lastShownInsertText.startsWith(change.text)) {
+                    this.lastShownInsertText = '';
+                    this.onAccept?.();
+                    return;
+                }
+            }
+        });
     }
 
     async provideInlineCompletions(
@@ -167,7 +187,10 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
         }));
 
         if (completions.length > 0) {
+            this.lastShownInsertText = completions[0].insertText;
             this.controller.handleLifecycle(completions[0].completionId, 'shown' as any);
+        } else {
+            this.lastShownInsertText = '';
         }
 
         return { items };

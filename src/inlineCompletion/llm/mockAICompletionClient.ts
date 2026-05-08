@@ -146,6 +146,10 @@ export class MockAICompletionClient implements IAICompletionClient {
         // 虚拟客户端无需实际取消
     }
 
+    notifyAccept(): void {
+        // 虚拟客户端无需处理接受通知
+    }
+
     /**
      * 根据前缀生成补全建议
      */

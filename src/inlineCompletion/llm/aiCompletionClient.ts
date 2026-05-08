@@ -28,6 +28,8 @@ export class AICompletionClient implements IAICompletionClient {
     private modelSelector: IModelSelector;
     /** 当前请求的 trailingWs，用于裁剪 AI 补全中的重复缩进 */
     private currentTrailingWs: string = '';
+    /** 上次补全被用户接受的时间戳，用于通知服务端重置冷却期 */
+    private lastAcceptTime: number = 0;
 
     constructor(
         modelSelector?: IModelSelector,
@@ -66,6 +68,7 @@ export class AICompletionClient implements IAICompletionClient {
                         stopTokens: strategy.stopTokens,
                     },
                     position: context.position,
+                    lastAcceptTime: this.lastAcceptTime,
                 }),
                 signal: this.abortController.signal,
             });
@@ -204,5 +207,10 @@ export class AICompletionClient implements IAICompletionClient {
             return text.slice(ws.length);
         }
         return text;
+    }
+
+    /** 记录用户接受补全的时间，下次请求时传给服务端以重置冷却期 */
+    notifyAccept(): void {
+        this.lastAcceptTime = Date.now();
     }
 }
