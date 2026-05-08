@@ -73,6 +73,10 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
             if (!this.lastShownInsertText) return;
 
             for (const change of e.changes) {
+                // 删除操作 change.text 为空字符串，"".startsWith("anything") 总为 true
+                // 必须排除，否则每次删除都会误触发 typing-as-suggested 检测
+                if (!change.text) continue;
+
                 // 完整包含：Tab 接受，整个补全文本一次性插入
                 if (change.text.includes(this.lastShownInsertText)) {
                     this.controller.handleLifecycle(this.lastShownCompletionId, 'accepted' as any);

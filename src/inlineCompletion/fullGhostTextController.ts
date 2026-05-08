@@ -101,11 +101,11 @@ export class FullGhostTextController implements IGhostTextController {
         const prompt = await this.promptFactory.buildPrompt(context);
 
         // 2. 删除检测：prefix 缩短 → 删除模式（跳过缓存和请求）
-        //    prefix 增长 → 用户输入新内容 → 清除删除模式
+        //    prefix 恢复到删除前长度或增长 → 清除删除模式
         if (this.lastPrefix && prompt.prefix.length < this.lastPrefix.length) {
             this.isDeletionMode = true;
         }
-        if (this.isDeletionMode && prompt.prefix.length > this.lastPrefix.length) {
+        if (this.isDeletionMode && prompt.prefix.length >= this.lastPrefix.length) {
             this.isDeletionMode = false;
         }
         this.lastPrefix = prompt.prefix;
