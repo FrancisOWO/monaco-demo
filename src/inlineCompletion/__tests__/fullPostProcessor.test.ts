@@ -1,6 +1,7 @@
 /**
  * @jest-environment node
  */
+/// <reference types="jest" />
 
 import { FullPostProcessor } from '../postProcess/fullPostProcessor.js';
 import { BlockMode, CompletionSource } from '../types.js';
