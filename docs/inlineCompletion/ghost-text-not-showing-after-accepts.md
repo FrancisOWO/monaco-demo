@@ -76,7 +76,9 @@
 4. 用户接受真实补全后计数最多只涨回 1
 5. 下一次真实请求永远达不到阈值 2 → 永远走单行策略
 
-**修复**: 暂停 `triggerSpeculativeRequest()`，只保留日志，不再调用 `speculativeCache.set()`。在投机请求能携带真实语言、位置、策略，并且不会复用会清零计数的主链路之前，不应启用。
+**阶段性修复**: 先暂停 `triggerSpeculativeRequest()`，只保留日志，不再调用 `speculativeCache.set()`。
+
+**后续修复**: 投机请求重新启用，但不再复用 `getCompletions()` 主链路。新实现使用当前补全的真实上下文快照，构造 `prefix + insertText + "\n" + indent` 的下一行 prompt，直接调用 `AICompletionClient.requestCompletion()` 预取，并用 `requestSource=speculative` 标记服务端日志。下一次补全请求先查 `SpeculativeRequestCache.find(prefix, suffix)`，命中时前端日志输出 `cache hit: type=speculative`。
 
 ### Bug 7（第四轮）: 多行策略触发但实际仍只返回一行
 
@@ -100,6 +102,41 @@
 - 服务端对 `requestMultiline=true` 的非流式请求加兜底：如果首轮只返回一行，就用“已接受第一行后的上下文”续写最多两次，并拼成一次多行结果。
 - 网络空结果不再清零 `consecutiveAcceptCount`；用户输入与 ghost text 不匹配时，Provider 显式发送 `Rejected`，这时才回到单行策略。
 
+### Bug 8（第五轮）: 多行补全成功但响应太慢
+
+多行补全触发后，日志显示一次请求可能返回 17-19 行：
+
+```text
+[AI Completion] Strategy: requestMultiline=true, maxTokens=192, stopTokens=[]
+[AI Completion] Non-stream response: 1 item(s), lines=19, first line: ...
+```
+
+前端最终只需要 3 行，但服务端非流式请求会等模型把 17-19 行全部生成完再返回。单行补全快，是因为 `stopTokens=["\n"]` 很快截断；多行慢，是因为 `stopTokens=[]` 且 `maxTokens=192`，没有早停。
+
+**修复**:
+- 服务端为所有请求增加计时日志：`totalMs`、`aiMs`、多行流式路径的 `firstTokenMs`、`earlyStopped`、`chunks`。
+- 前端 `AICompletionClient` 增加 `headerMs`、`totalMs` 日志，方便对齐浏览器和服务端耗时。
+- 服务端对 `requestMultiline=true && stream=false` 的请求内部改用流式调用模型；累积到 3 个非空行后立即 abort 流并返回。
+- after-accept `maxTokens` 从 192 降到 96。它只是上限；正常情况下会被服务端早停打断。
+- 移除上一轮“多次非流式续写”带来的额外串行请求成本。
+
+### Bug 9（第六轮）: 投机请求发出了但被 cooldown 拦截
+
+接受单行补全后立刻按 Enter 时，偶发没有 ghost text。服务端日志显示投机请求确实已经发送：
+
+```text
+[AI Completion] Request received: id=cmp-2, source=speculative, ...
+[AI Completion] Skipped: id=cmp-2, cooldown active, 1990ms left
+```
+
+这说明“投机请求已触发”不等于“投机缓存已预热”。旧逻辑把 `source=speculative` 当成普通网络请求处理，刚显示完上一条补全后的 2s cooldown 会直接返回空结果，`SpeculativeRequestCache` 中只会缓存空数组。用户接受补全后进入下一行时，本地 speculative cache 没有可用结果，只能继续走普通网络请求；如果普通请求也被 cooldown 或 Monaco 取消影响，就表现为不显示 ghost text。
+
+**修复**:
+- 服务端识别 `source=speculative` 后绕过 cooldown。
+- 投机请求成功返回后不更新 `lastCompletionTime`，避免预取制造新的 cooldown。
+- 前端下一次补全先查 `SpeculativeRequestCache.find()`；如果匹配的投机请求仍在进行中，最多等待 `asyncTimeout`，覆盖 Tab 后立刻 Enter 的竞速窗口。
+- 命中时前端日志输出 `cache hit: type=speculative, waitMs=...`；此时不会再出现对应的服务端请求。
+
 ## 修复汇总
 
 | Bug | 文件 | 修改 |
@@ -109,8 +146,10 @@
 | Bug 3 | `fullGhostTextController.ts` | `processAndReturn` 不再重置 `consecutiveAcceptCount` |
 | Bug 4 | `fullGhostTextController.ts` | typing-as-suggested/cache/async 过滤后 fallthrough 到网络请求 |
 | Bug 5 | `server/ai-completion.ts` | AI 返回空结果时不更新 `lastCompletionTime` |
-| Bug 6 | `fullGhostTextController.ts` | 暂停不安全的投机请求，避免空语言/单行请求清零连续接受计数 |
+| Bug 6 | `fullGhostTextController.ts` | 投机请求使用真实上下文和无副作用链路，服务端日志标记 `source=speculative`，本地命中标记 `cache hit: type=speculative` |
 | Bug 7 | `strategyManager.ts` / `fullPostProcessor.ts` / `server/src/ai-completion.ts` | 放开 afterAccept stop token，客户端应用 `finishedCb`，服务端续写单行多行请求 |
+| Bug 8 | `server/src/ai-completion.ts` / `llm/aiCompletionClient.ts` / `strategyManager.ts` | 增加端到端计时；多行非流式请求内部流式早停，避免等待模型生成过多行 |
+| Bug 9 | `server/src/ai-completion.ts` / `fullGhostTextController.ts` / `cache/speculativeRequestCache.ts` | 投机请求绕过 cooldown、不刷新冷却时间；前端短暂等待匹配的 pending speculative cache |
 
 ## 关键教训
 
@@ -119,3 +158,5 @@
 - **fallthrough 优于短路返回**: 缓存路径被过滤后应继续尝试网络请求，而不是直接返回空数组。
 - **投机请求不能复用有副作用的主链路**: speculative request 必须带真实上下文，且不能因为自己的空结果影响用户真实补全的连续接受计数。
 - **显式拒绝才清零连续接受**: 网络空结果、模型空结果、后处理过滤都不是用户拒绝；用户输入与 ghost text 不匹配时才应回到单行。
+- **多行也要早停**: 前端只展示 N 行时，服务端不能等模型生成完整长答案；应流式读取并在目标行数达成时中止。
+- **投机请求不能被普通 cooldown 管住**: 预取请求的价值在于接受后可立即命中缓存；如果它被 cooldown 返回空，就只是制造了一条“看似触发、实际无效”的日志。

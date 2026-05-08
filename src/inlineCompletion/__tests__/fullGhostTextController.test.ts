@@ -54,10 +54,11 @@ describe('FullGhostTextController', () => {
     let controller: FullGhostTextController;
 
     const prompt: PromptInfo = {
-        prefix: 'for i in range(10):\n    ',
+        prefix: 'for i in range(10):\n',
         suffix: '',
         context: [],
         isFimEnabled: true,
+        trailingWs: '    ',
     };
 
     const completion: CompletionResult = {
@@ -88,7 +89,22 @@ describe('FullGhostTextController', () => {
 
     beforeEach(() => {
         promptFactory = {
-            buildPrompt: jest.fn().mockResolvedValue(prompt),
+            buildPrompt: jest.fn(async (requestContext: CompletionRequestContext) => {
+                if (requestContext.prompt?.prefix) {
+                    const match = requestContext.prompt.prefix.match(/([ \t]*)$/);
+                    const trailingWs = match?.[1] ?? '';
+                    return {
+                        ...requestContext.prompt,
+                        prefix: trailingWs ? requestContext.prompt.prefix.slice(0, -trailingWs.length) : requestContext.prompt.prefix,
+                        trailingWs,
+                    };
+                }
+                requestContext.prompt = {
+                    ...prompt,
+                    prefix: prompt.prefix + (prompt.trailingWs ?? ''),
+                };
+                return prompt;
+            }),
             getAllocation: jest.fn(),
             getMaxPromptLength: jest.fn(),
         };
@@ -129,6 +145,9 @@ describe('FullGhostTextController', () => {
         speculativeCache = {
             set: jest.fn(),
             request: jest.fn().mockResolvedValue(undefined),
+            find: jest.fn().mockReturnValue(undefined),
+            waitFor: jest.fn().mockResolvedValue(undefined),
+            getResult: jest.fn().mockReturnValue(undefined),
             clear: jest.fn(),
         };
 
@@ -166,12 +185,19 @@ describe('FullGhostTextController', () => {
         );
     });
 
-    it('does not start unsafe speculative requests when a completion is shown', async () => {
+    it('starts a safe speculative request for the accepted next line when a completion is shown', async () => {
         await controller.getCompletions(context('req-1'));
 
         controller.handleLifecycle('req-1-0', CompletionLifecycleKind.Shown);
+        await Promise.resolve();
+        await Promise.resolve();
 
-        expect(speculativeCache.set).not.toHaveBeenCalled();
+        expect(speculativeCache.set).toHaveBeenCalledWith(
+            'req-1-0',
+            'for i in range(10):\n    print(i)\n',
+            '',
+            expect.any(Function),
+        );
         expect(aiCompletionClient.requestCompletion).toHaveBeenCalledTimes(1);
     });
 
@@ -219,5 +245,70 @@ describe('FullGhostTextController', () => {
             multilineStrategy,
             expect.objectContaining({ requestId: 'req-3' }),
         );
+    });
+
+    it('returns speculative cache results before making a network request', async () => {
+        const speculativeCompletion: CompletionResult = {
+            ...completion,
+            insertText: 'print("next")',
+            completionId: 'speculative-req-1-0',
+            source: CompletionSource.Network,
+        };
+
+        speculativeCache.find
+            .mockReturnValueOnce(undefined)
+            .mockReturnValueOnce([speculativeCompletion]);
+
+        await controller.getCompletions(context('req-1'));
+        const results = await controller.getCompletions(context('req-2'));
+
+        expect(results).toHaveLength(1);
+        expect(results[0]).toMatchObject({
+            insertText: 'print("next")',
+            source: CompletionSource.Speculative,
+            range: {
+                startLineNumber: 2,
+                startColumn: 5,
+                endLineNumber: 2,
+                endColumn: 5,
+            },
+        });
+        expect(aiCompletionClient.requestCompletion).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits briefly for a pending speculative cache result before making a network request', async () => {
+        const speculativeCompletion: CompletionResult = {
+            ...completion,
+            insertText: 'print("prefetched")',
+            completionId: 'speculative-req-1-0',
+            source: CompletionSource.Network,
+        };
+
+        controller = new FullGhostTextController(
+            promptFactory,
+            aiCompletionClient,
+            postProcessor,
+            strategyManager,
+            completionsCache,
+            currentGhostText,
+            speculativeCache,
+            asyncManager,
+            telemetryEmitter,
+            editor as any,
+            { debounceMs: 0, asyncTimeout: 25 },
+        );
+
+        speculativeCache.find.mockReturnValue(undefined);
+        speculativeCache.waitFor.mockResolvedValue([speculativeCompletion]);
+
+        const results = await controller.getCompletions(context('req-1'));
+
+        expect(speculativeCache.waitFor).toHaveBeenCalledWith(prompt.prefix, prompt.suffix, 25);
+        expect(results).toHaveLength(1);
+        expect(results[0]).toMatchObject({
+            insertText: 'print("prefetched")',
+            source: CompletionSource.Speculative,
+        });
+        expect(aiCompletionClient.requestCompletion).not.toHaveBeenCalled();
     });
 });

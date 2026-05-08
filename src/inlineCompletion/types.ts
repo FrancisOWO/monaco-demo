@@ -50,6 +50,8 @@ export interface CompletionRequestContext {
     prompt: PromptInfo;
     /** 文档版本（用于过期检测） */
     versionId: number;
+    /** 请求来源，用于日志区分普通网络请求、投机请求等 */
+    requestSource?: CompletionSource;
 }
 
 export enum InlineCompletionTriggerKind {
@@ -354,10 +356,19 @@ export interface ICurrentGhostText {
 /** 投机请求缓存接口（完整版） */
 export interface ISpeculativeRequestCache {
     /** 在补全显示时缓存投机请求函数 */
-    set(completionId: string, requestFn: () => Promise<CompletionResult[]>): void;
+    set(completionId: string, prefix: string, suffix: string, requestFn: () => Promise<CompletionResult[]>): void;
 
     /** 在用户接受时执行投机请求 */
-    request(completionId: string): Promise<void>;
+    request(completionId: string): Promise<CompletionResult[] | undefined>;
+
+    /** 按 prefix/suffix 查找已完成的投机结果 */
+    find(prefix: string, suffix: string): CompletionResult[] | undefined;
+
+    /** 等待匹配 prefix/suffix 的进行中投机请求完成 */
+    waitFor(prefix: string, suffix: string, timeoutMs: number): Promise<CompletionResult[] | undefined>;
+
+    /** 获取预计算结果 */
+    getResult(completionId: string): CompletionResult[] | undefined;
 
     /** 清空 */
     clear(): void;

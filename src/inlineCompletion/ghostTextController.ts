@@ -8,12 +8,12 @@ import type {
     IGhostTextController,
     CompletionResult,
     CompletionRequestContext,
-    CompletionLifecycleKind,
     IPromptBuilder,
     IAICompletionClient,
     IPostProcessor,
     ITelemetryEmitter,
 } from './types.js';
+import { CompletionLifecycleKind } from './types.js';
 import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('GhostText');

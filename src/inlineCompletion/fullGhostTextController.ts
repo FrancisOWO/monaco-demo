@@ -12,6 +12,7 @@ import {
     type CompletionResult,
     type CompletionRequestContext,
     type CompletionStrategy,
+    type PromptInfo,
     type IGhostTextController,
     type IPromptFactory,
     type IAICompletionClient,
@@ -27,6 +28,13 @@ import { debounceCancellable } from './cache/debounce.js';
 import { getLogger } from '../utils/logger.js';
 
 const logger = getLogger('GhostTextCtrl');
+
+interface CompletionContextSnapshot {
+    context: CompletionRequestContext;
+    prompt: PromptInfo;
+    strategy: CompletionStrategy;
+    result: CompletionResult;
+}
 
 /**
  * 完整版 Ghost Text 控制器配置
@@ -50,6 +58,8 @@ export class FullGhostTextController implements IGhostTextController {
     private isDeletionMode: boolean = false;
     /** 连续接受补全次数，独立于 currentGhostText 生命周期 */
     private consecutiveAcceptCount: number = 0;
+    private completionContexts = new Map<string, CompletionContextSnapshot>();
+    private lastAcceptedCompletionId: string = '';
 
     constructor(
         private promptFactory: IPromptFactory,
@@ -125,7 +135,34 @@ export class FullGhostTextController implements IGhostTextController {
             this.consecutiveAcceptCount,
         );
 
-        // 3. Typing-as-Suggested → 0ms
+        // 3. Speculative cache → 0ms
+        let speculativeWaitMs = 0;
+        let speculativeChoices = this.speculativeCache.find(prompt.prefix, prompt.suffix);
+        if ((!speculativeChoices || speculativeChoices.length === 0) && this.config.asyncTimeout > 0) {
+            const startedAt = Date.now();
+            speculativeChoices = await this.speculativeCache.waitFor(
+                prompt.prefix,
+                prompt.suffix,
+                this.config.asyncTimeout,
+            );
+            speculativeWaitMs = Date.now() - startedAt;
+        }
+        if (speculativeChoices && speculativeChoices.length > 0) {
+            logger.info(`cache hit: type=speculative, requestId=${context.requestId}, acceptedId=${this.lastAcceptedCompletionId}, count=${speculativeChoices.length}, waitMs=${speculativeWaitMs}`);
+            const result = this.processAndReturn(
+                speculativeChoices,
+                context,
+                prompt,
+                strategy,
+                CompletionSource.Speculative,
+            );
+            if (result.length > 0) {
+                return result;
+            }
+            logger.info(`speculative cache filtered, falling through to other caches/network`);
+        }
+
+        // 4. Typing-as-Suggested → 0ms
         const typingChoices = this.currentGhostText.getCompletionsForUserTyping(
             prompt.prefix,
             prompt.suffix,
@@ -134,33 +171,37 @@ export class FullGhostTextController implements IGhostTextController {
             const result = this.processAndReturn(
                 typingChoices,
                 context,
+                prompt,
                 strategy,
                 CompletionSource.TypingAsSuggested,
             );
             if (result.length > 0) {
+                logger.info(`cache hit: type=typingAsSuggested, requestId=${context.requestId}, count=${result.length}`);
                 return result;
             }
             // typing-as-suggested 结果被过滤 → fallthrough 到网络请求
             logger.info(`typingAsSuggested filtered, falling through to network request`);
         }
 
-        // 4. Cache → 0ms
+        // 5. Cache → 0ms
         const cacheChoices = this.completionsCache.findAll(prompt.prefix, prompt.suffix);
         if (cacheChoices && cacheChoices.length > 0) {
             const result = this.processAndReturn(
                 cacheChoices,
                 context,
+                prompt,
                 strategy,
                 CompletionSource.Cache,
             );
             if (result.length > 0) {
+                logger.info(`cache hit: type=completionCache, requestId=${context.requestId}, count=${result.length}`);
                 return result;
             }
             // cache 结果被过滤 → fallthrough 到网络请求
             logger.info(`cache filtered, falling through to network request`);
         }
 
-        // 5. Async Manager → 复用进行中请求
+        // 6. Async Manager → 复用进行中请求
         const asyncChoices = await this.asyncManager.getFirstMatchingRequestWithTimeout(
             context.requestId,
             prompt.prefix,
@@ -171,17 +212,19 @@ export class FullGhostTextController implements IGhostTextController {
             const result = this.processAndReturn(
                 asyncChoices,
                 context,
+                prompt,
                 strategy,
                 CompletionSource.Async,
             );
             if (result.length > 0) {
+                logger.info(`cache hit: type=async, requestId=${context.requestId}, count=${result.length}`);
                 return result;
             }
             // async 结果被过滤 → fallthrough 到网络请求
             logger.info(`async filtered, falling through to network request`);
         }
 
-        // 6. 网络请求（流式）
+        // 7. 网络请求（流式）
         if (this.aiCompletionClient.requestCompletionStreaming) {
             const { firstResult, backgroundCache } =
                 await this.aiCompletionClient.requestCompletionStreaming(prompt, strategy, context);
@@ -206,6 +249,7 @@ export class FullGhostTextController implements IGhostTextController {
 
             // 记录当前补全
             this.currentGhostText.setCurrent(prompt.prefix, prompt.suffix, [processed]);
+            this.rememberCompletionContexts([processed], context, prompt, strategy);
 
             return [processed];
         } else {
@@ -225,6 +269,7 @@ export class FullGhostTextController implements IGhostTextController {
             // 记录当前补全
             if (processed.length > 0) {
                 this.currentGhostText.setCurrent(prompt.prefix, prompt.suffix, processed);
+                this.rememberCompletionContexts(processed, context, prompt, strategy);
             } else {
                 // 网络空结果不等于用户拒绝。保持连续接受计数，等显式 rejected 再归零。
                 logger.info(`non-stream: postProcess filtered all, keep acceptCount=${this.consecutiveAcceptCount}`);
@@ -240,6 +285,7 @@ export class FullGhostTextController implements IGhostTextController {
     private processAndReturn(
         choices: CompletionResult[],
         context: CompletionRequestContext,
+        prompt: PromptInfo,
         strategy: CompletionStrategy,
         source: CompletionSource,
     ): CompletionResult[] {
@@ -247,6 +293,12 @@ export class FullGhostTextController implements IGhostTextController {
         const updatedChoices = choices.map(c => ({
             ...c,
             source,
+            range: {
+                startLineNumber: context.position.lineNumber,
+                startColumn: context.position.column,
+                endLineNumber: context.position.lineNumber,
+                endColumn: context.position.column,
+            },
         }));
 
         // 后处理
@@ -263,10 +315,11 @@ export class FullGhostTextController implements IGhostTextController {
 
         // 记录当前补全
         this.currentGhostText.setCurrent(
-            context.prompt.prefix,
-            context.prompt.suffix,
+            prompt.prefix,
+            prompt.suffix,
             processed,
         );
+        this.rememberCompletionContexts(processed, context, prompt, strategy);
 
         // 遥测
         this.telemetryEmitter.emit({
@@ -293,6 +346,7 @@ export class FullGhostTextController implements IGhostTextController {
                 break;
             case CompletionLifecycleKind.Accepted:
                 this.consecutiveAcceptCount++;
+                this.lastAcceptedCompletionId = completionId;
                 logger.info(`handleLifecycle accepted: acceptCount=${this.consecutiveAcceptCount}, id=${completionId}`);
                 this.speculativeCache.request(completionId);
                 break;
@@ -333,10 +387,111 @@ export class FullGhostTextController implements IGhostTextController {
      * 触发投机请求
      */
     private triggerSpeculativeRequest(completionId: string): void {
-        // 当前投机请求复用 getCompletions，但缺少真实的语言、位置和策略上下文。
-        // 它会发出 languageId 为空的单行请求，并且空响应会重置 consecutiveAcceptCount，
-        // 导致连续接受阈值永远无法触发多行策略。先停用，等有无副作用的投机链路后再启用。
-        logger.info(`speculative request skipped: unsafe context, id=${completionId}`);
+        void this.createSpeculativeRequest(completionId);
+    }
+
+    private async createSpeculativeRequest(completionId: string): Promise<void> {
+        const snapshot = this.completionContexts.get(completionId);
+        if (!snapshot) {
+            logger.info(`speculative skipped: no snapshot, id=${completionId}`);
+            return;
+        }
+
+        const speculativePromptInput = this.buildSpeculativePrompt(snapshot);
+        const speculativeContext: CompletionRequestContext = {
+            ...snapshot.context,
+            requestId: `speculative-${completionId}-${Date.now()}`,
+            position: this.advancePosition(snapshot.context.position, speculativePromptInput.prefix.slice(snapshot.prompt.prefix.length)),
+            prompt: speculativePromptInput,
+            requestSource: CompletionSource.Speculative,
+        };
+
+        const speculativePrompt = await this.promptFactory.buildPrompt(speculativeContext);
+        const speculativeStrategy = await this.strategyManager.determineStrategy(
+            speculativeContext,
+            speculativePrompt,
+            this.consecutiveAcceptCount + 1,
+        );
+
+        const requestFn = async () => {
+            const startedAt = Date.now();
+            const choices = await this.aiCompletionClient.requestCompletion(
+                speculativePrompt,
+                speculativeStrategy,
+                speculativeContext,
+            );
+            logger.info(`speculative request completed: id=${completionId}, requestId=${speculativeContext.requestId}, count=${choices.length}, ms=${Date.now() - startedAt}`);
+            return choices;
+        };
+
+        this.speculativeCache.set(completionId, speculativePrompt.prefix, speculativePrompt.suffix, requestFn);
+        logger.info(`speculative request scheduled: id=${completionId}, requestId=${speculativeContext.requestId}, prefixLen=${speculativePrompt.prefix.length}, suffixLen=${speculativePrompt.suffix.length}, multiline=${speculativeStrategy.requestMultiline}`);
+    }
+
+    private buildSpeculativePrompt(snapshot: CompletionContextSnapshot): PromptInfo {
+        const trailingWs = snapshot.prompt.trailingWs ?? '';
+        const acceptedText = snapshot.result.insertText;
+        const acceptedPrefix = snapshot.prompt.prefix + trailingWs + acceptedText;
+        const nextIndent = this.inferNextLineIndent(snapshot, trailingWs + acceptedText);
+
+        return {
+            ...snapshot.prompt,
+            prefix: acceptedPrefix + '\n' + nextIndent,
+            suffix: snapshot.prompt.suffix,
+        };
+    }
+
+    private inferNextLineIndent(snapshot: CompletionContextSnapshot, acceptedLineTail: string): string {
+        const rawPrefixLine = snapshot.context.prompt?.prefix?.split('\n').pop() ?? '';
+        const existingIndent = snapshot.prompt.trailingWs
+            ?? rawPrefixLine.match(/^\s*/)?.[0]
+            ?? '';
+        const acceptedLine = rawPrefixLine + acceptedLineTail;
+        const trimmed = acceptedLine.trimEnd();
+
+        if (snapshot.context.languageId === 'python' && trimmed.endsWith(':')) {
+            return existingIndent + '    ';
+        }
+
+        if (trimmed.endsWith('{')) {
+            return existingIndent + '    ';
+        }
+
+        return existingIndent;
+    }
+
+    private advancePosition(
+        position: { lineNumber: number; column: number },
+        insertedText: string,
+    ): { lineNumber: number; column: number } {
+        const lines = insertedText.split('\n');
+        if (lines.length === 1) {
+            return {
+                lineNumber: position.lineNumber,
+                column: position.column + insertedText.length,
+            };
+        }
+
+        return {
+            lineNumber: position.lineNumber + lines.length - 1,
+            column: lines[lines.length - 1].length + 1,
+        };
+    }
+
+    private rememberCompletionContexts(
+        results: CompletionResult[],
+        context: CompletionRequestContext,
+        prompt: PromptInfo,
+        strategy: CompletionStrategy,
+    ): void {
+        for (const result of results) {
+            this.completionContexts.set(result.completionId, {
+                context: { ...context, prompt: { ...context.prompt } },
+                prompt: { ...prompt },
+                strategy: { ...strategy },
+                result,
+            });
+        }
     }
 
     /**

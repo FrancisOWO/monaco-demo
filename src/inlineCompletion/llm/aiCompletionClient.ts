@@ -46,11 +46,13 @@ export class AICompletionClient implements IAICompletionClient {
 
         const modelConfig = this.modelSelector.selectModel(context);
         const isStream = aiCompletionConfig.streamEnabled;
+        const source = context.requestSource ?? CompletionSource.Network;
 
         // 记录 trailingWs 供响应处理时裁剪补全文本
         this.currentTrailingWs = prompt.trailingWs ?? '';
 
-        logger.info(`Request: model=${modelConfig.modelId}, stream=${isStream}, lang=${context.languageId}, multiline=${strategy.requestMultiline}`);
+        logger.info(`Request: model=${modelConfig.modelId}, source=${source}, stream=${isStream}, lang=${context.languageId}, multiline=${strategy.requestMultiline}`);
+        const requestStart = Date.now();
 
         try {
             const response = await fetch(modelConfig.endpoint, {
@@ -69,25 +71,29 @@ export class AICompletionClient implements IAICompletionClient {
                     },
                     position: context.position,
                     lastAcceptTime: this.lastAcceptTime,
+                    source,
                 }),
                 signal: this.abortController.signal,
             });
+            const headerMs = Date.now() - requestStart;
 
             if (!response.ok) {
-                logger.warn(`Response not OK: status=${response.status} ${response.statusText}`);
+                logger.warn(`Response not OK: requestId=${context.requestId}, status=${response.status} ${response.statusText}, headerMs=${headerMs}, totalMs=${Date.now() - requestStart}`);
                 return [];
             }
 
-            if (isStream) {
-                return this.handleStreamResponse(response, context, strategy);
-            } else {
-                return this.handleNonStreamResponse(response, context, strategy);
-            }
+            const results = isStream
+                ? await this.handleStreamResponse(response, context, strategy)
+                : await this.handleNonStreamResponse(response, context, strategy);
+
+            logger.info(`Timing: requestId=${context.requestId}, source=${source}, headerMs=${headerMs}, totalMs=${Date.now() - requestStart}, items=${results.length}, multiline=${strategy.requestMultiline}`);
+            return results;
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') {
+                logger.info(`Request aborted: requestId=${context.requestId}, totalMs=${Date.now() - requestStart}`);
                 return [];
             }
-            logger.error('Error:', error);
+            logger.error(`Error: requestId=${context.requestId}, totalMs=${Date.now() - requestStart}`, error);
             return [];
         }
     }

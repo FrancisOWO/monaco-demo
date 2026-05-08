@@ -195,7 +195,7 @@ export class StrategyManager implements IStrategyManager {
             requestMultiline: true,
             blockMode: BlockMode.Parsing,
             stopTokens: [],
-            maxTokens: 192,
+            maxTokens: 96,
             finishedCb: takeNLines(multilineAfterAcceptLines),
         };
     }

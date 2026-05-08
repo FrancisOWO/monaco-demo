@@ -12,6 +12,8 @@ import type {
 type SpeculativeRequestFn = () => Promise<CompletionResult[]>;
 
 interface SpeculativeEntry {
+    prefix: string;
+    suffix: string;
     requestFn: SpeculativeRequestFn;
     /** 预计算结果 */
     result?: CompletionResult[];
@@ -30,8 +32,10 @@ export class SpeculativeRequestCache implements ISpeculativeRequestCache {
     /**
      * 在补全显示时缓存投机请求函数
      */
-    set(completionId: string, requestFn: SpeculativeRequestFn): void {
+    set(completionId: string, prefix: string, suffix: string, requestFn: SpeculativeRequestFn): void {
         this.cache.set(completionId, {
+            prefix,
+            suffix,
             requestFn,
             completed: false,
             pending: false,
@@ -44,21 +48,54 @@ export class SpeculativeRequestCache implements ISpeculativeRequestCache {
     /**
      * 在用户接受时执行投机请求
      */
-    async request(completionId: string): Promise<void> {
+    async request(completionId: string): Promise<CompletionResult[] | undefined> {
         const entry = this.cache.get(completionId);
         if (!entry) {
-            return;
+            return undefined;
         }
 
         if (entry.completed && entry.result) {
             // 预计算已完成，直接返回结果
-            return;
+            return entry.result;
         }
 
         if (entry.pending) {
             // 正在执行中，等待完成
             await this.waitForCompletion(completionId);
         }
+
+        return entry.result;
+    }
+
+    /**
+     * 按 prefix/suffix 查找已完成的投机结果
+     */
+    find(prefix: string, suffix: string): CompletionResult[] | undefined {
+        const entry = this.findEntry(prefix, suffix);
+        if (entry?.completed) {
+            return entry.result;
+        }
+        return undefined;
+    }
+
+    /**
+     * 等待匹配 prefix/suffix 的进行中投机请求完成
+     */
+    async waitFor(prefix: string, suffix: string, timeoutMs: number): Promise<CompletionResult[] | undefined> {
+        const entry = this.findEntry(prefix, suffix);
+        if (!entry) {
+            return undefined;
+        }
+
+        if (entry.completed) {
+            return entry.result;
+        }
+
+        if (entry.pending) {
+            await this.waitForCompletion(entry, timeoutMs);
+        }
+
+        return entry.completed ? entry.result : undefined;
     }
 
     /**
@@ -113,16 +150,37 @@ export class SpeculativeRequestCache implements ISpeculativeRequestCache {
     /**
      * 等待投机请求完成
      */
-    private async waitForCompletion(completionId: string): Promise<void> {
-        const entry = this.cache.get(completionId);
+    private waitForCompletion(completionId: string): Promise<void>;
+    private waitForCompletion(entry: SpeculativeEntry, timeoutMs: number): Promise<void>;
+    private async waitForCompletion(
+        completionIdOrEntry: string | SpeculativeEntry,
+        timeoutMs = Number.POSITIVE_INFINITY,
+    ): Promise<void> {
+        const entry = typeof completionIdOrEntry === 'string'
+            ? this.cache.get(completionIdOrEntry)
+            : completionIdOrEntry;
+
         if (!entry) {
             return;
         }
 
         // 轮询等待完成
+        const startedAt = Date.now();
         while (entry.pending && !entry.completed) {
+            if (Date.now() - startedAt >= timeoutMs) {
+                return;
+            }
             await new Promise(resolve => setTimeout(resolve, 10));
         }
+    }
+
+    private findEntry(prefix: string, suffix: string): SpeculativeEntry | undefined {
+        for (const entry of this.cache.values()) {
+            if (entry.prefix === prefix && entry.suffix === suffix) {
+                return entry;
+            }
+        }
+        return undefined;
     }
 
     /**

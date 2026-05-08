@@ -4,16 +4,16 @@
 
 投机请求（Speculative Request）是一种延迟优化策略：在 ghost text 补全**显示**时，假设用户会接受该补全，提前以"接受后的上下文"请求下一次补全并缓存结果。当用户真正接受补全后，下一个补全可以立即显示，而非等待网络请求返回。
 
-本项目曾在 **full pipeline** 中接入投机请求，但当前已暂时停用。旧实现复用了 `getCompletions()` 主链路，并用空 `languageId`、固定单行策略和假的光标位置发起预计算；当该请求拿到空结果时，会重置 `consecutiveAcceptCount`，导致连续接受阈值无法触发多行补全。
+本项目在 **full pipeline** 中启用投机请求。当前实现不再复用 `getCompletions()` 主链路，而是用真实上下文构造一个无副作用的预取请求：补全显示时，模拟“接受当前补全 + 换行 + 推断缩进”后的 prefix，提前请求下一行补全并写入 `SpeculativeRequestCache`。
 
 当前状态：
 
 | 管线 | 投机请求状态 | 说明 |
 |------|--------------|------|
 | Simple | 未接入 | `handleLifecycle()` 只发遥测 |
-| Full | 暂停 | `triggerSpeculativeRequest()` 只记录日志，不再发请求 |
+| Full | 已启用 | `shown` 时预取，下一次请求先查 speculative cache |
 
-重新启用前必须保证投机请求携带真实上下文，并且不会因为自身空结果影响用户真实补全的状态计数。
+服务端日志会标明请求来源：普通请求为 `source=network`，投机预取为 `source=speculative`。投机预取会绕过服务端补全冷却期，并且成功返回后不刷新 `lastCompletionTime`，避免预取请求反过来压住用户的真实请求。如果下一次补全命中本地 speculative cache，则不会再打到服务端，前端日志会输出 `cache hit: type=speculative`。
 
 ---
 
@@ -25,15 +25,18 @@
 │                                                          │
 │  用户输入 → getCompletions()                             │
 │    │                                                     │
-│    ├─ 1. Typing-as-Suggested  → 0ms（本地缓存匹配）       │
-│    ├─ 2. CompletionsCache     → 0ms（LRU Trie 匹配）      │
-│    ├─ 3. AsyncManager         → 复用进行中请求             │
-│    ├─ 4. 网络请求（流式）      → 首 token 即返回           │
+│    ├─ 1. SpeculativeCache     → 0ms（接受后的下一行预取）  │
+│    ├─ 2. Typing-as-Suggested  → 0ms（本地缓存匹配）       │
+│    ├─ 3. CompletionsCache     → 0ms（LRU Trie 匹配）      │
+│    ├─ 4. AsyncManager         → 复用进行中请求             │
+│    ├─ 5. 网络请求              → 实际调用 AI API           │
 │    │                                                     │
 │    │   补全显示 → handleLifecycle('shown')                │
 │    │       │                                             │
 │    │       └─ triggerSpeculativeRequest()                │
-│    │           当前已暂停：只打日志，不发请求              │
+│    │           prefix + insertText + "\n" + indent        │
+│    │           requestSource = speculative                │
+│    │           SpeculativeRequestCache.set() 立即执行      │
 │    │                                                     │
 │    │   用户接受 → handleLifecycle('accepted')             │
 │    │       │                                             │
@@ -58,8 +61,10 @@
 
 | 方法 | 时机 | 行为 |
 |------|------|------|
-| `set(completionId, requestFn)` | 补全显示时 | 缓存请求函数，**立即执行**预计算 |
-| `request(completionId)` | 用户接受时 | 取预计算结果：已完成则立即返回，仍在进行则等待 |
+| `set(completionId, prefix, suffix, requestFn)` | 补全显示时 | 缓存目标 prefix/suffix 和请求函数，**立即执行**预计算 |
+| `find(prefix, suffix)` | 下一次补全请求时 | prefix/suffix 完全匹配且预计算完成则返回缓存结果 |
+| `waitFor(prefix, suffix, timeoutMs)` | 下一次补全请求时 | 若匹配的预取仍在进行中，短暂等待其完成，覆盖 Tab 后立刻 Enter 的竞速 |
+| `request(completionId)` | 用户接受时 | 触发/等待预计算，作为后台 warm-up |
 | `getResult(completionId)` | 任意 | 查询预计算结果（不等待） |
 | `cleanup(maxAge)` | 定期 | 清理已完成的旧条目 |
 
@@ -67,6 +72,8 @@
 
 ```typescript
 interface SpeculativeEntry {
+    prefix: string;                       // 预取目标 prefix
+    suffix: string;                       // 预取目标 suffix
     requestFn: SpeculativeRequestFn;  // 投机请求函数
     result?: CompletionResult[];       // 预计算结果
     completed: boolean;                // 是否已完成
@@ -122,38 +129,53 @@ request() → entry.completed ?
 
 ---
 
-## 投机请求触发流程（旧设计，当前暂停）
+## 投机请求触发流程
 
 ### shown → 触发投机
 
-旧设计在 `FullGhostTextController.handleLifecycle('shown')` 中调用 `triggerSpeculativeRequest(completionId)`:
+`FullGhostTextController.handleLifecycle('shown')` 中调用 `triggerSpeculativeRequest(completionId)`:
 
 ```typescript
-// 1. 获取当前显示的补全
-const current = this.currentGhostText.getCurrent();
-// current = { prefix: "def hello():\n    ", suffix: "\n...", choices: [...] }
+// 1. 读取当前补全对应的真实上下文快照
+const snapshot = this.completionContexts.get(completionId);
 
-// 2. 模拟接受后的文档状态
-const simulatedPrefix = current.prefix + current.choices[0].insertText;
-// simulatedPrefix = "def hello():\n    print('hello')\n    "
+// 2. 模拟接受当前补全后进入下一行
+const speculativePrefix =
+    snapshot.prompt.prefix +
+    (snapshot.prompt.trailingWs ?? '') +
+    snapshot.result.insertText +
+    '\n' +
+    inferNextLineIndent(snapshot);
 
-// 3. 创建投机请求函数
-const fn = () => this.getCompletions({
+// 3. 投机请求不复用 getCompletions 主链路
+const speculativeContext = {
     requestId: `speculative-${completionId}`,
-    prompt: { prefix: simulatedPrefix, suffix: current.suffix, ... },
+    prompt: { ...snapshot.prompt, prefix: speculativePrefix },
+    requestSource: CompletionSource.Speculative,
     ...
-});
+};
 
 // 4. 存入缓存并立即执行
-this.speculativeCache.set(completionId, fn);
+this.speculativeCache.set(completionId, prefix, suffix, requestFn);
 ```
 
 ### accepted → 取投机结果
 
-旧设计在 `handleLifecycle('accepted')` 中调用 `speculativeCache.request(completionId)`:
+在 `handleLifecycle('accepted')` 中调用 `speculativeCache.request(completionId)`，确保预取继续完成：
 
-- 若预计算已完成 → `getResult()` 立即取到后续补全
+- 若预计算已完成 → 直接返回结果
 - 若预计算仍在进行 → `waitForCompletion()` 等待（最坏情况等原请求完成）
+
+真正使用缓存发生在下一次 `getCompletions()`：
+
+```typescript
+let speculativeChoices = speculativeCache.find(prompt.prefix, prompt.suffix);
+speculativeChoices ??= await speculativeCache.waitFor(prompt.prefix, prompt.suffix, asyncTimeout);
+if (speculativeChoices?.length) {
+    logger.info('cache hit: type=speculative');
+    return processAndReturn(speculativeChoices, ...);
+}
+```
 
 ### rejected → 清除
 
@@ -167,10 +189,11 @@ this.speculativeCache.set(completionId, fn);
 
 | 优先级 | 来源 | 延迟 | 说明 |
 |--------|------|------|------|
-| 1 | Typing-as-Suggested | 0ms | 用户打字匹配当前 ghost text |
-| 2 | CompletionsCache (LRU Trie) | 0ms | 前缀匹配历史补全结果 |
-| 3 | AsyncManager | ≤200ms | 复用进行中的相似请求 |
-| 4 | 网络请求（流式） | 首 token ~200ms | 实际调用 AI API |
+| 1 | SpeculativeCache | 0ms | 接受当前补全后的下一行预取结果 |
+| 2 | Typing-as-Suggested | 0ms | 用户打字匹配当前 ghost text |
+| 3 | CompletionsCache (LRU Trie) | 0ms | 前缀匹配历史补全结果 |
+| 4 | AsyncManager | ≤200ms | 复用进行中的相似请求 |
+| 5 | 网络请求 | 模型延迟 | 实际调用 AI API |
 
 ---
 
@@ -180,7 +203,7 @@ this.speculativeCache.set(completionId, fn);
 
 | 能力 | Simple | Full |
 |------|--------|------|
-| 投机请求 | 无 | 暂停，避免污染连续接受计数 |
+| 投机请求 | 无 | `SpeculativeRequestCache` |
 | Typing-as-Suggested | 无 | `CurrentGhostText` |
 | 前缀缓存 | 无 | `LRURadixTrieCache` |
 | 请求复用 | 无 | `AsyncCompletionsManager` |
@@ -209,7 +232,7 @@ handleDidShowCompletionItem?() {
 
 ---
 
-## 重新启用投机请求前的要求
+## 已规避的旧坑
 
 旧 full pipeline 投机请求踩过的坑：
 
@@ -218,14 +241,18 @@ handleDidShowCompletionItem?() {
 3. 投机请求使用固定单行策略，无法继承连续接受后的多行策略。
 4. 投机请求复用 `getCompletions()`，空结果会走网络空结果分支并清零 `consecutiveAcceptCount`。
 
-重新启用时至少需要满足：
+当前实现的对应约束：
 
 | 要求 | 原因 |
 |------|------|
-| 使用真实语言、URI、版本、接受后位置 | 避免 `lang=` 空请求和错误上下文 |
-| 重新通过 `StrategyManager.determineStrategy()` 决策 | 避免硬编码单行策略 |
-| 隔离状态副作用 | 投机请求失败或空结果不能重置真实连续接受计数 |
-| 限制并发和冷却交互 | 避免投机请求消耗冷却窗口或 API 配额 |
+| 使用真实语言、URI、版本、接受后位置 | 服务端不再出现 `lang=` 空请求 |
+| prefix 末尾追加换行和推断缩进 | 模型预取的是用户按 Enter 后的新行补全 |
+| 重新通过 `StrategyManager.determineStrategy()` 决策 | 不硬编码单行策略，可继承连续接受后的多行策略 |
+| 直接调用 `AICompletionClient.requestCompletion()` | 不复用有副作用的 `getCompletions()` 主链路 |
+| 请求带 `requestSource=speculative` | 服务端日志可区分投机预取和普通请求 |
+| 投机请求绕过服务端冷却期 | 预取不能被上一次真实补全的 cooldown 直接返回空 |
+| 投机请求不更新 `lastCompletionTime` | 预取成功不能制造新的 cooldown 压住真实请求 |
+| 本地命中打 `cache hit: type=speculative` | cache 命中时不会到服务端，需在前端日志观察 |
 
 ## 在 Simple Pipeline 中启用投机请求（未来工作）
 

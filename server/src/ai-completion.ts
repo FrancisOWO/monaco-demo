@@ -22,6 +22,9 @@ const TEST_MODE = config.ai.testMode;
 /** 补全请求冷却间隔（ms），上次补全返回后短时间内返回空结果 */
 const COOLDOWN_MS = 2000;
 let lastCompletionTime = 0;
+let requestSeq = 0;
+
+const MULTILINE_TARGET_LINES = 3;
 
 // ============ API 配置读取 ============
 
@@ -62,11 +65,15 @@ interface CompletionRequestBody {
     };
     /** 上次补全被用户接受的时间戳，用于重置冷却期 */
     lastAcceptTime?: number;
+    /** 请求来源：network/speculative 等，用于日志排查 */
+    source?: string;
 }
 
 // ============ 统一补全路由 ============
 
 router.post('/', async (req, res) => {
+    const requestStart = Date.now();
+    const requestId = `cmp-${++requestSeq}`;
     try {
         const body: CompletionRequestBody = req.body;
 
@@ -74,11 +81,14 @@ router.post('/', async (req, res) => {
         const apiConfig = getCurrentApiConfig();
 
         // 统一记录：请求到达
-        console.log(`[AI Completion] Request received: lang=${body.language}, stream=${isStream}, prefixLen=${(body.prefix?.length ?? 0)}, suffixLen=${(body.suffix?.length ?? 0)}, config=${apiConfig ? apiConfig.name : 'none'}`);
+        const source = body.source || 'network';
+        const isSpeculative = source === 'speculative';
+
+        console.log(`[AI Completion] Request received: id=${requestId}, source=${source}, lang=${body.language}, stream=${isStream}, prefixLen=${(body.prefix?.length ?? 0)}, suffixLen=${(body.suffix?.length ?? 0)}, config=${apiConfig ? apiConfig.name : 'none'}`);
 
         // 校验：prefix 缺失或为空串 → 无法构成有效 prompt
         if (!body.prefix || body.prefix.trim().length === 0) {
-            console.log(`[AI Completion] Skipped: invalid prompt (prefix is missing or empty)`);
+            console.log(`[AI Completion] Skipped: id=${requestId}, invalid prompt (prefix is missing or empty), totalMs=${elapsedMs(requestStart)}`);
             res.status(400).json({ error: 'Missing or empty prefix' });
             return;
         }
@@ -87,11 +97,14 @@ router.post('/', async (req, res) => {
         // 但如果用户已接受了上次补全，冷却期重置——接受后需要立即补全
         const now = Date.now();
         if (body.lastAcceptTime && body.lastAcceptTime > lastCompletionTime) {
-            console.log(`[AI Completion] Cooldown reset: lastAcceptTime=${body.lastAcceptTime} > lastCompletionTime=${lastCompletionTime}`);
+            console.log(`[AI Completion] Cooldown reset: id=${requestId}, lastAcceptTime=${body.lastAcceptTime} > lastCompletionTime=${lastCompletionTime}`);
             lastCompletionTime = 0;
         }
-        if (apiConfig && now - lastCompletionTime < COOLDOWN_MS) {
-            console.log(`[AI Completion] Skipped: cooldown active, ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left`);
+        if (apiConfig && isSpeculative && now - lastCompletionTime < COOLDOWN_MS) {
+            console.log(`[AI Completion] Cooldown bypass: id=${requestId}, source=speculative, ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left`);
+        }
+        if (apiConfig && !isSpeculative && now - lastCompletionTime < COOLDOWN_MS) {
+            console.log(`[AI Completion] Skipped: id=${requestId}, cooldown active, ${Math.round(COOLDOWN_MS - (now - lastCompletionTime))}ms left, totalMs=${elapsedMs(requestStart)}`);
             if (isStream) {
                 res.setHeader('Content-Type', 'text/event-stream');
                 res.setHeader('Cache-Control', 'no-cache');
@@ -107,7 +120,7 @@ router.post('/', async (req, res) => {
         // 无真实配置 → 测试模式使用模板补全，否则返回空结果
         if (!apiConfig) {
             if (TEST_MODE) {
-                console.log('[AI Completion] No real API config, using test mode template');
+                console.log(`[AI Completion] No real API config, using test mode template, id=${requestId}`);
                 if (isStream) {
                     res.setHeader('Content-Type', 'text/event-stream');
                     res.setHeader('Cache-Control', 'no-cache');
@@ -129,7 +142,7 @@ router.post('/', async (req, res) => {
                     });
                 }
             } else {
-                console.log('[AI Completion] Skipped: no real API config available');
+                console.log(`[AI Completion] Skipped: id=${requestId}, no real API config available, totalMs=${elapsedMs(requestStart)}`);
                 if (isStream) {
                     res.setHeader('Content-Type', 'text/event-stream');
                     res.setHeader('Cache-Control', 'no-cache');
@@ -154,13 +167,42 @@ router.post('/', async (req, res) => {
             context: body.context || [],
         });
 
-        console.log(`[AI Completion] Sending AI request: model=${model}, baseUrl=${apiConfig.baseUrl}, fimFormat=${apiConfig.fimFormat || 'native'}`);
+        console.log(`[AI Completion] Sending AI request: id=${requestId}, source=${source}, model=${model}, baseUrl=${apiConfig.baseUrl}, fimFormat=${apiConfig.fimFormat || 'native'}`);
         const lastLine = body.prefix.split('\n').pop() || '';
-        console.log(`[AI Completion] Prompt snippet: prefix=${body.prefix.substring(0, 60).replace(/\n/g, '\\n')}, lastLine=${lastLine.substring(0, 80)}`);
-        console.log(`[AI Completion] Strategy: requestMultiline=${body.strategy?.requestMultiline}, maxTokens=${body.strategy?.maxTokens}, stopTokens=${JSON.stringify(body.strategy?.stopTokens)}`);
+        console.log(`[AI Completion] Prompt snippet: id=${requestId}, prefix=${body.prefix.substring(0, 60).replace(/\n/g, '\\n')}, lastLine=${lastLine.substring(0, 80)}`);
+        console.log(`[AI Completion] Strategy: id=${requestId}, requestMultiline=${body.strategy?.requestMultiline}, maxTokens=${body.strategy?.maxTokens}, stopTokens=${JSON.stringify(body.strategy?.stopTokens)}`);
 
         // 非流式
         if (!isStream) {
+            if (body.strategy?.requestMultiline) {
+                const result = await requestMultilineCompletionWithEarlyStop(
+                    client,
+                    model,
+                    fimResult,
+                    body,
+                    requestStart,
+                    requestId,
+                );
+                const insertText = sanitizeCompletionText(result.text);
+                const items = insertText.trim().length > 0
+                    ? [{
+                        insertText,
+                        isMultiline: insertText.includes('\n'),
+                        completionId: 'completion-0',
+                    }]
+                    : [];
+
+                const preview = (items[0]?.insertText || '').split('\n')[0]?.substring(0, 40) || '(empty)';
+                const lineCount = countNonEmptyLines(items[0]?.insertText || '');
+                console.log(`[AI Completion] Non-stream multiline response: id=${requestId}, source=${source}, ${items.length} item(s), lines=${lineCount}, firstTokenMs=${result.firstTokenMs ?? 'n/a'}, aiMs=${result.aiMs}, totalMs=${elapsedMs(requestStart)}, earlyStopped=${result.earlyStopped}, chunks=${result.chunks}, first line: ${preview}`);
+                if (items.length > 0 && !isSpeculative) {
+                    lastCompletionTime = Date.now();
+                }
+                res.json({ items });
+                return;
+            }
+
+            const aiStart = Date.now();
             const response = await client.completions.create({
                 model,
                 prompt: fimResult.prompt,
@@ -171,6 +213,7 @@ router.post('/', async (req, res) => {
                 n: 1,
                 stream: false,
             });
+            const aiMs = elapsedMs(aiStart);
 
             const items = response.choices
                 .map((choice, index) => ({
@@ -180,21 +223,10 @@ router.post('/', async (req, res) => {
                 }))
                 .filter(item => item.insertText.trim().length > 0);
 
-            if (body.strategy?.requestMultiline && items.length > 0) {
-                items[0].insertText = await extendSingleLineMultilineCompletion(
-                    client,
-                    model,
-                    apiConfig.fimFormat,
-                    body,
-                    items[0].insertText,
-                );
-                items[0].isMultiline = items[0].insertText.includes('\n');
-            }
-
             const preview = (items[0]?.insertText || '').split('\n')[0]?.substring(0, 40) || '(empty)';
             const lineCount = countNonEmptyLines(items[0]?.insertText || '');
-            console.log(`[AI Completion] Non-stream response: ${items.length} item(s), lines=${lineCount}, first line: ${preview}`);
-            if (items.length > 0) {
+            console.log(`[AI Completion] Non-stream response: id=${requestId}, source=${source}, ${items.length} item(s), lines=${lineCount}, aiMs=${aiMs}, totalMs=${elapsedMs(requestStart)}, first line: ${preview}`);
+            if (items.length > 0 && !isSpeculative) {
                 lastCompletionTime = Date.now();
             }
             res.json({ items });
@@ -208,6 +240,7 @@ router.post('/', async (req, res) => {
         res.setHeader('X-Accel-Buffering', 'no');
 
         try {
+            const aiStart = Date.now();
             const stream = await client.completions.create({
                 model,
                 prompt: fimResult.prompt,
@@ -220,10 +253,14 @@ router.post('/', async (req, res) => {
             });
 
             let fullText = '';
+            let firstTokenMs: number | undefined;
+            let chunks = 0;
 
             for await (const chunk of stream) {
                 const text = chunk.choices?.[0]?.text ?? '';
                 if (text) {
+                    chunks++;
+                    firstTokenMs ??= elapsedMs(aiStart);
                     fullText += text;
                     res.write(`event: token\ndata: ${JSON.stringify({ text })}\n\n`);
                 }
@@ -231,111 +268,130 @@ router.post('/', async (req, res) => {
 
             res.write(`event: done\ndata: ${JSON.stringify({ fullText })}\n\n`);
             const preview = fullText.split('\n')[0]?.substring(0, 40) || '(empty)';
-            console.log(`[AI Completion] Stream done: ${fullText.length} chars, first line: ${preview}`);
-            if (fullText.trim().length > 0) {
+            console.log(`[AI Completion] Stream done: id=${requestId}, source=${source}, ${fullText.length} chars, firstTokenMs=${firstTokenMs ?? 'n/a'}, aiMs=${elapsedMs(aiStart)}, totalMs=${elapsedMs(requestStart)}, chunks=${chunks}, first line: ${preview}`);
+            if (fullText.trim().length > 0 && !isSpeculative) {
                 lastCompletionTime = Date.now();
             }
             res.end();
         } catch (error: any) {
-            console.error('[AI Completion Stream] Error:', error);
+            console.error(`[AI Completion Stream] Error: id=${requestId}, totalMs=${elapsedMs(requestStart)}`, error);
             res.write(`event: done\ndata: ${JSON.stringify({ fullText: '', error: error.message })}\n\n`);
             res.end();
         }
 
     } catch (error: any) {
-        console.error('[AI Completion] Error:', error);
+        console.error(`[AI Completion] Error: id=${requestId}, totalMs=${elapsedMs(requestStart)}`, error);
         res.json({ items: [], error: error.message || 'Completion request failed' });
     }
 });
 
-async function extendSingleLineMultilineCompletion(
+interface MultilineEarlyStopResult {
+    text: string;
+    aiMs: number;
+    firstTokenMs?: number;
+    earlyStopped: boolean;
+    chunks: number;
+}
+
+async function requestMultilineCompletionWithEarlyStop(
     client: OpenAI,
     model: string,
-    fimFormat: string | null | undefined,
+    fimResult: { prompt: string; suffix: string | undefined },
     body: CompletionRequestBody,
-    initialText: string,
-): Promise<string> {
-    const targetLines = 3;
-    const maxContinuationRequests = 2;
+    _requestStart: number,
+    requestId: string,
+): Promise<MultilineEarlyStopResult> {
+    const aiStart = Date.now();
+    const abortController = new AbortController();
+    let text = '';
+    let firstTokenMs: number | undefined;
+    let earlyStopped = false;
+    let chunks = 0;
 
-    let combined = initialText.trimEnd();
-    if (!combined || combined.includes('\n') || countNonEmptyLines(combined) >= targetLines) {
-        return combined;
-    }
-
-    const indent = inferIndent(body);
-
-    for (let i = 0; i < maxContinuationRequests && countNonEmptyLines(combined) < targetLines; i++) {
-        const continuationPrefix = buildContinuationPrefix(body.prefix, combined, indent);
-        const fimResult = formatFimPrompt(fimFormat, {
-            prefix: continuationPrefix,
-            suffix: body.suffix || '',
-            context: body.context || [],
-        });
-
-        const response = await client.completions.create({
+    try {
+        const stream = await client.completions.create({
             model,
             prompt: fimResult.prompt,
             suffix: fimResult.suffix,
-            max_tokens: Math.max(32, Math.floor((body.strategy?.maxTokens ?? 128) / 2)),
-            stop: undefined,
+            max_tokens: body.strategy?.maxTokens ?? 96,
+            stop: body.strategy?.stopTokens?.length > 0 ? body.strategy.stopTokens : undefined,
             temperature: 0.01,
             n: 1,
-            stream: false,
-        });
+            stream: true,
+        }, { signal: abortController.signal });
 
-        const nextText = normalizeContinuationText(response.choices[0]?.text ?? '', indent);
-        if (!nextText) {
-            break;
+        for await (const chunk of stream) {
+            const delta = chunk.choices?.[0]?.text ?? '';
+            if (!delta) {
+                continue;
+            }
+
+            chunks++;
+            firstTokenMs ??= elapsedMs(aiStart);
+            text += delta;
+
+            const cut = findCutAfterNonEmptyLines(text, MULTILINE_TARGET_LINES);
+            if (cut !== undefined) {
+                text = text.slice(0, cut).trimEnd();
+                earlyStopped = true;
+                abortController.abort();
+                break;
+            }
         }
 
-        combined += `\n${indent}${nextText}`;
-
-        if (nextText.includes('\n')) {
-            break;
+    } catch (error: any) {
+        if (!earlyStopped && error?.name !== 'AbortError') {
+            console.warn(`[AI Completion] Multiline stream failed: id=${requestId}, partialChars=${text.length}, error=${error?.message || error}`);
+            if (!text.trim()) {
+                throw error;
+            }
         }
     }
 
-    if (combined !== initialText.trimEnd()) {
-        console.log(`[AI Completion] Extended multiline response: lines=${countNonEmptyLines(combined)}`);
+    return {
+        text: text.trimEnd(),
+        aiMs: elapsedMs(aiStart),
+        firstTokenMs,
+        earlyStopped,
+        chunks,
+    };
+}
+
+function findCutAfterNonEmptyLines(text: string, targetLines: number): number | undefined {
+    let nonEmptyLines = 0;
+    let lineStart = 0;
+    const newlinePattern = /\r?\n/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = newlinePattern.exec(text)) !== null) {
+        const line = text.slice(lineStart, match.index);
+        const lineEnd = match.index + match[0].length;
+        if (line.trim().length > 0) {
+            nonEmptyLines++;
+            if (nonEmptyLines >= targetLines) {
+                return lineEnd;
+            }
+        }
+        lineStart = lineEnd;
     }
 
-    return combined;
+    return undefined;
 }
 
-function buildContinuationPrefix(prefix: string, combined: string, indent: string): string {
-    const needsFirstLineIndent = Boolean(
-        indent && !combined.startsWith(indent) && !combined.startsWith('\n'),
-    );
-
-    return prefix + (needsFirstLineIndent ? indent : '') + combined + '\n' + indent;
-}
-
-function inferIndent(body: CompletionRequestBody): string {
-    const columnIndent = Math.max(0, (body.position?.column ?? 1) - 1);
-    if (columnIndent > 0) {
-        return ' '.repeat(columnIndent);
-    }
-
-    const lastLine = body.prefix.split('\n').pop() || '';
-    return lastLine.match(/^\s*/)?.[0] ?? '';
-}
-
-function normalizeContinuationText(text: string, indent: string): string {
-    const trimmed = text.replace(/^\s*\r?\n/, '').trimEnd();
-    if (!trimmed) {
+function sanitizeCompletionText(text: string): string {
+    const trimmed = text.trimEnd();
+    if (trimmed.trimStart().startsWith('```')) {
         return '';
     }
-
-    if (indent && trimmed.startsWith(indent)) {
-        return trimmed.slice(indent.length);
-    }
-
-    return trimmed.replace(/^\s+/, '');
+    return trimmed;
 }
 
 function countNonEmptyLines(text: string): number {
     return text.split(/\r?\n/).filter(line => line.trim().length > 0).length;
+}
+
+function elapsedMs(start: number): number {
+    return Date.now() - start;
 }
 
 // ============ 测试模式辅助函数 ============
