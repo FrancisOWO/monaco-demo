@@ -47,6 +47,35 @@
 
 **修复**: AI 返回空结果时不更新 `lastCompletionTime`。空结果不代表一次有效的补全完成。
 
+### Bug 6（第三轮）: 投机请求用空语言和单行策略清零计数
+
+用户继续在 Python `for i in range(10):` 循环体内连续接受补全，服务端日志仍然显示所有真实补全都是单行：
+
+```text
+[AI Completion] Request received: lang=python, stream=false, ...
+[AI Completion] Strategy: requestMultiline=false, stopTokens=["\n"]
+[AI Completion] Request received: lang=, stream=false, ...
+[AI Completion] Skipped: cooldown active, ...
+```
+
+`lang=` 为空的请求不是用户真正触发的补全，而是 `FullGhostTextController.handleLifecycle('shown')` 里创建的 speculative request。旧实现会在 ghost text 显示时立刻预计算下一次补全，但构造的上下文是假的：
+
+- `languageId: ''`
+- `position: { lineNumber: 1, column: 1 }`
+- `strategy.requestMultiline: false`
+- `stopTokens: ['\n']`
+
+更关键的是，投机请求复用了 `getCompletions()` 主链路。它如果被服务端冷却期拦截或拿到空结果，会进入网络空结果分支，把 `consecutiveAcceptCount` 重置为 0。
+
+**恶性循环**:
+1. 真实补全显示 → `shown` 触发投机请求
+2. 投机请求用空语言/单行策略请求服务端 → 常见命中冷却期空结果
+3. 空结果沿主链路处理 → `consecutiveAcceptCount = 0`
+4. 用户接受真实补全后计数最多只涨回 1
+5. 下一次真实请求永远达不到阈值 2 → 永远走单行策略
+
+**修复**: 暂停 `triggerSpeculativeRequest()`，只保留日志，不再调用 `speculativeCache.set()`。在投机请求能携带真实语言、位置、策略，并且不会复用会清零计数的主链路之前，不应启用。
+
 ## 修复汇总
 
 | Bug | 文件 | 修改 |
@@ -56,9 +85,11 @@
 | Bug 3 | `fullGhostTextController.ts` | `processAndReturn` 不再重置 `consecutiveAcceptCount` |
 | Bug 4 | `fullGhostTextController.ts` | typing-as-suggested/cache/async 过滤后 fallthrough 到网络请求 |
 | Bug 5 | `server/ai-completion.ts` | AI 返回空结果时不更新 `lastCompletionTime` |
+| Bug 6 | `fullGhostTextController.ts` | 暂停不安全的投机请求，避免空语言/单行请求清零连续接受计数 |
 
 ## 关键教训
 
 - **缓存命中失败 ≠ 隐式拒绝**: typing-as-suggested 和 cache 的结果被后处理过滤只是缓存数据过时，不应重置连续接受计数。只有**网络请求**的结果被过滤才意味着 AI 返回了无效内容。
 - **空结果 ≠ 有效补全**: 服务端冷却期的 `lastCompletionTime` 应只在返回有效结果时更新，空结果不应触发冷却期。
 - **fallthrough 优于短路返回**: 缓存路径被过滤后应继续尝试网络请求，而不是直接返回空数组。
+- **投机请求不能复用有副作用的主链路**: speculative request 必须带真实上下文，且不能因为自己的空结果影响用户真实补全的连续接受计数。

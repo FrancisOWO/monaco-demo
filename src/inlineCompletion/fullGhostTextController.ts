@@ -8,7 +8,6 @@ import type * as monaco from 'monaco-editor';
 import {
     CompletionSource,
     InlineCompletionTriggerKind,
-    BlockMode,
     CompletionLifecycleKind,
     type CompletionResult,
     type CompletionRequestContext,
@@ -336,37 +335,10 @@ export class FullGhostTextController implements IGhostTextController {
      * 触发投机请求
      */
     private triggerSpeculativeRequest(completionId: string): void {
-        const current = this.currentGhostText.getCurrent?.();
-        if (!current) {
-            return;
-        }
-
-        // 模拟接受后的文档状态
-        const simulatedPrefix = current.prefix + (current.choices[0]?.insertText ?? '');
-        const simulatedSuffix = current.suffix;
-
-        const fn = () => this.getCompletions({
-            requestId: `speculative-${completionId}`,
-            uri: '',
-            languageId: '',
-            position: { lineNumber: 1, column: 1 },
-            triggerKind: 0,
-            strategy: {
-                requestMultiline: false,
-                blockMode: BlockMode.Server,
-                stopTokens: ['\n'],
-                maxTokens: 20,
-            },
-            prompt: {
-                prefix: simulatedPrefix,
-                suffix: simulatedSuffix,
-                context: [],
-                isFimEnabled: false,
-            },
-            versionId: 1,
-        });
-
-        this.speculativeCache.set(completionId, fn);
+        // 当前投机请求复用 getCompletions，但缺少真实的语言、位置和策略上下文。
+        // 它会发出 languageId 为空的单行请求，并且空响应会重置 consecutiveAcceptCount，
+        // 导致连续接受阈值永远无法触发多行策略。先停用，等有无副作用的投机链路后再启用。
+        logger.info(`speculative request skipped: unsafe context, id=${completionId}`);
     }
 
     /**

@@ -4,7 +4,16 @@
 
 投机请求（Speculative Request）是一种延迟优化策略：在 ghost text 补全**显示**时，假设用户会接受该补全，提前以"接受后的上下文"请求下一次补全并缓存结果。当用户真正接受补全后，下一个补全可以立即显示，而非等待网络请求返回。
 
-本项目中投机请求已在 **full pipeline** 中完整实现，但 **simple pipeline（当前默认）未接入**。
+本项目曾在 **full pipeline** 中接入投机请求，但当前已暂时停用。旧实现复用了 `getCompletions()` 主链路，并用空 `languageId`、固定单行策略和假的光标位置发起预计算；当该请求拿到空结果时，会重置 `consecutiveAcceptCount`，导致连续接受阈值无法触发多行补全。
+
+当前状态：
+
+| 管线 | 投机请求状态 | 说明 |
+|------|--------------|------|
+| Simple | 未接入 | `handleLifecycle()` 只发遥测 |
+| Full | 暂停 | `triggerSpeculativeRequest()` 只记录日志，不再发请求 |
+
+重新启用前必须保证投机请求携带真实上下文，并且不会因为自身空结果影响用户真实补全的状态计数。
 
 ---
 
@@ -24,8 +33,7 @@
 │    │   补全显示 → handleLifecycle('shown')                │
 │    │       │                                             │
 │    │       └─ triggerSpeculativeRequest()                │
-│    │           模拟 prefix + insertText 作为新 prefix     │
-│    │           立即发请求 → SpeculativeRequestCache.set() │
+│    │           当前已暂停：只打日志，不发请求              │
 │    │                                                     │
 │    │   用户接受 → handleLifecycle('accepted')             │
 │    │       │                                             │
@@ -114,11 +122,11 @@ request() → entry.completed ?
 
 ---
 
-## 投机请求触发流程
+## 投机请求触发流程（旧设计，当前暂停）
 
 ### shown → 触发投机
 
-在 `FullGhostTextController.handleLifecycle('shown')` 中调用 `triggerSpeculativeRequest(completionId)`:
+旧设计在 `FullGhostTextController.handleLifecycle('shown')` 中调用 `triggerSpeculativeRequest(completionId)`:
 
 ```typescript
 // 1. 获取当前显示的补全
@@ -142,7 +150,7 @@ this.speculativeCache.set(completionId, fn);
 
 ### accepted → 取投机结果
 
-在 `handleLifecycle('accepted')` 中调用 `speculativeCache.request(completionId)`:
+旧设计在 `handleLifecycle('accepted')` 中调用 `speculativeCache.request(completionId)`:
 
 - 若预计算已完成 → `getResult()` 立即取到后续补全
 - 若预计算仍在进行 → `waitForCompletion()` 等待（最坏情况等原请求完成）
@@ -172,7 +180,7 @@ this.speculativeCache.set(completionId, fn);
 
 | 能力 | Simple | Full |
 |------|--------|------|
-| 投机请求 | 无 | `SpeculativeRequestCache` |
+| 投机请求 | 无 | 暂停，避免污染连续接受计数 |
 | Typing-as-Suggested | 无 | `CurrentGhostText` |
 | 前缀缓存 | 无 | `LRURadixTrieCache` |
 | 请求复用 | 无 | `AsyncCompletionsManager` |
@@ -201,7 +209,25 @@ handleDidShowCompletionItem?() {
 
 ---
 
-## 在 Simple Pipeline 中启用投机请求
+## 重新启用投机请求前的要求
+
+旧 full pipeline 投机请求踩过的坑：
+
+1. `shown` 时立即发请求，造成真实请求之外的额外后端流量。
+2. 投机上下文缺少真实 `languageId`、真实 `position` 和真实策略，服务端日志表现为 `lang=` 空请求。
+3. 投机请求使用固定单行策略，无法继承连续接受后的多行策略。
+4. 投机请求复用 `getCompletions()`，空结果会走网络空结果分支并清零 `consecutiveAcceptCount`。
+
+重新启用时至少需要满足：
+
+| 要求 | 原因 |
+|------|------|
+| 使用真实语言、URI、版本、接受后位置 | 避免 `lang=` 空请求和错误上下文 |
+| 重新通过 `StrategyManager.determineStrategy()` 决策 | 避免硬编码单行策略 |
+| 隔离状态副作用 | 投机请求失败或空结果不能重置真实连续接受计数 |
+| 限制并发和冷却交互 | 避免投机请求消耗冷却窗口或 API 配额 |
+
+## 在 Simple Pipeline 中启用投机请求（未来工作）
 
 需要以下改动：
 

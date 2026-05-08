@@ -34,6 +34,9 @@ describe('MonacoInlineCompletionsProvider', () => {
     let mockController: jest.Mocked<IGhostTextController>;
     let mockEditor: {
         getModel: jest.Mock;
+        getDomNode: jest.Mock;
+        getPosition: jest.Mock;
+        onDidChangeModelContent: jest.Mock;
     };
     let mockModel: {
         uri: { toString: jest.Mock };
@@ -58,6 +61,11 @@ describe('MonacoInlineCompletionsProvider', () => {
 
         mockEditor = {
             getModel: jest.fn().mockReturnValue(mockModel),
+            getDomNode: jest.fn().mockReturnValue({
+                addEventListener: jest.fn(),
+            }),
+            getPosition: jest.fn().mockReturnValue({ lineNumber: 1, column: 18 }),
+            onDidChangeModelContent: jest.fn(),
         };
 
         provider = new MonacoInlineCompletionsProvider(
@@ -69,6 +77,7 @@ describe('MonacoInlineCompletionsProvider', () => {
     describe('provideInlineCompletions', () => {
         it('should return empty items when not at end of line', async () => {
             mockModel.getLineContent.mockReturnValue('function test() { console');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 10 });
 
             const result = await provider.provideInlineCompletions(
                 mockModel as any,
@@ -83,6 +92,7 @@ describe('MonacoInlineCompletionsProvider', () => {
 
         it('should return empty items when text after cursor is not whitespace', async () => {
             mockModel.getLineContent.mockReturnValue('function test() { console');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 10 });
 
             const result = await provider.provideInlineCompletions(
                 mockModel as any,
@@ -96,6 +106,7 @@ describe('MonacoInlineCompletionsProvider', () => {
 
         it('should call controller.getCompletions when at end of line', async () => {
             mockModel.getLineContent.mockReturnValue('function test() {');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 18 });
 
             const mockCompletion: CompletionResult = {
                 insertText: '  console.log("hello");',
@@ -126,6 +137,7 @@ describe('MonacoInlineCompletionsProvider', () => {
 
         it('should map trigger kind correctly', async () => {
             mockModel.getLineContent.mockReturnValue('test');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 5 });
             mockController.getCompletions.mockResolvedValue([]);
 
             // Automatic trigger (0)
@@ -153,6 +165,7 @@ describe('MonacoInlineCompletionsProvider', () => {
 
         it('should call handleLifecycle when completions are returned', async () => {
             mockModel.getLineContent.mockReturnValue('test');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 5 });
 
             const mockCompletion: CompletionResult = {
                 insertText: 'result',
@@ -184,6 +197,7 @@ describe('MonacoInlineCompletionsProvider', () => {
 
         it('should include correct request context', async () => {
             mockModel.getLineContent.mockReturnValue('test');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 5 });
             mockController.getCompletions.mockResolvedValue([]);
 
             await provider.provideInlineCompletions(
