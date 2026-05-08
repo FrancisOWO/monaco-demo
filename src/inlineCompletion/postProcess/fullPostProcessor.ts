@@ -94,17 +94,6 @@ export class FullPostProcessor implements IPostProcessor {
                 return true;
             }
             seenPatterns.add(line);
-
-            // 检测子串重复（简化实现）
-            for (let len = this.config.minRepetitionLength; len <= line.length / 2; len++) {
-                for (let start = 0; start <= line.length - len * 2; start++) {
-                    const pattern = line.slice(start, start + len);
-                    const rest = line.slice(start + len);
-                    if (rest.includes(pattern)) {
-                        return true;
-                    }
-                }
-            }
         }
 
         // 检测整体文本重复（如果文本太长）

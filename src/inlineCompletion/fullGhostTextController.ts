@@ -182,6 +182,8 @@ export class FullGhostTextController implements IGhostTextController {
             );
 
             if (processed === undefined) {
+                // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
+                this.consecutiveAcceptCount = 0;
                 return [];
             }
 
@@ -206,6 +208,9 @@ export class FullGhostTextController implements IGhostTextController {
             // 记录当前补全
             if (processed.length > 0) {
                 this.currentGhostText.setCurrent(prompt.prefix, prompt.suffix, processed);
+            } else {
+                // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
+                this.consecutiveAcceptCount = 0;
             }
 
             return processed;
@@ -234,6 +239,11 @@ export class FullGhostTextController implements IGhostTextController {
         const processed = updatedChoices
             .map(c => this.postProcessor.process(c, documentContent, context.position, strategy))
             .filter((c): c is CompletionResult => c !== undefined);
+
+        if (processed.length === 0) {
+            // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
+            this.consecutiveAcceptCount = 0;
+        }
 
         // 记录当前补全
         this.currentGhostText.setCurrent(
