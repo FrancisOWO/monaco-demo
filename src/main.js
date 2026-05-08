@@ -145,7 +145,7 @@ const editor = monaco.editor.create(document.getElementById('editor-container'),
     minimap: { enabled: true },
     fontSize: 14,
     lineNumbers: 'on',
-    scrollBeyondLastLine: false,
+    scrollBeyondLastLine: true,
     find: { addExtraSpaceOnTop: false },
     inlineSuggest: { keepOnBlur: true },
 });

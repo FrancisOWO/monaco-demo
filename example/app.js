@@ -28,6 +28,7 @@ require(['vs/editor/editor.main'], function () {
         var model = monaco.editor.createModel(code, language);
         var editor = monaco.editor.create(document.getElementById(container_id), {
             model: model,
+            scrollBeyondLastLine: true,
         });
         editorArray.push(editor);
         return editor;
