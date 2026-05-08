@@ -46,6 +46,8 @@ export class FullGhostTextController implements IGhostTextController {
     private debouncedGetCompletions: ReturnType<typeof debounceCancellable>;
     private lastPrefix: string = '';
     private isDeletionMode: boolean = false;
+    /** 连续接受补全次数，独立于 currentGhostText 生命周期 */
+    private consecutiveAcceptCount: number = 0;
 
     constructor(
         private promptFactory: IPromptFactory,
@@ -113,15 +115,12 @@ export class FullGhostTextController implements IGhostTextController {
             return [];
         }
 
-        // 3. 判定策略
-        const consecutiveAcceptCount = this.currentGhostText.hasAcceptedCurrentCompletion(
-            prompt.prefix,
-            prompt.suffix,
-        );
+        // 3. 判定策略 — 连续接受计数由控制器自行追踪，
+        //    不依赖 currentGhostText（它会被 cancelCurrentRequest 清零）
         const strategy = await this.strategyManager.determineStrategy(
             context,
             prompt,
-            consecutiveAcceptCount,
+            this.consecutiveAcceptCount,
         );
 
         // 3. Typing-as-Suggested → 0ms
@@ -264,13 +263,14 @@ export class FullGhostTextController implements IGhostTextController {
     handleLifecycle(completionId: string, kind: CompletionLifecycleKind): void {
         switch (kind) {
             case CompletionLifecycleKind.Shown:
-                // 触发投机请求
                 this.triggerSpeculativeRequest(completionId);
                 break;
             case CompletionLifecycleKind.Accepted:
+                this.consecutiveAcceptCount++;
                 this.speculativeCache.request(completionId);
                 break;
             case CompletionLifecycleKind.Rejected:
+                this.consecutiveAcceptCount = 0;
                 this.currentGhostText.clear();
                 break;
         }

@@ -99,6 +99,10 @@ export class SimpleGhostTextController implements IGhostTextController {
     }
 
     handleLifecycle(completionId: string, kind: CompletionLifecycleKind): void {
+        if (kind === CompletionLifecycleKind.Accepted) {
+            this.aiCompletionClient.notifyAccept?.();
+        }
+
         this.telemetryEmitter.emit({
             eventType: `completion.${kind}`,
             requestId: completionId.split('-')[0],

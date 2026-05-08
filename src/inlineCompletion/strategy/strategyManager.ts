@@ -45,7 +45,7 @@ export class StrategyManager implements IStrategyManager {
             lookAheadLarge: 7,
             lookAheadSmall: 3,
             multilineAfterAcceptLines: 1,
-            consecutiveAcceptThreshold: 3,
+            consecutiveAcceptThreshold: 2,
             ...config,
         };
     }
