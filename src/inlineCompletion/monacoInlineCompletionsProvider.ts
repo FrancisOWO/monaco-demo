@@ -9,6 +9,7 @@
 
 import * as monaco from 'monaco-editor';
 import {
+    CompletionLifecycleKind,
     InlineCompletionTriggerKind,
     BlockMode,
 } from './types.js';
@@ -79,20 +80,24 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
 
                 // 完整包含：Tab 接受，整个补全文本一次性插入
                 if (change.text.includes(this.lastShownInsertText)) {
-                    this.controller.handleLifecycle(this.lastShownCompletionId, 'accepted' as any);
-                    this.lastShownInsertText = '';
-                    this.lastShownCompletionId = '';
+                    this.controller.handleLifecycle(this.lastShownCompletionId, CompletionLifecycleKind.Accepted);
+                    this.clearLastShownCompletion();
                     this.onAccept?.();
                     return;
                 }
                 // 前缀匹配：typing-as-suggested，用户照着 ghost text 打字
                 // 只重置冷却期（下次网络请求不被拦截），不触发投机请求
                 if (this.lastShownInsertText.startsWith(change.text)) {
-                    this.lastShownInsertText = '';
-                    this.lastShownCompletionId = '';
+                    this.clearLastShownCompletion();
                     this.onAccept?.();
                     return;
                 }
+
+                // 用户输入与 ghost text 不匹配，视为显式拒绝。
+                // 连续接受策略只应在这种情况下回到单行。
+                this.controller.handleLifecycle(this.lastShownCompletionId, CompletionLifecycleKind.Rejected);
+                this.clearLastShownCompletion();
+                return;
             }
         });
     }
@@ -203,10 +208,9 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
         if (completions.length > 0) {
             this.lastShownInsertText = completions[0].insertText;
             this.lastShownCompletionId = completions[0].completionId;
-            this.controller.handleLifecycle(completions[0].completionId, 'shown' as any);
+            this.controller.handleLifecycle(completions[0].completionId, CompletionLifecycleKind.Shown);
         } else {
-            this.lastShownInsertText = '';
-            this.lastShownCompletionId = '';
+            this.clearLastShownCompletion();
         }
 
         return { items };
@@ -224,6 +228,11 @@ export class MonacoInlineCompletionsProvider implements monaco.languages.InlineC
     handleDidPartiallyAcceptCompletionItem?(
         _completionItem: monaco.languages.InlineCompletion,
     ): void {}
+
+    private clearLastShownCompletion(): void {
+        this.lastShownInsertText = '';
+        this.lastShownCompletionId = '';
+    }
 
     private mapTriggerKind(
         kind: monaco.languages.InlineCompletionTriggerKind,

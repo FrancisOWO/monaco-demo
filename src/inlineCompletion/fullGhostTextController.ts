@@ -199,9 +199,8 @@ export class FullGhostTextController implements IGhostTextController {
             );
 
             if (processed === undefined) {
-                // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
-                logger.info(`streaming: postProcess filtered all → reset acceptCount from ${this.consecutiveAcceptCount} to 0`);
-                this.consecutiveAcceptCount = 0;
+                // 网络空结果不等于用户拒绝。保持连续接受计数，等显式 rejected 再归零。
+                logger.info(`streaming: postProcess filtered all, keep acceptCount=${this.consecutiveAcceptCount}`);
                 return [];
             }
 
@@ -227,9 +226,8 @@ export class FullGhostTextController implements IGhostTextController {
             if (processed.length > 0) {
                 this.currentGhostText.setCurrent(prompt.prefix, prompt.suffix, processed);
             } else {
-                // 后处理过滤掉所有结果 → 隐式拒绝，重置连续接受计数
-                logger.info(`non-stream: postProcess filtered all → reset acceptCount from ${this.consecutiveAcceptCount} to 0`);
-                this.consecutiveAcceptCount = 0;
+                // 网络空结果不等于用户拒绝。保持连续接受计数，等显式 rejected 再归零。
+                logger.info(`non-stream: postProcess filtered all, keep acceptCount=${this.consecutiveAcceptCount}`);
             }
 
             return processed;

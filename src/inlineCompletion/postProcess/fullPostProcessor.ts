@@ -68,7 +68,12 @@ export class FullPostProcessor implements IPostProcessor {
             return this.forceSingleLine(result, snipped);
         }
 
-        return { ...result, insertText: snipped };
+        const finished = this.applyFinishedCallback(snipped, strategy);
+        if (!finished) {
+            return undefined;
+        }
+
+        return { ...result, insertText: finished };
     }
 
     /**
@@ -170,6 +175,19 @@ export class FullPostProcessor implements IPostProcessor {
         }
 
         return completion;
+    }
+
+    /**
+     * 多行策略的客户端截断兜底。
+     * 非流式请求同样需要使用 finishedCb，否则只能依赖服务端 stop token。
+     */
+    private applyFinishedCallback(text: string, strategy: CompletionStrategy): string {
+        const end = strategy.finishedCb?.(text);
+        if (end === undefined || end <= 0 || end >= text.length) {
+            return text;
+        }
+
+        return text.slice(0, end).trimEnd();
     }
 
     /**

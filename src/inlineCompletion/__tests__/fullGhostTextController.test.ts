@@ -194,4 +194,30 @@ describe('FullGhostTextController', () => {
             expect.objectContaining({ requestId: 'req-2' }),
         );
     });
+
+    it('keeps consecutive accept count when a network request returns no results', async () => {
+        aiCompletionClient.requestCompletion
+            .mockResolvedValueOnce([completion])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([completion]);
+
+        await controller.getCompletions(context('req-1'));
+
+        controller.handleLifecycle('req-1-0', CompletionLifecycleKind.Accepted);
+        controller.handleLifecycle('req-2-0', CompletionLifecycleKind.Accepted);
+
+        await controller.getCompletions(context('req-2'));
+        await controller.getCompletions(context('req-3'));
+
+        expect(strategyManager.determineStrategy).toHaveBeenLastCalledWith(
+            expect.anything(),
+            prompt,
+            2,
+        );
+        expect(aiCompletionClient.requestCompletion).toHaveBeenLastCalledWith(
+            prompt,
+            multilineStrategy,
+            expect.objectContaining({ requestId: 'req-3' }),
+        );
+    });
 });

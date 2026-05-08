@@ -32,6 +32,7 @@ import type {
 describe('MonacoInlineCompletionsProvider', () => {
     let provider: MonacoInlineCompletionsProvider;
     let mockController: jest.Mocked<IGhostTextController>;
+    let modelContentListener: ((event: { changes: Array<{ text: string }> }) => void) | undefined;
     let mockEditor: {
         getModel: jest.Mock;
         getDomNode: jest.Mock;
@@ -46,6 +47,7 @@ describe('MonacoInlineCompletionsProvider', () => {
     };
 
     beforeEach(() => {
+        modelContentListener = undefined;
         mockController = {
             getCompletions: jest.fn(),
             handleLifecycle: jest.fn(),
@@ -65,7 +67,10 @@ describe('MonacoInlineCompletionsProvider', () => {
                 addEventListener: jest.fn(),
             }),
             getPosition: jest.fn().mockReturnValue({ lineNumber: 1, column: 18 }),
-            onDidChangeModelContent: jest.fn(),
+            onDidChangeModelContent: jest.fn((listener) => {
+                modelContentListener = listener;
+                return { dispose: jest.fn() };
+            }),
         };
 
         provider = new MonacoInlineCompletionsProvider(
@@ -221,6 +226,78 @@ describe('MonacoInlineCompletionsProvider', () => {
                 },
             });
             expect(callArg.requestId).toMatch(/^req-\d+-\d+$/);
+        });
+
+        it('should mark the shown completion as rejected when typed text does not match', async () => {
+            mockModel.getLineContent.mockReturnValue('test');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 5 });
+
+            const mockCompletion: CompletionResult = {
+                insertText: 'result',
+                range: {
+                    startLineNumber: 1,
+                    startColumn: 5,
+                    endLineNumber: 1,
+                    endColumn: 5,
+                },
+                completionId: 'req-1-0',
+                source: CompletionSource.Network,
+                isMultiline: false,
+            };
+
+            mockController.getCompletions.mockResolvedValue([mockCompletion]);
+
+            await provider.provideInlineCompletions(
+                mockModel as any,
+                { lineNumber: 1, column: 5 } as any,
+                { triggerKind: 0 } as any,
+                {} as any,
+            );
+
+            modelContentListener?.({ changes: [{ text: 'x' }] });
+
+            expect(mockController.handleLifecycle).toHaveBeenCalledWith(
+                'req-1-0',
+                'rejected',
+            );
+        });
+
+        it('should not mark typing-as-suggested as accepted or rejected', async () => {
+            mockModel.getLineContent.mockReturnValue('test');
+            mockEditor.getPosition.mockReturnValue({ lineNumber: 1, column: 5 });
+
+            const mockCompletion: CompletionResult = {
+                insertText: 'result',
+                range: {
+                    startLineNumber: 1,
+                    startColumn: 5,
+                    endLineNumber: 1,
+                    endColumn: 5,
+                },
+                completionId: 'req-1-0',
+                source: CompletionSource.Network,
+                isMultiline: false,
+            };
+
+            mockController.getCompletions.mockResolvedValue([mockCompletion]);
+
+            await provider.provideInlineCompletions(
+                mockModel as any,
+                { lineNumber: 1, column: 5 } as any,
+                { triggerKind: 0 } as any,
+                {} as any,
+            );
+
+            modelContentListener?.({ changes: [{ text: 'r' }] });
+
+            expect(mockController.handleLifecycle).not.toHaveBeenCalledWith(
+                'req-1-0',
+                'accepted',
+            );
+            expect(mockController.handleLifecycle).not.toHaveBeenCalledWith(
+                'req-1-0',
+                'rejected',
+            );
         });
     });
 });

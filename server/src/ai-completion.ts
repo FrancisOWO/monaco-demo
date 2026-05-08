@@ -180,8 +180,20 @@ router.post('/', async (req, res) => {
                 }))
                 .filter(item => item.insertText.trim().length > 0);
 
+            if (body.strategy?.requestMultiline && items.length > 0) {
+                items[0].insertText = await extendSingleLineMultilineCompletion(
+                    client,
+                    model,
+                    apiConfig.fimFormat,
+                    body,
+                    items[0].insertText,
+                );
+                items[0].isMultiline = items[0].insertText.includes('\n');
+            }
+
             const preview = (items[0]?.insertText || '').split('\n')[0]?.substring(0, 40) || '(empty)';
-            console.log(`[AI Completion] Non-stream response: ${items.length} item(s), first line: ${preview}`);
+            const lineCount = countNonEmptyLines(items[0]?.insertText || '');
+            console.log(`[AI Completion] Non-stream response: ${items.length} item(s), lines=${lineCount}, first line: ${preview}`);
             if (items.length > 0) {
                 lastCompletionTime = Date.now();
             }
@@ -235,6 +247,96 @@ router.post('/', async (req, res) => {
         res.json({ items: [], error: error.message || 'Completion request failed' });
     }
 });
+
+async function extendSingleLineMultilineCompletion(
+    client: OpenAI,
+    model: string,
+    fimFormat: string | null | undefined,
+    body: CompletionRequestBody,
+    initialText: string,
+): Promise<string> {
+    const targetLines = 3;
+    const maxContinuationRequests = 2;
+
+    let combined = initialText.trimEnd();
+    if (!combined || combined.includes('\n') || countNonEmptyLines(combined) >= targetLines) {
+        return combined;
+    }
+
+    const indent = inferIndent(body);
+
+    for (let i = 0; i < maxContinuationRequests && countNonEmptyLines(combined) < targetLines; i++) {
+        const continuationPrefix = buildContinuationPrefix(body.prefix, combined, indent);
+        const fimResult = formatFimPrompt(fimFormat, {
+            prefix: continuationPrefix,
+            suffix: body.suffix || '',
+            context: body.context || [],
+        });
+
+        const response = await client.completions.create({
+            model,
+            prompt: fimResult.prompt,
+            suffix: fimResult.suffix,
+            max_tokens: Math.max(32, Math.floor((body.strategy?.maxTokens ?? 128) / 2)),
+            stop: undefined,
+            temperature: 0.01,
+            n: 1,
+            stream: false,
+        });
+
+        const nextText = normalizeContinuationText(response.choices[0]?.text ?? '', indent);
+        if (!nextText) {
+            break;
+        }
+
+        combined += `\n${indent}${nextText}`;
+
+        if (nextText.includes('\n')) {
+            break;
+        }
+    }
+
+    if (combined !== initialText.trimEnd()) {
+        console.log(`[AI Completion] Extended multiline response: lines=${countNonEmptyLines(combined)}`);
+    }
+
+    return combined;
+}
+
+function buildContinuationPrefix(prefix: string, combined: string, indent: string): string {
+    const needsFirstLineIndent = Boolean(
+        indent && !combined.startsWith(indent) && !combined.startsWith('\n'),
+    );
+
+    return prefix + (needsFirstLineIndent ? indent : '') + combined + '\n' + indent;
+}
+
+function inferIndent(body: CompletionRequestBody): string {
+    const columnIndent = Math.max(0, (body.position?.column ?? 1) - 1);
+    if (columnIndent > 0) {
+        return ' '.repeat(columnIndent);
+    }
+
+    const lastLine = body.prefix.split('\n').pop() || '';
+    return lastLine.match(/^\s*/)?.[0] ?? '';
+}
+
+function normalizeContinuationText(text: string, indent: string): string {
+    const trimmed = text.replace(/^\s*\r?\n/, '').trimEnd();
+    if (!trimmed) {
+        return '';
+    }
+
+    if (indent && trimmed.startsWith(indent)) {
+        return trimmed.slice(indent.length);
+    }
+
+    return trimmed.replace(/^\s+/, '');
+}
+
+function countNonEmptyLines(text: string): number {
+    return text.split(/\r?\n/).filter(line => line.trim().length > 0).length;
+}
 
 // ============ 测试模式辅助函数 ============
 

@@ -16,11 +16,13 @@
 
 **修复**: 去掉行内子串检测循环，只保留行级和整体文本重复检测。
 
-### Bug 2（第一轮）: `consecutiveAcceptCount` 网络请求空结果不重置
+### Bug 2（第一轮，后续修正）: `consecutiveAcceptCount` 网络请求空结果处理
 
 流式路径和 `processAndReturn` 路径的后处理结果为空时没有重置 `consecutiveAcceptCount`，导致一旦计数达到阈值就永远走 `afterAcceptStrategy`。
 
-**修复**: 在流式和非流式路径的后处理空结果处重置计数。
+**第一轮修复**: 在流式和非流式路径的后处理空结果处重置计数。
+
+**第三轮修正**: 后续日志证明这个判断仍然过于激进。用户接受一条补全后，编辑器可能先在刚接受的行尾触发一次请求，模型返回空；这不是用户拒绝补全，却会把计数清零，导致下一行退回单行。最终规则改为：网络空结果不清零，只有显式 `Rejected` 生命周期清零。
 
 ### Bug 3（第二轮）: `processAndReturn` 误重置 `consecutiveAcceptCount`
 
@@ -76,16 +78,39 @@
 
 **修复**: 暂停 `triggerSpeculativeRequest()`，只保留日志，不再调用 `speculativeCache.set()`。在投机请求能携带真实语言、位置、策略，并且不会复用会清零计数的主链路之前，不应启用。
 
+### Bug 7（第四轮）: 多行策略触发但实际仍只返回一行
+
+最新日志显示策略已经触发：
+
+```text
+[AI Completion] Strategy: requestMultiline=true, maxTokens=128, stopTokens=["\n\n"]
+```
+
+但实际 ghost text 仍是一行，并且紧接着的行尾空请求会把计数打回单行。
+
+根因有三个：
+
+1. `afterAcceptStrategy` 用服务端 `stopTokens=["\n\n"]` 控制停止，但非流式客户端没有使用 `finishedCb` 兜底截断。
+2. 对部分兼容 OpenAI 的模型/API，带 stop token 的补全更容易只返回一条完整语句。
+3. 模型在缩进空行上天然倾向只补下一行，即使 `requestMultiline=true`，也可能只返回单行。
+
+**修复**:
+- `afterAcceptStrategy` 改为 `stopTokens=[]`、`maxTokens=192`，让模型先尽量多生成。
+- `FullPostProcessor` 对非流式多行结果也应用 `finishedCb`，客户端负责截断到目标行数。
+- 服务端对 `requestMultiline=true` 的非流式请求加兜底：如果首轮只返回一行，就用“已接受第一行后的上下文”续写最多两次，并拼成一次多行结果。
+- 网络空结果不再清零 `consecutiveAcceptCount`；用户输入与 ghost text 不匹配时，Provider 显式发送 `Rejected`，这时才回到单行策略。
+
 ## 修复汇总
 
 | Bug | 文件 | 修改 |
 |-----|------|------|
 | Bug 1 | `postProcess/fullPostProcessor.ts` | `isRepetitive` 去掉行内子串检测 |
-| Bug 2 | `fullGhostTextController.ts` | 流式/非流式路径空结果重置 `consecutiveAcceptCount` |
+| Bug 2 | `fullGhostTextController.ts` | 网络空结果不作为拒绝；只由显式 `Rejected` 清零 |
 | Bug 3 | `fullGhostTextController.ts` | `processAndReturn` 不再重置 `consecutiveAcceptCount` |
 | Bug 4 | `fullGhostTextController.ts` | typing-as-suggested/cache/async 过滤后 fallthrough 到网络请求 |
 | Bug 5 | `server/ai-completion.ts` | AI 返回空结果时不更新 `lastCompletionTime` |
 | Bug 6 | `fullGhostTextController.ts` | 暂停不安全的投机请求，避免空语言/单行请求清零连续接受计数 |
+| Bug 7 | `strategyManager.ts` / `fullPostProcessor.ts` / `server/src/ai-completion.ts` | 放开 afterAccept stop token，客户端应用 `finishedCb`，服务端续写单行多行请求 |
 
 ## 关键教训
 
@@ -93,3 +118,4 @@
 - **空结果 ≠ 有效补全**: 服务端冷却期的 `lastCompletionTime` 应只在返回有效结果时更新，空结果不应触发冷却期。
 - **fallthrough 优于短路返回**: 缓存路径被过滤后应继续尝试网络请求，而不是直接返回空数组。
 - **投机请求不能复用有副作用的主链路**: speculative request 必须带真实上下文，且不能因为自己的空结果影响用户真实补全的连续接受计数。
+- **显式拒绝才清零连续接受**: 网络空结果、模型空结果、后处理过滤都不是用户拒绝；用户输入与 ghost text 不匹配时才应回到单行。

@@ -47,7 +47,7 @@ export class StrategyManager implements IStrategyManager {
             maxFileLines: 8000,
             lookAheadLarge: 7,
             lookAheadSmall: 3,
-            multilineAfterAcceptLines: 1,
+            multilineAfterAcceptLines: 3,
             consecutiveAcceptThreshold: 2,
             ...config,
         };
@@ -194,8 +194,8 @@ export class StrategyManager implements IStrategyManager {
         return {
             requestMultiline: true,
             blockMode: BlockMode.Parsing,
-            stopTokens: ['\n\n'],
-            maxTokens: 128,
+            stopTokens: [],
+            maxTokens: 192,
             finishedCb: takeNLines(multilineAfterAcceptLines),
         };
     }
@@ -207,8 +207,9 @@ export class StrategyManager implements IStrategyManager {
 export function takeNLines(n: number): FinishedCallback {
     return (text: string): number | undefined => {
         const lines = text.split('\n');
-        if (lines.length > n + 1) {
-            return lines.slice(0, n + 1).join('\n').length;
+        const limit = lines[0] === '' ? n + 1 : n;
+        if (lines.length > limit) {
+            return lines.slice(0, limit).join('\n').length;
         }
         return undefined;
     };
