@@ -26,6 +26,8 @@ const logger = getLogger('AICompletion');
 export class AICompletionClient implements IAICompletionClient {
     private abortController: AbortController | null = null;
     private modelSelector: IModelSelector;
+    /** 当前请求的 trailingWs，用于裁剪 AI 补全中的重复缩进 */
+    private currentTrailingWs: string = '';
 
     constructor(
         modelSelector?: IModelSelector,
@@ -42,6 +44,9 @@ export class AICompletionClient implements IAICompletionClient {
 
         const modelConfig = this.modelSelector.selectModel(context);
         const isStream = aiCompletionConfig.streamEnabled;
+
+        // 记录 trailingWs 供响应处理时裁剪补全文本
+        this.currentTrailingWs = prompt.trailingWs ?? '';
 
         logger.info(`Request: model=${modelConfig.modelId}, stream=${isStream}, lang=${context.languageId}, multiline=${strategy.requestMultiline}`);
 
@@ -104,7 +109,7 @@ export class AICompletionClient implements IAICompletionClient {
         logger.info(`Response: ${data.items.length} item(s), text=${(data.items[0]?.insertText || '').substring(0, 60).replace(/\n/g, '\\n')}...`);
 
         return data.items.slice(0, n).map((item: any, index: number): CompletionResult => ({
-            insertText: item.insertText,
+            insertText: this.trimLeadingTrailingWs(item.insertText),
             range: {
                 startLineNumber: context.position.lineNumber,
                 startColumn: context.position.column,
@@ -169,7 +174,7 @@ export class AICompletionClient implements IAICompletionClient {
         logger.info(`Stream response: ${fullText.length} chars, text=${fullText.substring(0, 60).replace(/\n/g, '\\n')}...`);
 
         return [{
-            insertText: fullText,
+            insertText: this.trimLeadingTrailingWs(fullText),
             range: {
                 startLineNumber: context.position.lineNumber,
                 startColumn: context.position.column,
@@ -185,5 +190,19 @@ export class AICompletionClient implements IAICompletionClient {
     cancelRequest(_requestId: string): void {
         this.abortController?.abort();
         this.abortController = null;
+    }
+
+    /**
+     * 裁剪补全文本中与 trailingWs 重复的前导空白
+     * trimLastLine 从 prefix 末尾剥离了空白（如编辑器自动缩进），
+     * AI 看不到这段空白便会自行补上，导致与编辑器已有的缩进重复。
+     * 此方法精确匹配：仅当补全文本以 trailingWs 开头时才去掉。
+     */
+    private trimLeadingTrailingWs(text: string): string {
+        const ws = this.currentTrailingWs;
+        if (ws && text.startsWith(ws)) {
+            return text.slice(ws.length);
+        }
+        return text;
     }
 }

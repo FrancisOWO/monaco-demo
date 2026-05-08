@@ -17,6 +17,19 @@ import type {
 } from '../types.js';
 import { getTemplatesForLanguage } from '../templates/index.js';
 
+/**
+ * 裁剪补全文本中与 trailingWs 重复的前导空白
+ * trimLastLine 从 prefix 末尾剥离了空白（如编辑器自动缩进），
+ * AI 看不到这段空白便会自行补上，导致与编辑器已有的缩进重复。
+ * 此方法精确匹配：仅当补全文本以 trailingWs 开头时才去掉。
+ */
+function trimLeadingTrailingWs(text: string, trailingWs?: string): string {
+    if (trailingWs && text.startsWith(trailingWs)) {
+        return text.slice(trailingWs.length);
+    }
+    return text;
+}
+
 /** 虚拟 LLM 客户端配置 */
 export interface MockAICompletionClientConfig {
     /** 延迟时间（ms），模拟网络延迟 */
@@ -63,7 +76,7 @@ export class MockAICompletionClient implements IAICompletionClient {
         const suggestions = this.generateSuggestions(prefix, context);
 
         return suggestions.map((text, index): CompletionResult => ({
-            insertText: text,
+            insertText: trimLeadingTrailingWs(text, prompt.trailingWs),
             range: {
                 startLineNumber: context.position.lineNumber,
                 startColumn: context.position.column,
