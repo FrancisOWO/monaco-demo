@@ -157,6 +157,7 @@ router.post('/', async (req, res) => {
         console.log(`[AI Completion] Sending AI request: model=${model}, baseUrl=${apiConfig.baseUrl}, fimFormat=${apiConfig.fimFormat || 'native'}`);
         const lastLine = body.prefix.split('\n').pop() || '';
         console.log(`[AI Completion] Prompt snippet: prefix=${body.prefix.substring(0, 60).replace(/\n/g, '\\n')}, lastLine=${lastLine.substring(0, 80)}`);
+        console.log(`[AI Completion] Strategy: requestMultiline=${body.strategy?.requestMultiline}, maxTokens=${body.strategy?.maxTokens}, stopTokens=${JSON.stringify(body.strategy?.stopTokens)}`);
 
         // 非流式
         if (!isStream) {
